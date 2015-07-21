@@ -441,12 +441,10 @@
 			mdss_dsi_active: active {
 				drive-strength = <8>; /* 8 mA */
 				bias-disable = <0>; /* no pull */
-				output-high;
 			};
 			mdss_dsi_suspend: suspend {
 				drive-strength = <2>; /* 2 mA */
 				bias-pull-down; /* pull down */
-				output-low;
 			};
 		};
 
@@ -1210,8 +1208,8 @@
 		};
 
 		gpio_led_pins {
-			qcom,pins = <&gp 8>, <&gp 9>, <&gp 10>;
-			qcom,num-grp-pins = <3>;
+			qcom,pins = <&gp 8>, <&gp 9>;
+			qcom,num-grp-pins = <2>;
 			label = "gpio-led-pins";
 			gpio_led_off: led_off {
 				drive-strength = <2>;
@@ -1354,12 +1352,14 @@
 			/* active state */
 			cam_sensor_mclk0_default: default {
 				drive-strength = <4>; /* 4 MA */
-				bias-disable = <0>; /* No PULL */
+				bias-pull-down; /* PULL DOWN */
+				output-low;
 			};
 			/*suspended state */
 			cam_sensor_mclk0_sleep: sleep {
 				drive-strength = <2>; /* 2 MA */
 				bias-pull-down; /* PULL DOWN */
+				output-low;
 			};
 		};
 
@@ -1372,12 +1372,14 @@
 			/* active state */
 			cam_sensor_mclk1_default: default {
 				drive-strength = <4>; /* 4 MA */
-				bias-disable = <0>; /* No PULL */
+				bias-pull-down; /* PULL DOWN */
+				output-low;
 			};
 			/*suspended state */
 			cam_sensor_mclk1_sleep: sleep {
 				drive-strength = <2>; /* 2 MA */
 				bias-pull-down; /* PULL DOWN */
+				output-low;
 			};
 		};
 
@@ -1391,11 +1393,13 @@
 			cam_sensor_eeprom_default: default {
 				drive-strength = <4>; /* 4 MA */
 				bias-disable = <0>; /* No PULL */
+				input-low;
 			};
 			/*suspended state */
 			cam_sensor_eeprom_sleep: sleep {
 				drive-strength = <4>; /* 4 MA */
-				bias-pull-down; /* PULL DOWN */
+				bias-disable = <0>; /* No PULL */
+				input-low;
 			};
 		};
 
@@ -1413,7 +1417,7 @@
 			/*suspended state */
 			cam_sensor_eeprom_sleep2: sleep {
 				drive-strength = <4>; /* 4 MA */
-				bias-pull-down; /* PULL DOWN */
+				bias-disable = <0>; /* No PULL */
 			};
 		};
 
@@ -1496,15 +1500,15 @@
 
 			cam_flash_active: default {
 				drive-strength = <2>;	/* 2 MA */
-				bias-disable = <0>;	/* No PULL */
+				bias-pull-down; /* PULL DOWN */
+				output-low;
 			};
 
 			cam_flash_sleep: sleep {
 				drive-strength = <2>;	/* 2 MA */
-				bias-pull-down;
+				bias-pull-down; /* PULL DOWN */
 				output-low;
 			};
-
 		};
 
 		pmx_i2c_4 {

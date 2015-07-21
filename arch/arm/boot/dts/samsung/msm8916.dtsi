@@ -1781,7 +1781,7 @@
 		qcom,pre-div-channel-scaling = <0>;
 		qcom,calibration-type = "ratiometric";
 		qcom,scale-function = <1>;
-		qcom,hw-settle-time = <2>;
+		qcom,hw-settle-time = <15>;
 		qcom,fast-avg-setup = <0>;
 	};
 

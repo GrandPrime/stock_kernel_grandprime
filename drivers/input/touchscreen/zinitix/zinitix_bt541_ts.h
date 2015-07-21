@@ -25,7 +25,7 @@
 
 #if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
 #include "a3c_fw.h"
-#define CONFIG_DATE "0812"
+#define CONFIG_DATE "0901"
 #define TSP_TYPE_COUNT	1
 
 #define GLOVE_MODE

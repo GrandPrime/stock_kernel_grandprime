@@ -22,7 +22,6 @@
 
 		/*i2c-gpio bus_id*/
 		i2c7 = &i2c_7;
-		i2c8 = &i2c_8;
 		i2c9 = &i2c_9;
 		i2c10 = &i2c_10;
 		i2c11 = &i2c_11;
@@ -49,7 +48,6 @@
 		compatible = "qcom,i2c-msm-v2";
 		qcom,scl-gpio = <&msm_gpio 19 0>;
 		qcom,sda-gpio = <&msm_gpio 18 0>;
-		qcom,i2c-bus-freq = <400000>;
 
 		bt532_ts_device@20 {
 			compatible = "zinitix,bt541_ts_device";
@@ -169,20 +167,23 @@
 				/* regulator-ramp-delay = <100>; optional*/
 			};
 
-            rt5033_fled {
-                compatible = "richtek,rt5033-fled";
-                enable = <1 1>;
-                mid_track_alive = <0>;
-                mid_auto_track_en = <0>;
-                timeout_current_level = <50>;
-                strobe_current = <500>;
-                strobe_timeout = <544>;
-                torch_current = <38>;
-                lv_protection = <3000>;
-                mid_level = <4400>;
-                rt5033,led1-gpio = <&msm_gpio 34 0x00>;
-                rt5033,led2-gpio = <&msm_gpio 36 0x00>;
-            };
+			rt5033_fled {
+				compatible = "richtek,rt5033-fled";
+				enable = <1 1>;
+				mid_track_alive = <0>;
+				mid_auto_track_en = <0>;
+				timeout_current_level = <50>;
+				strobe_current = <500>;
+				strobe_timeout = <544>;
+				torch_current = <63>;
+				lv_protection = <3000>;
+				mid_level = <4400>;
+				rt5033,led1-gpio = <&msm_gpio 34 0x00>;
+				rt5033,led2-gpio = <&msm_gpio 36 0x00>;
+				pinctrl-names = "fled_default","fled_sleep";
+				pinctrl-0 = <&cam_flash_active>;
+				pinctrl-1 = <&cam_flash_sleep>;
+			};
 		};
 	};
 
@@ -225,32 +226,6 @@
 	sec_thermistor {
 		compatible = "sec,thermistor";
 		qcom,therm-vadc = <&pm8916_vadc>;
-	};
-
-	i2c_8: i2c@8 {
-		cell-index = <8>;
-		compatible = "i2c-gpio";
-		i2c-gpio-scl = <&msm_gpio 1 0x00>;
-		i2c-gpio-sda = <&msm_gpio 0 0x00>;
-		i2c-gpio,delay-us = <2>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-		sec-nfc@27 {
-			compatible = "sec-nfc";
-			reg = <0x27>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <21 0>;
-			pinctrl-names = "nfc_active","nfc_suspend";
-			pinctrl-0 = <&nfc_int_active &nfc_enable_active &nfc_firmware_active &nfc_i2c_active>;
-			pinctrl-1 = <&nfc_int_suspend &nfc_enable_suspend &nfc_firmware_suspend &nfc_i2c_suspend>;
-			vdd_nfc-supply = <&pm8916_l6>;
-			sec-nfc,firm-gpio = <&msm_gpio 49 0x01>;
-			sec-nfc,ven-gpio = <&msm_gpio 20 0x01>;
-			sec-nfc,irq-gpio = <&msm_gpio 21 0x00>;
-			clocks = <&clock_rpm clk_bb_clk2_pin>;
-			clock-names = "nfc_clock";
-			nfc_ldo-supply = <&pm8916_l14>;
-		};
 	};
 
 	i2c@78b6000 { /* BLSP1 QUP2 */
@@ -620,6 +595,7 @@
 	pinctrl-1 = <&mdss_dsi_suspend &lcd_esd_det_suspend>;
 	qcom,platform-enable-gpio = <&msm_gpio 9 0>;
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
+	qcom,esd-irq-gpio = <&msm_gpio 56 0>;
 };
 
 &qcom_tzlog {

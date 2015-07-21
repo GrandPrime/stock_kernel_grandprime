@@ -51,8 +51,7 @@ struct msm_sensor_fn_t {
 #if defined(CONFIG_MSM_OTP)
 	int (*sensor_read_otp) (struct msm_sensor_ctrl_t *);
 #endif
-#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_CTC) ||  defined(CONFIG_MACH_ROSSA_SPR) ||  defined(CONFIG_MACH_ROSSA_TFN)\
-	|| defined(CONFIG_MACH_HEAT_EUR) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_MACH_ROSSA_AUS)
+#if   defined(CONFIG_MACH_HEAT_EUR) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_SEC_ROSSA_PROJECT)
 	int (*sensor_native_control) (struct msm_sensor_ctrl_t *, void __user *);
 #endif
 };

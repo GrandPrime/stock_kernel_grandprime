@@ -163,7 +163,7 @@
 				mid_level = <4400>;
 				rt5033,led1-gpio = <&msm_gpio 34 0x00>;
 				rt5033,led2-gpio = <&msm_gpio 36 0x00>;
-				pinctrl-names = "fled_defualt","fled_sleep";
+				pinctrl-names = "fled_default","fled_sleep";
 				pinctrl-0 = <&cam_flash_active>;
 				pinctrl-1 = <&cam_flash_sleep>;
 			};
@@ -331,7 +331,7 @@
 			sm5504,gpio-sda = <&msm_gpio 2 0x00>;
 			sm5504,gpio-scl = <&msm_gpio 3 0x00>;
 			sm5504,uarton-gpio = <&msm_gpio 114 0x00>;
-			pinctrl-names = "sm5502_i2c_active","sm5502_i2c_suspend";
+			pinctrl-names = "sm5504_i2c_active","sm5504_i2c_suspend";
 			pinctrl-0 = <&muic_i2c_active &muic_int_pin>;
 			pinctrl-1 = <&muic_i2c_suspend &muic_int_pin>;
 		};

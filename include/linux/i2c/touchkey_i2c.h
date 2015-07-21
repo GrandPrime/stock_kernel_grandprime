@@ -103,6 +103,11 @@ extern int poweroff_charging;
 #define	TKEY_GLOVE_DWORK_TIME	300
 #endif
 
+#define CHECK_TKEY_IC_STATUS
+#ifdef CHECK_TKEY_IC_STATUS
+#define TKEY_CHECK_STATUS_TIME		3000
+#endif
+
 /* Flip cover*/
 #undef TKEY_FLIP_MODE
 /* 1MM stylus */
@@ -226,6 +231,7 @@ struct cypress_touchkey_info {
 	bool is_powering_on;
 	bool enabled;
 	bool done_ta_setting;
+	bool irq_enable;
 
 #ifdef TKEY_FLIP_MODE
 	bool enabled_flip;
@@ -263,6 +269,10 @@ struct cypress_touchkey_info {
 #ifdef CRC_CHECK_INTERNAL
 	int crc;
 	int fw_crc;
+#endif
+#ifdef CHECK_TKEY_IC_STATUS
+	struct delayed_work status_work;
+	int status_count;
 #endif
 };
 

@@ -76,7 +76,7 @@
 		battery,recharge_check_count = <5>;
 		battery,recharge_condition_type = <4>; /* SEC_BATTERY_RECHARGE_CONDITION_VCELL */
 		battery,recharge_condition_soc = <98>;
-		battery,recharge_condition_vcell = <4350>;
+		battery,recharge_condition_vcell = <4345>;
 
 		battery,charging_total_time = <21600>;
 		battery,recharging_total_time = <5400>;
@@ -96,7 +96,7 @@
 			battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
 
 			battery,input_current_limit = <1000 500 500 1000 500 1000 1000 500 500 1000 1000 1000 1000 500 1000 300 1000 1000 500 1000 1000 500 500>;
-			battery,fast_charging_current = <1400 0 900 1400 900 1400 1400 900 0 1400 1400 1400 1400 (-1) 1400 300 1400 1400 900 1400 1400 0 0>;
+			battery,fast_charging_current = <1700 0 900 1700 900 1700 1700 900 0 1700 1700 1700 1700 (-1) 1700 300 1700 1700 900 1700 1700 0 0>;
 			battery,full_check_current_1st = <150 0 150 150 150 150 150 150 0 150 150 150 150 0 150 150 150 150 150 150 150 0 0>;
 			battery,full_check_current_2nd = <2400 0 2400 2400 2400 2400 2400 2400 0 2400 2400 2400 2400 0 2400 2400 2400 2400 2400 2400 2400 0 0>;
 		};

@@ -177,7 +177,7 @@
 				mid_level = <4400>;
 				rt5033,led1-gpio = <&msm_gpio 34 0x00>;
 				rt5033,led2-gpio = <&msm_gpio 36 0x00>;
-				pinctrl-names = "fled_defualt","fled_sleep";
+				pinctrl-names = "fled_default","fled_sleep";
 				pinctrl-0 = <&cam_flash_active>;
 				pinctrl-1 = <&cam_flash_sleep>;
 			};
@@ -526,6 +526,14 @@
 &pmx_pwm_bl {
                  qcom,num-grp-pins = <1>;
                  qcom,pins = <&gp 50>;
+};
+
+&dsi_himax_tft_qhd_video {
+	qcom,mdss-dsi-h-front-porch = <20>;
+	qcom,mdss-dsi-h-back-porch = <20>;
+	qcom,mdss-dsi-h-pulse-width = <18>;
+	qcom,mdss-dsi-panel-timings = [83 1A 10 00 3E 40 16 1E 15 03 04 00];
+	qcom,mdss-dsi-t-clk-pre = <0x1B>;
 };
 
 &mdss_dsi0 {

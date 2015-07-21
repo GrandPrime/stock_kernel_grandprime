@@ -192,6 +192,9 @@
                 mid_level = <4400>;
                 rt5033,led1-gpio = <&msm_gpio 34 0x00>;
                 rt5033,led2-gpio = <&msm_gpio 36 0x00>;
+                pinctrl-names = "fled_default","fled_sleep";
+                pinctrl-0 = <&cam_flash_active>;
+                pinctrl-1 = <&cam_flash_sleep>;
             };
 		};
 	};
@@ -425,11 +428,11 @@
 		qcom,earjack-sendend-gpio = <&msm_gpio 111 0x0>;
 		qcom,earjack-read-vadc = <&pm8916_vadc>;
 
-		det-zones-list = <&det_zones 1 10000 10 0>,
+		det-zones-list = <&det_zones 3 10000 10 0>,
 				 <&det_zones 975 10000 10 0>,
 				 <&det_zones 976 10000 10 1>,
 				 <&det_zones 9999 10000 10 1>;
-		but-zones-list = <&but_zones 0 1 325>,
+		but-zones-list = <&but_zones 0 0 325>,
 				 <&but_zones 1 326 463>,
 				 <&but_zones 2 464 975>;
 		mpp-channel-scaling = <2 1 1>;

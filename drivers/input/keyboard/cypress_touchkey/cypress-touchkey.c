@@ -49,13 +49,10 @@ static int tkey_load_fw(struct cypress_touchkey_info *info, u8 fw_path);
 static int tkey_unload_fw(struct cypress_touchkey_info *info, u8 fw_path);
 #endif
 
+static void cypress_touchkey_reset(struct cypress_touchkey_info *info);
 
 static int touchkey_led_status;
 static int touchled_cmd_reversed;
-
-// jh32.park
-//extern int boot_mode_recovery;
-//extern int get_lcd_attached(void);
 
 static int cypress_touchkey_i2c_read(struct i2c_client *client,
 		u8 reg, u8 *val, unsigned int len)
@@ -179,6 +176,58 @@ static int cypress_power_onoff(struct device *dev, bool onoff)
 	}
 
 	return 1;
+}
+
+static void cypress_touchkey_reset(struct cypress_touchkey_info *info)
+{
+	int ret;
+
+	dev_info(&info->client->dev, "%s\n", __func__);
+
+	input_report_key(info->input_dev, info->keycode[0], 0);
+	input_report_key(info->input_dev, info->keycode[1], 0);
+	input_sync(info->input_dev);
+
+#ifdef TKEY_BOOSTER
+	if (info->tkey_booster->dvfs_set)
+		info->tkey_booster->dvfs_set(info->tkey_booster, 2);
+	dev_info(&info->client->dev,
+			"%s: dvfs_lock free.\n", __func__);
+#endif
+	info->is_powering_on = true;
+	if (info->irq_enable) {
+		info->irq_enable = false;
+		disable_irq(info->client->irq);
+	}
+	info->enabled = false;
+	cypress_power_onoff(&info->client->dev, 0);
+
+	msleep(30);
+
+	cypress_power_onoff(&info->client->dev, 1);
+	msleep(200);
+
+	info->enabled = true;
+
+	if (touchled_cmd_reversed) {
+		touchled_cmd_reversed = 0;
+		ret = i2c_smbus_write_byte_data(info->client,
+				CYPRESS_GEN, touchkey_led_status);
+		if (ret < 0) {
+			dev_err(&info->client->dev,
+					"%s: i2c write error [%d]\n", __func__, ret);
+		}
+		dev_info(&info->client->dev,
+				"%s: LED returned on\n", __func__);
+		msleep(30);
+	}
+
+	if (!info->irq_enable) {
+		enable_irq(info->client->irq);
+		info->irq_enable = true;
+	}
+
+	info->is_powering_on = false;
 }
 
 #ifdef CONFIG_GLOVE_TOUCH
@@ -534,8 +583,14 @@ static void tkey_fw_update_work(struct work_struct *work)
 	retry = NUM_OF_RETRY_UPDATE;
 
 
-	disable_irq(info->client->irq);
+	if (info->irq_enable) {
+		info->irq_enable = false;
+		disable_irq(info->client->irq);
+	}
 	wake_lock(&info->fw_wakelock);
+#ifdef CHECK_TKEY_IC_STATUS
+	cancel_delayed_work(&info->status_work);
+#endif
 
 	while (retry--) {
 		if(cy8cmbr_swd_program(&info->client->dev,
@@ -568,9 +623,16 @@ static void tkey_fw_update_work(struct work_struct *work)
 	tkey_i2c_check(info);
 
  end_fw_update:
-	enable_irq(info->client->irq);
- 	wake_unlock(&info->fw_wakelock);
+	if (!info->irq_enable) {
+		enable_irq(info->client->irq);
+		info->irq_enable = true;
+	}
+	wake_unlock(&info->fw_wakelock);
 
+#ifdef CHECK_TKEY_IC_STATUS
+	schedule_delayed_work(&info->status_work,
+		msecs_to_jiffies(TKEY_CHECK_STATUS_TIME));
+#endif
 
 }
 #endif
@@ -582,8 +644,15 @@ static int tkey_fw_update(struct cypress_touchkey_info *info, bool force)
 	int ret = 0;
 
 	dev_info(&client->dev, "%s : touchkey_update Start!!\n", __func__);
-	disable_irq(client->irq);
+
+	if (info->irq_enable) {
+		info->irq_enable = false;
+		disable_irq(info->client->irq);
+	}
 	wake_lock(&info->fw_wakelock);
+#ifdef CHECK_TKEY_IC_STATUS
+	cancel_delayed_work(&info->status_work);
+#endif
 
 	if (force == true)
 		retry = 2;
@@ -625,7 +694,15 @@ static int tkey_fw_update(struct cypress_touchkey_info *info, bool force)
 
  end_fw_update:
 	wake_unlock(&info->fw_wakelock);
-	enable_irq(client->irq);
+	if (!info->irq_enable) {
+		enable_irq(info->client->irq);
+		info->irq_enable = true;
+	}
+
+#ifdef CHECK_TKEY_IC_STATUS
+	schedule_delayed_work(&info->status_work,
+		msecs_to_jiffies(TKEY_CHECK_STATUS_TIME));
+#endif
 
 	return ret;
 }
@@ -1668,6 +1745,50 @@ static void cypress_request_gpio(struct cypress_touchkey_platform_data *pdata)
 	}
 }
 
+#ifdef CHECK_TKEY_IC_STATUS
+static void cypress_touchkey_check_status(struct work_struct *work)
+{
+	struct cypress_touchkey_info *info =
+		container_of(work, struct cypress_touchkey_info, status_work.work);
+	int ret;
+
+	if (!info->enabled) {
+		dev_err(&info->client->dev, "%s: disabled\n", __func__);
+		info->status_count = 0;
+		return;
+	}
+
+	if (wake_lock_active(&info->fw_wakelock)) {
+		dev_info(&info->client->dev, "%s: wackelock active\n", __func__);
+		return ;
+	}
+
+	cancel_delayed_work(&info->status_work);
+
+	ret = i2c_smbus_read_byte_data(info->client, CYPRESS_FW_VER);
+	if (ret < 0) {
+		dev_err(&info->client->dev, "%s: read error, ret: %d\n", __func__, ret);
+		info->status_count++;
+		goto check_reset;
+	} else {
+		info->status_count = 0;
+	}
+
+check_reset:
+	if (info->status_count >= 2) {
+		dev_err(&info->client->dev, "%s: reset count: %d\n", __func__, info->status_count);
+
+		cypress_touchkey_reset(info);
+
+		info->status_count = 0;
+	}
+
+	schedule_delayed_work(&info->status_work,
+		msecs_to_jiffies(TKEY_CHECK_STATUS_TIME));
+
+	return;
+}
+#endif
 
 #ifdef CONFIG_OF
 static int cypress_get_keycodes(struct device *dev, char *name,
@@ -1749,15 +1870,6 @@ static int cypress_touchkey_probe(struct i2c_client *client,
 
 	printk(KERN_ERR "%s: start!\n", __func__);
 
-/*	if(boot_mode_recovery){
-		dev_err(&client->dev, "%s: recovery mode\n", __func__);
-		return -EIO;
-	}
-
-	if(!get_lcd_attached()){
-		dev_err(&client->dev, "%s: LCD is not attached\n",__func__);
-		return -EIO;
-	}*///jh32.park
 	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
 		return -EIO;
 
@@ -1867,6 +1979,11 @@ static int cypress_touchkey_probe(struct i2c_client *client,
 				client->irq, ret);
 		goto err_req_irq;
 	}
+	info->irq_enable = true;
+
+#ifdef CHECK_TKEY_IC_STATUS
+	INIT_DELAYED_WORK(&info->status_work, cypress_touchkey_check_status);
+#endif
 
 #ifdef CONFIG_GLOVE_TOUCH
 	mutex_init(&info->tkey_glove_lock);
@@ -1918,6 +2035,11 @@ static int cypress_touchkey_probe(struct i2c_client *client,
 	}
 
 	info->is_powering_on = false;
+
+#ifdef CHECK_TKEY_IC_STATUS
+	schedule_delayed_work(&info->status_work,
+		msecs_to_jiffies(TKEY_CHECK_STATUS_TIME));
+#endif
 
 	dev_info(&info->client->dev, "%s: done\n", __func__);
 	return 0;
@@ -1975,6 +2097,11 @@ static void cypress_input_close(struct input_dev *dev)
 	struct cypress_touchkey_info *info = input_get_drvdata(dev);
 
 	dev_info(&info->client->dev, "%s\n",__func__);
+
+#ifdef CHECK_TKEY_IC_STATUS
+	cancel_delayed_work(&info->status_work);
+#endif
+
 	if (wake_lock_active(&info->fw_wakelock))
 		dev_err(&info->client->dev, "wackelock active(%s)\n",
 					__func__);
@@ -1990,7 +2117,10 @@ static void cypress_input_close(struct input_dev *dev)
 			"%s: dvfs_lock free.\n", __func__);
 #endif
 	info->is_powering_on = true;
-	disable_irq(info->irq);
+	if (info->irq_enable) {
+		info->irq_enable = false;
+		disable_irq(info->client->irq);
+	}
 	info->enabled = false;
 	cypress_power_onoff(&info->client->dev, 0);
 	cypress_pinctrl_select(info, 0);
@@ -2034,9 +2164,18 @@ static int cypress_input_open(struct input_dev *dev)
 		msleep(30);
 	}
 out:
-	enable_irq(info->irq);
+	if (!info->irq_enable) {
+		enable_irq(info->client->irq);
+		info->irq_enable = true;
+	}
 
 	info->is_powering_on = false;
+#ifdef CHECK_TKEY_IC_STATUS
+	info->status_count = 0;
+
+	schedule_delayed_work(&info->status_work,
+		msecs_to_jiffies(TKEY_CHECK_STATUS_TIME));
+#endif
 	return ret;
 }
 #endif
