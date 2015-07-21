@@ -142,8 +142,8 @@
 			rt5033_ldo1 {
 				compatible = "richtek,rt5033-ldo1";
 				regulator-name = "CAM_SENSOR_A2.8V"; /* change name by yourself */
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>; /* max == min then apply_uV = 1 */
+				regulator-min-microvolt = <2700000>;
+				regulator-max-microvolt = <2700000>; /* max == min then apply_uV = 1 */
 				/* regulator-microvolt-offset = < >; optional*/
 				/* regulator-boot-on = "yes"; optional, exist = enabled */
 				/* regulator-always-on = "yes"; optional, exist = enabled */
@@ -155,8 +155,8 @@
 			rt5033_buck1 {
 				compatible = "richtek,rt5033-dcdc1";
 				regulator-name = "CAM_SENSOR_CORE_1.2V"; /* change name by yourself */
-				regulator-min-microvolt = <1200000>;
-				regulator-max-microvolt = <1200000>; /* max == min then apply_uV = 1 */
+				regulator-min-microvolt = <1100000>;
+				regulator-max-microvolt = <1100000>; /* max == min then apply_uV = 1 */
 				/* regulator-microvolt-offset = < >; optional*/
 				/* regulator-boot-on = "yes"; optional, exist = enabled */
 				/* regulator-always-on = "yes"; optional, exist = enabled */
@@ -386,9 +386,9 @@
 						 <&det_zones 975 10000 10 0>,
 						 <&det_zones 976 10000 10 1>,
 						 <&det_zones 1810 10000 10 1>;
-		but-zones-list = <&but_zones 0 0 330>,
-						 <&but_zones 1 331 470>,
-						 <&but_zones 2 471 999>;
+		but-zones-list = <&but_zones 0 0 325>,
+						 <&but_zones 1 326 457>,
+						 <&but_zones 2 458 999>;
 		mpp-channel-scaling = <2 1 1>;
 		pinctrl-names = "earjack_gpio_active","earjack_gpio_suspend";
 		pinctrl-0 = <&earjack_det_act &earjack_switch_act>;
@@ -519,8 +519,8 @@
 };
 
 &pmx_mdss {
-                 qcom,num-grp-pins = <3>;
-                 qcom,pins = <&gp 102>, <&gp 25>, <&gp 98>;
+                 qcom,num-grp-pins = <2>;
+                 qcom,pins = <&gp 102>, <&gp 25>;
 };
 
 &pmx_pwm_bl {
@@ -528,19 +528,53 @@
                  qcom,pins = <&gp 50>;
 };
 
+&pmx_bl_ctrl {
+                 qcom,num-grp-pins = <1>;
+                 qcom,pins = <&gp 98>;
+};
+
 &dsi_himax_tft_qhd_video {
 	qcom,mdss-dsi-h-front-porch = <20>;
 	qcom,mdss-dsi-h-back-porch = <20>;
 	qcom,mdss-dsi-h-pulse-width = <18>;
-	qcom,mdss-dsi-panel-timings = [83 1A 10 00 3E 40 16 1E 15 03 04 00];
-	qcom,mdss-dsi-t-clk-pre = <0x1B>;
+	qcom,mdss-dsi-panel-timings = [7B 1A 10 00 3E 40 16 1E 15 03 04 00];
+	qcom,mdss-dsi-t-clk-pre = <0x1A>;
+	qcom,mdss-dsi-on-command = [39 01 00 00 0A 00 04 B9 FF 83 89
+				39 01 00 00 00 00 15 B1 7F 10 10 D2 32 80 10 F0 56 80 20 20 F8 AA AA A1 00 80 30 00
+				39 01 00 00 00 00 0B B2 82 50 05 07 F0 38 11 64 5D 09
+				39 01 00 00 00 00 0C B4 66 66 66 70 00 00 18 76 28 76 A8
+				39 01 00 00 00 00 02 D2 33
+				39 01 00 00 00 00 05 C0 30 17 00 03
+				39 01 00 00 00 00 05 C7 00 80 00 C0
+				39 01 00 00 0A 00 05 BF 05 50 00 3E
+				39 01 00 00 00 00 04 B9 FF 83 89
+				39 01 00 00 00 00 02 CC 0E
+				39 01 00 00 00 00 24 D3 00 00 00 00 00 08 00 32 10 00 00 00 03 C6 03 C6 00 00 00 00 35 33 04 04 37 00 00 00 05 08 00 00 0A 00 01
+				39 01 00 00 00 00 27 D5 18 18 18 18 19 19 18 18 20 21 24 25 18 18 18 18 00 01 04 05 02 03 06 07 18 18 18 18 18 18 18 18 18 18 18 18 18 18
+				39 01 00 00 00 00 27 D6 18 18 18 18 18 18 19 19 25 24 21 20 18 18 18 18 07 06 03 02 05 04 01 00 18 18 18 18 18 18 18 18 18 18 18 18 18 18
+				39 01 00 00 00 00 04 B7 20 80 00
+				39 01 00 00 00 00 2B E0 00 02 06 38 3C 3F 1B 46 06 09 0C 17 10 13 16 13 14 08 13 15 19 00 02 06 37 3C 3F 1A 45 05 09 0B 16 0F 13 15 13 14 07 12 14 18
+				39 01 00 00 00 00 02 BD 00
+				39 01 00 00 00 00 2C C1 01 00 0B 12 19 21 28 31 3A 42 49 50 58 60 68 70 78 80 88 8F 97 9E A6 AD B5 BC C4 CC D4 DC E4 EC F3 F8 00 00 00 00 00 00 00 00 00
+				39 01 00 00 00 00 02 BD 01
+				39 01 00 00 00 00 2B C1 00 06 0E 17 1F 26 2F 37 40 47 4E 56 5E 66 6E 75 7D 85 8C 94 9C A3 AA B1 B8 BF C8 D0 D7 DF E6 ED F4 00 00 00 00 00 00 00 00 00
+				39 01 00 00 00 00 02 BD 02
+				39 01 00 00 00 00 2B C1 00 09 12 1B 23 2A 34 3D 45 4D 54 5D 65 6D 76 7E 86 8E 96 9E A5 AE B5 BC C4 CC D4 DC E4 EB F2 F9 FF 00 00 00 00 00 00 00 00 00
+				/*CABC Begin*/
+				39 01 00 00 05 00 0E C9 1F 00 0F 1E 81 1E 00 00 01 19 00 00 20  /* CABC PWM output to 25Khz*/
+				39 01 00 00 05 00 02 55 00			/*Turn off CABC*/
+				39 01 00 00 05 00 02 53 24 /*Enable Backlight Control */
+				/* CABC end*/
+				05 01 00 00 7D 00 02 11 00
+				05 01 00 00 05 00 02 29 00
+					];
 };
 
 &mdss_dsi0 {
 	qcom,dsi-pref-prim-pan = <&dsi_himax_tft_qhd_video>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &lcd_esd_det_active &pmx_pwm_bl_active>;
-	pinctrl-1 = <&mdss_dsi_suspend &lcd_esd_det_suspend &pmx_pwm_bl_suspend>;
+	pinctrl-1 = <&mdss_dsi_suspend &lcd_esd_det_suspend &pmx_pwm_bl_suspend &pmx_bl_ctrl_suspend>;
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
 	qcom,platform-bklight-en-gpio = <&msm_gpio 98 0>;
 	qcom,platform-enable-gpio = <&msm_gpio 102 0>;

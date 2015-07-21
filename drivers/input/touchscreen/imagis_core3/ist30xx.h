@@ -22,6 +22,7 @@
  * Release : 2014.06.13 by Sanghoon Kwak
  */
 #include "ist30xx_sec.h"
+#include <linux/input/tsp_ta_callback.h>
 
 #define IMAGIS_IST30XX          (1)
 #define IMAGIS_IST30XXB         (2)
@@ -49,6 +50,7 @@
 #define IST30XX_USE_KEY         (1)
 #define IST30XX_DEBUG           (1)
 #define IST30XX_CMCS_TEST       (1)
+#define IST30XX_CHECK_BATT_TEMP (1)
 
 #define SEC_FACTORY_MODE        (1)
 
@@ -125,9 +127,16 @@
 #define tsp_verb(fmt, ...)  tsp_printk(DEV_VERB, fmt, ## __VA_ARGS__)
 
 #if defined(CONFIG_SEC_DVFS) || defined (CONFIG_CPU_FREQ_LIMIT_USERSPACE)
-#define TOUCH_BOOSTER           (1)
-#define TOUCH_BOOSTER_OFF_TIME  100
-#define TOUCH_BOOSTER_CHG_TIME  200
+#define TOUCH_BOOSTER
+#endif
+
+#if defined(TOUCH_BOOSTER)
+#define DVFS_STAGE_TRIPLE          3
+#define DVFS_STAGE_DUAL		2
+#define DVFS_STAGE_SINGLE		1
+#define DVFS_STAGE_NONE		0
+#define TOUCH_BOOSTER_OFF_TIME	300
+#define TOUCH_BOOSTER_CHG_TIME	200
 #endif
 
 enum ist30xx_commands {
@@ -181,7 +190,7 @@ enum ist30xx_commands {
 };
 
 #define CMD_FW_UPDATE_MAGIC     (0x85FDAE8A)
-
+#define BATTERY_TEMP_MAGIC      (0x7E000039)
 
 typedef struct _ALGR_INFO {
 	u32	scan_status;
@@ -288,8 +297,13 @@ struct ist30xx_data {
 #endif
 #if defined(TOUCH_BOOSTER)
 	struct delayed_work	work_dvfs_off;
+	struct delayed_work	work_dvfs_chg;
 	struct mutex		dvfs_lock;
 	bool			dvfs_lock_status;
+	int dvfs_boost_mode;
+	int dvfs_freq;
+	int dvfs_old_status;
+	bool stay_awake;	
 #endif
 	u32			chip_id;
 	u32			tsp_type;
@@ -302,6 +316,10 @@ struct ist30xx_data {
 	finger_info		fingers[IST30XX_MAX_MT_FINGERS];
 	bool			i2cPower_flag;
 	int			irq_cnt;
+#ifdef USE_TSP_TA_CALLBACKS
+	struct tsp_callbacks callbacks;
+	void (*register_cb)(struct tsp_callbacks *);
+#endif
 };
 
 

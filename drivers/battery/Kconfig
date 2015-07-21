@@ -21,7 +21,12 @@ config CHARGING_VZWCONCEPT
 	help
 	 Say Y to include support for the VZW concepts.
 
-# Fuel Gauge
+config BATTERY_SWELLING
+	bool "prevent battery swelling"
+	help
+	 Say Y to include support for prevent battery swelling
+
+#Fuel Gauge
 config FUELGAUGE_RT5033
 	tristate "RT5033 fuel gauge driver"
 	depends on BATTERY_SAMSUNG

@@ -99,7 +99,8 @@ static int bcd_scan = 0;		// L Cable check
 #define DEV_T1_USB_MASK		(DEV_USB_OTG | DEV_USB_CHG | DEV_USB)
 #define DEV_T1_UART_MASK	(DEV_UART)
 #define DEV_T1_CHARGER_MASK	(DEV_DEDICATED_CHG | DEV_CAR_KIT)
-#define MANSW1_OPEN_RUSTPROOF	((0x0 << 5)| (0x3 << 2) |(1 << 0))
+/* MANSW1 register (bit 1:0) is only set to "00" in SM5504 */
+#define MANSW1_OPEN_RUSTPROOF	((0x0 << 5)| (0x3 << 2))
 
 /* Charger Type Register */
 #define CHG_SDP_TIMEOUT			(1 << 3)

@@ -13,8 +13,8 @@
 #include "msm8916.dtsi"
 #include "msm8916-pinctrl-sec-o1-r00.dtsi"
 #include "msm8916-camera.dtsi"
-#include "msm8916-camera-sensor-cdp-r02.dtsi"
-#include "msm8916-sec-fortuna-battery-r01.dtsi"
+#include "msm8916-camera-sensor-cdp-o1-r01.dtsi"
+#include "msm8916-sec-o1-battery-r00.dtsi"
 
 / {
 	aliases {
@@ -59,7 +59,7 @@
 			imagis,sda-gpio = <&msm_gpio 18 0x00>;
 			imagis,scl-gpio = <&msm_gpio 19 0x00>;
 			imagis,i2c-pull-up = <1>;
-			keyled_en-gpio = <&msm_gpio 75 0x01>;
+			keyled_en-gpio = <&msm_gpio 60 0x01>;
 		};
 	};
 
@@ -147,8 +147,8 @@
 			rt5033_buck1 {
 				compatible = "richtek,rt5033-dcdc1";
 				regulator-name = "CAM_SENSOR_CORE_1.2V"; /* change name by yourself */
-				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt = <1100000>; /* max == min then apply_uV = 1 */
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>; /* max == min then apply_uV = 1 */
 				/* regulator-microvolt-offset = < >; optional*/
 				/* regulator-boot-on = "yes"; optional, exist = enabled */
 				/* regulator-always-on = "yes"; optional, exist = enabled */
@@ -162,7 +162,7 @@
 				mid_track_alive = <0>;
 				mid_auto_track_en = <0>;
 				timeout_current_level = <50>;
-				strobe_current = <500>;
+				strobe_current = <600>;
 				strobe_timeout = <544>;
 				torch_current = <63>;
 				lv_protection = <3000>;
@@ -235,66 +235,38 @@
 			stm,axis_map_x = <0>;
 			stm,axis_map_y = <1>;
 			stm,axis_map_z = <2>;
-			stm,axis_map2_x = <0>;
-			stm,axis_map2_y = <1>;
-			stm,axis_map2_z = <2>;
 			stm,negate_x = <1>;
 			stm,negate_y = <0>;
 			stm,negate_z = <0>;
-			stm,negate2_x = <0>;
-			stm,negate2_y = <0>;
-			stm,negate2_z = <1>;
 			stm,poll_interval = <100>;
 			stm,min_interval = <2>;
 		};
-		k303c_acc@1c {
-			compatible = "k303c_acc";
-			reg = <0x1c>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <115 0>;
-			k303c_acc,vdd-supply = <&pm8916_l17>;
-			k303c_acc,vio-supply = <&pm8916_l5>;
-			k303c_acc,gpio_int1 = <&msm_gpio 115 0x00>;
-			k303c_acc,fs_range = <0x00>;
-			k303c_acc,axis_map_x = <1>;
-			k303c_acc,axis_map_y = <0>;
-			k303c_acc,axis_map_z = <2>;
-			k303c_acc,negate_x = <0>;
-			k303c_acc,negate_y = <1>;
-			k303c_acc,negate_z = <1>;
-			k303c_acc,poll_interval = <100>;
-			k303c_acc,min_interval = <2>;
+		ak09911c@0d {
+			compatible = "magnetic,ak09911c";
+			reg = <0x0d>;
+			ak09911c,m_rst_n = <&msm_gpio 76 0x0>;
+			ak09911c,vdd-supply = <&pm8916_l17>;
+			ak09911c,vio-supply = <&pm8916_l5>;
+			ak09911c,chip_pos = <6>;
 		};
-		k303c_mag@1e {
-			compatible = "k303c_mag";
-			reg = <0x1e>;
+		cm36686@60 {
+			compatible = "cm36686";
+			reg = <0x60>;
 			interrupt-parent = <&msm_gpio>;
-			interrupts = <69 0>;
-			k303c_mag,irq_gpio = <&msm_gpio 69 0x1>;
-			k303c_mag,vdd-supply = <&pm8916_l17>;
-			k303c_mag,vio-supply = <&pm8916_l5>;
-			k303c_mag,poll_interval = <100>;
-			k303c_mag,min_interval = <13>;
-			k303c_mag,fs_range = <0x60>;
-			k303c_mag,axis_map_x = <1>;
-			k303c_mag,axis_map_y = <0>;
-			k303c_mag,axis_map_z = <2>;
-			k303c_mag,negate_x = <0>;
-			k303c_mag,negate_y = <1>;
-			k303c_mag,negate_z = <1>;
-		};
-		gp2a-i2c@44{
-			compatible = "gp2a-i2c";
-			reg = <0x44>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&prox_int_active>;
-			pinctrl-1 = <&prox_int_suspend>;
-			interrupt-parent = <&msm_gpio>;
-			interupts= <113 0>;
-			gp2a-i2c,irq-gpio = <&msm_gpio 113 0x00>;
-			gp2a-i2c,en-gpio = <&msm_gpio 8 0x00>;
-			gp2a-vdd-supply = <&pm8916_l17>;
-			gp2a-vio-supply = <&pm8916_l5>;
+			interrupts = <113 0>;
+			pinctrl-names = "prox_active","prox_suspend";
+			pinctrl-0 = <&prox_int_active &prox_enable_active>;
+			pinctrl-1 = <&prox_int_suspend &prox_enable_suspend>;
+			cm36686,leden_gpio = <&msm_gpio 8 0x1>;
+			cm36686,irq_gpio = <&msm_gpio 113 0x1>;
+			cm36686,vdd-supply = <&pm8916_l17>;
+			cm36686,vio-supply = <&pm8916_l5>;
+			cm36686,cal_skip = <7>;
+			cm36686,cal_fail = <12>;
+			cm36686,default_hi_thd = <14>;
+			cm36686,default_low_thd = <10>;
+			cm36686,cancel_hi_thd = <9>;
+			cm36686,cancel_low_thd = <6>;
 		};
 	};
 
@@ -374,10 +346,10 @@
 			reg = <0x14>;
 			interrupt-parent = <&msm_gpio>;
 			interrupts= <12 0>;
-			sm5502,irq-gpio = <&msm_gpio 12 0x00>;
-			sm5502,gpio-sda = <&msm_gpio 105 0x00>;
-			sm5502,gpio-scl = <&msm_gpio 106 0x00>;
-			sm5502,uarton-gpio = <&msm_gpio 114 0x00>;
+			sm5504,irq-gpio = <&msm_gpio 12 0x00>;
+			sm5504,gpio-sda = <&msm_gpio 105 0x00>;
+			sm5504,gpio-scl = <&msm_gpio 106 0x00>;
+			sm5504,uarton-gpio = <&msm_gpio 114 0x00>;
 			pinctrl-names = "sm5504_i2c_active","sm5504_i2c_suspend";
 			pinctrl-0 = <&muic_i2c_active &muic_int_pin>;
 			pinctrl-1 = <&muic_i2c_suspend &muic_int_pin>;
@@ -531,13 +503,6 @@
 	qcom,mdss-pref-prim-intf = "dsi";
 };
 
-&dsi_sharp_jdi_720_vid {
-	qcom,cont-splash-enabled;
-
-	isl98611,i2c-scl-gpio = <&msm_gpio 101 1>;
-	isl98611,i2c-sda-gpio = <&msm_gpio 102 1>;
-};
-
 &pmx_mdss {
 	qcom,num-grp-pins = <1>;
 	qcom,pins = <&gp 25>;
@@ -553,63 +518,15 @@
 
 &pmx_isl98611 {
 	qcom,num-grp-pins = <3>;
-	qcom,pins = <&gp 97>, <&gp 98>, <&gp 112>;
+	qcom,pins = <&gp 97>, <&gp 98>, <&gp 120>;
 };
 
 &mdss_dsi0 {
 	qcom,dsi-pref-prim-pan = <&dsi_sharp_jdi_720_vid>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
-	pinctrl-0 = <&mdss_dsi_active &lcd_esd_det_active &i2c_isl98611_active &isl98611_active>;
-	pinctrl-1 = <&mdss_dsi_suspend &lcd_esd_det_suspend &i2c_isl98611_suspend &isl98611_suspend>;
-
+	pinctrl-0 = <&lcd_esd_det_active &i2c_isl98611_active &isl98611_active &mdss_dsi_active>;
+	pinctrl-1 = <&lcd_esd_det_suspend &i2c_isl98611_suspend &isl98611_suspend &mdss_dsi_suspend>;
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
-
-	gdsc-supply = <&gdsc_mdss>;
-	vdda-supply = <&pm8916_l2>;
-	vddio-supply = <&pm8916_l6>;
-
-	qcom,core-supply-entries {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		qcom,core-supply-entry@0 {
-			reg = <0>;
-			qcom,supply-name = "gdsc";
-			qcom,supply-min-voltage = <0>;
-			qcom,supply-max-voltage = <0>;
-			qcom,supply-enable-load = <0>;
-			qcom,supply-disable-load = <0>;
-		};
-	};
-
-	qcom,ctrl-supply-entries {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		qcom,ctrl-supply-entry@0 {
-			reg = <0>;
-			qcom,supply-name = "vdda";
-			qcom,supply-min-voltage = <1200000>;
-			qcom,supply-max-voltage = <1200000>;
-			qcom,supply-enable-load = <100000>;
-			qcom,supply-disable-load = <100>;
-			qcom,supply-post-on-sleep = <0>;
-		};
-	};
-
-	qcom,panel-supply-entries {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		qcom,panel-supply-entry@0 {
-			reg = <0>;
-			qcom,supply-name = "vddio";
-			qcom,supply-min-voltage = <1800000>;
-			qcom,supply-max-voltage = <1800000>;
-			qcom,supply-enable-load = <100000>;
-			qcom,supply-disable-load = <100>;
-		};
-	};
 };
 
 &qcom_tzlog {

@@ -66,7 +66,9 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev)
 
 	return rc;
 }
-
+#if defined(CONFIG_ESD_RECOVERY) && defined(CONFIG_MACH_KLEOS_CTC)
+extern int err_fg_working;
+#endif
 static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 {
 	int ret = 0;
@@ -101,6 +103,10 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			 * Core power module will be enabled when the
 			 * clocks are enabled
 			 */
+#if defined(CONFIG_ESD_RECOVERY) && defined(CONFIG_MACH_KLEOS_CTC)
+			if (err_fg_working)
+				break;
+#endif
 			if (DSI_CORE_PM == i)
 				continue;
 			ret = msm_dss_enable_vreg(
@@ -115,7 +121,11 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 #if defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL)
 		mdelay(10);
 #endif
-#if defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL) || defined(CONFIG_FB_MSM_MIPI_SAMSUNG_WVGA_VIDEO_PT_PANEL)
+#if defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL) || \
+	defined(CONFIG_FB_MSM_MIPI_SAMSUNG_WVGA_VIDEO_PT_PANEL) ||\
+	defined(CONFIG_FB_MSM_MIPI_SHARP_HD_VIDEO_PANEL) || \
+	defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || \
+	defined(CONFIG_SEC_A33G_EUR_PROJECT)
 	if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 		ret = gpio_request(ctrl_pdata->disp_en_gpio,
 						"disp_enable");
@@ -170,6 +180,10 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			 * Core power module will be disabled when the
 			 * clocks are disabled
 			 */
+#if defined(CONFIG_ESD_RECOVERY) && defined(CONFIG_MACH_KLEOS_CTC)
+			if (err_fg_working)
+				break;
+#endif
 			if (DSI_CORE_PM == i)
 				continue;
 			ret = msm_dss_enable_vreg(
@@ -809,6 +823,10 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 				pr_debug("reset enable: pinctrl not enabled\n");
 #endif		
 			ctrl_pdata->panel_reset(pdata, 1);
+#if defined(CONFIG_FB_MSM_MIPI_SHARP_HD_VIDEO_PANEL)
+		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
+			pr_debug("reset enable: pinctrl not enabled\n");
+#endif
 			}
 		if (mipi->init_delay)
 			usleep(mipi->init_delay);
@@ -1163,6 +1181,10 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		ctrl_pdata->ctrl_state |= CTRL_STATE_MDP_ACTIVE;
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
+#if defined(CONFIG_ESD_RECOVERY)
+		pr_info("ESD enable irq\n");
+		enable_irq(gpio_to_irq(ctrl_pdata->esd_gpio));
+#endif
 		break;
 	case MDSS_EVENT_BLANK:
 		if (ctrl_pdata->off_cmds.link_state == DSI_HS_MODE)
@@ -1220,7 +1242,10 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 					(int)(unsigned long) arg);
 		break;
 	default:
-		pr_debug("%s: unhandled event=%d\n", __func__, event);
+		if(ctrl_pdata->event_handler)
+			rc = ctrl_pdata->event_handler(event);
+		else
+			pr_err("%s: unhandled event=%d\n", __func__, event);
 		break;
 	}
 	pr_debug("%s-:event=%d, rc=%d\n", __func__, event, rc);
@@ -1867,7 +1892,8 @@ int get_lcd_attached(void)
 	} else
 		return ((!gv_manufacture_id)? 0:1);
 #elif defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL) \
-	|| defined(CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
+	|| defined(CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL) \
+	|| defined(CONFIG_FB_MSM_MIPI_SHARP_HD_VIDEO_PANEL)
 	return ((!gv_manufacture_id)? 0:1);
 #else
 	return 1;

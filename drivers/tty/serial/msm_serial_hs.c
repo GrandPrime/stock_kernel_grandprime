@@ -1004,7 +1004,9 @@ static void msm_hs_set_termios(struct uart_port *uport,
 	* data while we change the parameters
 	*/
 	data = msm_hs_read(uport, UART_DM_MR1);
+#ifdef CONFIG_SEC_2PIN_UART1
 	data &= ~UARTDM_MR1_RX_RDY_CTL_BMSK;
+#endif
 	msm_hs_write(uport, UART_DM_MR1, data);
 	/* set RFR_N to high */
 	msm_hs_write(uport, UART_DM_CR, RFR_HIGH);
@@ -1120,8 +1122,10 @@ static void msm_hs_set_termios(struct uart_port *uport,
 	msm_hs_write(uport, UART_DM_CR, RFR_LOW);
 	data = msm_hs_read(uport, UART_DM_MR1);
 	data &= ~(UARTDM_MR1_CTS_CTL_BMSK | UARTDM_MR1_RX_RDY_CTL_BMSK);
+#ifdef CONFIG_SEC_2PIN_UART1
 		data |= UARTDM_MR1_CTS_CTL_BMSK;
 		data |= UARTDM_MR1_RX_RDY_CTL_BMSK;
+#endif
 	msm_hs_write(uport, UART_DM_MR1, data);
 
 	msm_hs_write(uport, UART_DM_IMR, msm_uport->imr_reg);
@@ -1698,17 +1702,20 @@ void msm_hs_set_mctrl_locked(struct uart_port *uport,
 	}
 	/* RTS is active low */
 	set_rts = TIOCM_RTS & mctrl ? 0 : 1;
-
 	data = msm_hs_read(uport, UART_DM_MR1);
 	if (set_rts) {
+#ifdef CONFIG_SEC_2PIN_UART1
 		/*disable auto ready-for-receiving */
 		data &= ~UARTDM_MR1_RX_RDY_CTL_BMSK;
+#endif
 		msm_hs_write(uport, UART_DM_MR1, data);
 		/* set RFR_N to high */
 		msm_hs_write(uport, UART_DM_CR, RFR_HIGH);
 	} else {
+#ifdef CONFIG_SEC_2PIN_UART1
 		/* Enable auto ready-for-receiving */
 		data |= UARTDM_MR1_RX_RDY_CTL_BMSK;
+#endif
 		msm_hs_write(uport, UART_DM_MR1, data);
 	}
 	mb();
@@ -1829,7 +1836,9 @@ static int msm_hs_check_clock_off(struct uart_port *uport)
 			msm_hs_write(uport, UART_DM_CR, RFR_LOW);
 			/* Enable auto RFR */
 			data = msm_hs_read(uport, UART_DM_MR1);
+#ifdef CONFIG_SEC_2PIN_UART1
 			data |= UARTDM_MR1_RX_RDY_CTL_BMSK;
+#endif
 			msm_hs_write(uport, UART_DM_MR1, data);
 			mb();
 		}
@@ -1865,7 +1874,9 @@ static int msm_hs_check_clock_off(struct uart_port *uport)
 	msm_hs_write(uport, UART_DM_CR, RFR_LOW);
 	/* Enable auto RFR */
 	data = msm_hs_read(uport, UART_DM_MR1);
+#ifdef CONFIG_SEC_2PIN_UART1
 	data |= UARTDM_MR1_RX_RDY_CTL_BMSK;
+#endif
 	msm_hs_write(uport, UART_DM_MR1, data);
 	mb();
 
@@ -2044,8 +2055,10 @@ void msm_hs_request_clock_off(struct uart_port *uport) {
 	if (msm_uport->clk_state == MSM_HS_CLK_ON) {
 		msm_uport->clk_state = MSM_HS_CLK_REQUEST_OFF;
 		data = msm_hs_read(uport, UART_DM_MR1);
+#ifdef CONFIG_SEC_2PIN_UART1
 		/*disable auto ready-for-receiving */
 		data &= ~UARTDM_MR1_RX_RDY_CTL_BMSK;
+#endif
 		msm_hs_write(uport, UART_DM_MR1, data);
 		mb();
 		/* set RFR_N to high */
@@ -2077,7 +2090,9 @@ void msm_hs_request_clock_on(struct uart_port *uport)
 		msm_hs_write(uport, UART_DM_CR, RFR_LOW);
 		/* Enable auto RFR */
 		data = msm_hs_read(uport, UART_DM_MR1);
+#ifdef CONFIG_SEC_2PIN_UART1
 		data |= UARTDM_MR1_RX_RDY_CTL_BMSK;
+#endif
 		msm_hs_write(uport, UART_DM_MR1, data);
 		mb();
 	}

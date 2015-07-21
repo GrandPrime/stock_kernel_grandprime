@@ -30,10 +30,6 @@
 
 #undef EEPROM_MMAP_DEBUG
 
-#ifdef CONFIG_FRONT_EEPROM
-extern unsigned int system_rev;
-#endif
-
 DEFINE_MSM_MUTEX(msm_eeprom_mutex);
 
 static int msm_eeprom_match_id(struct msm_eeprom_ctrl_t *e_ctrl);
@@ -478,6 +474,7 @@ static int msm_eeprom_config(struct msm_eeprom_ctrl_t *e_ctrl,
 		rc = eeprom_config_read_cal_data(e_ctrl, cdata);
 		break;
 	case CFG_EEPROM_READ_DATA:
+	case CFG_EEPROM_GET_FW_VERSION_INFO:
 		CDBG("%s E CFG_EEPROM_READ_DATA\n", __func__);
 		rc = eeprom_config_read_data(e_ctrl, cdata);
 		break;
@@ -880,19 +877,13 @@ static int msm_eeprom_i2c_probe(struct i2c_client *client,
                 goto board_free;
 	}
 
-#ifdef CONFIG_FRONT_EEPROM
-	if (system_rev < 3) {	//Over rev0.3
-		pr_err("%s:%d: hwrev:%d\n", __func__, __LINE__, system_rev);
-	} else {
-		rc = of_property_read_u32(of_node, "cell-index",
-				&e_ctrl->subdev_id);
-		pr_err("cell-index/subdev_id %d, rc %d\n", e_ctrl->subdev_id, rc);
-		if (rc < 0) {
-			pr_err("failed read, rc %d\n", rc);
-			return rc;
-		}
+	rc = of_property_read_u32(of_node, "cell-index",
+			&e_ctrl->subdev_id);
+	pr_err("cell-index/subdev_id %d, rc %d\n", e_ctrl->subdev_id, rc);
+	if (rc < 0) {
+		pr_err("failed read, rc %d\n", rc);
+		return rc;
 	}
-#endif
 
 	power_info = &e_ctrl->eboard_info->power_info;
 	e_ctrl->eboard_info->i2c_slaveaddr = temp;
@@ -950,18 +941,12 @@ static int msm_eeprom_i2c_probe(struct i2c_client *client,
                 goto power_down;
         }
 
-#ifdef CONFIG_FRONT_EEPROM
-		if (system_rev < 3) {	//Over rev0.3
-			pr_err("%s:%d: hwrev:%d\n", __func__, __LINE__, system_rev);
-		} else {
-			if (0 > of_property_read_u32(of_node, "qcom,sensor-position",
-						&temp)) {
-				pr_err("%s:%d Fail position, Default sensor position\n", __func__, __LINE__);
-				temp = 0;
-			}
-			pr_err("%s qcom,sensor-position %d\n", __func__,temp);
-		}
-#endif
+	if (0 > of_property_read_u32(of_node, "qcom,sensor-position",
+				&temp)) {
+		pr_err("%s:%d Fail position, Default sensor position\n", __func__, __LINE__);
+		temp = 0;
+	}
+	pr_err("%s qcom,sensor-position %d\n", __func__,temp);
 
 	/* Initialize sub device */
 	v4l2_i2c_subdev_init(&e_ctrl->msm_sd.sd,
@@ -972,13 +957,7 @@ static int msm_eeprom_i2c_probe(struct i2c_client *client,
 	e_ctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	media_entity_init(&e_ctrl->msm_sd.sd.entity, 0, NULL, 0);
 
-#ifdef CONFIG_FRONT_EEPROM
-	if (system_rev < 3) {	//Over rev0.3
-		pr_err("%s:%d: hwrev:%d\n", __func__, __LINE__, system_rev);
-	} else {
-		e_ctrl->msm_sd.sd.entity.flags = temp;
-	}
-#endif
+	e_ctrl->msm_sd.sd.entity.flags = temp;
 
 	e_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	e_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_EEPROM;
@@ -1319,19 +1298,11 @@ static int msm_eeprom_spi_setup(struct spi_device *spi)
 		goto caldata_free;
 	}
 
-#ifdef CONFIG_FRONT_EEPROM
-	if (system_rev < 3) {	//Over rev0.3
-		pr_err("%s:%d: hwrev:%d\n", __func__, __LINE__, system_rev);
-	} else {
-		if (0 > of_property_read_u32(spi->dev.of_node, "qcom,sensor-position",
-					&temp)) {
-			pr_err("%s:%d Fail position, Default sensor position\n", __func__, __LINE__);
-			temp = 0;
-		}
+	if (0 > of_property_read_u32(spi->dev.of_node, "qcom,sensor-position",
+				&temp)) {
+		pr_err("%s:%d Fail position, Default sensor position\n", __func__, __LINE__);
+		temp = 0;
 	}
-#else
-	temp = 0;
-#endif
 
 	/* initiazlie subdev */
 	v4l2_spi_subdev_init(&e_ctrl->msm_sd.sd,
@@ -1342,13 +1313,7 @@ static int msm_eeprom_spi_setup(struct spi_device *spi)
 	e_ctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	media_entity_init(&e_ctrl->msm_sd.sd.entity, 0, NULL, 0);
 
-#ifdef CONFIG_FRONT_EEPROM
-	if (system_rev < 3) {	//Over rev0.3
-		pr_err("%s:%d: hwrev:%d\n", __func__, __LINE__, system_rev);
-	} else {
-		e_ctrl->msm_sd.sd.entity.flags = temp;
-	}
-#endif
+	e_ctrl->msm_sd.sd.entity.flags = temp;
 
 	e_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	e_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_EEPROM;
@@ -1556,17 +1521,11 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		goto memdata_free;
 	}
 
-#ifdef CONFIG_FRONT_EEPROM
-	if (system_rev < 3) {	//Over rev0.3
-		pr_err("%s:%d: hwrev:%d\n", __func__, __LINE__, system_rev);
-	} else {
-		if (0 > of_property_read_u32(of_node, "qcom,sensor-position",
-					&temp)) {
-			pr_err("%s:%d Fail position, Default sensor position\n", __func__, __LINE__);
-			temp = 0;
-		}
+	if (0 > of_property_read_u32(of_node, "qcom,sensor-position",
+				&temp)) {
+		pr_err("%s:%d Fail position, Default sensor position\n", __func__, __LINE__);
+		temp = 0;
 	}
-#endif
 
 	v4l2_subdev_init(&e_ctrl->msm_sd.sd,
 		e_ctrl->eeprom_v4l2_subdev_ops);
@@ -1578,13 +1537,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		ARRAY_SIZE(e_ctrl->msm_sd.sd.name), "msm_eeprom");
 	media_entity_init(&e_ctrl->msm_sd.sd.entity, 0, NULL, 0);
 
-#ifdef CONFIG_FRONT_EEPROM
-	if (system_rev < 3) {	//Over rev0.3
-		pr_err("%s:%d: hwrev:%d\n", __func__, __LINE__, system_rev);
-	} else {
-		e_ctrl->msm_sd.sd.entity.flags = temp;
-	}
-#endif
+	e_ctrl->msm_sd.sd.entity.flags = temp;
 
 	e_ctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	e_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_EEPROM;

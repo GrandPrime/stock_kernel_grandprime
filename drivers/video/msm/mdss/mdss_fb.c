@@ -73,6 +73,9 @@ static u32 mdss_fb_pseudo_palette[16] = {
 };
 
 #ifdef CONFIG_FB_MSM_CAMERA_CSC
+#if defined(CONFIG_SEC_ROSSA_PROJECT) 
+u8 prev_csc_update = 1;
+#endif
 u8 csc_update = 1;
 #endif
 

@@ -449,6 +449,18 @@
 				output-low;
 			};
 		};
+		pmx_bl_ctrl: pmx_bl_ctrl {
+			label = "lcd-bl-ctrl-pins";
+			/*
+			 * Only suspend configuration is added for this pin(LCD_BLIC_ON) because, if init configuration is added
+			 * then the pin will be driven high while resuming from sleep immediately causing a black screen to appear momentarily.
+			 */
+			pmx_bl_ctrl_suspend: suspend {
+				drive-strength = <2>; /* 2 mA */
+				bias-pull-down; /* pull down */
+				output-low;
+			};
+		};
 		pmx_lcd_esd_det: pmx_lcd_esd_det {
 			qcom,pins = <&gp 69>;
 			qcom,num-grp-pins = <1>;

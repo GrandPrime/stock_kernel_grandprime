@@ -89,14 +89,21 @@ static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 		pr_err("%s: pwm_enable() failed err=%d\n", __func__, ret);
 	ctrl->pwm_enabled = 1;
 }
-
+#ifdef CONFIG_MACH_FORTUNA_SEA_OPEN
+static int lux_tbl[] = {
+	 1,
+	 2,  3,	 4,  6,  7,  8,  9,  10, 11, 12,
+	 13, 14, 15, 16, 17, 18, 20, 21, 22,
+	 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 0,
+};
+#else
 static int lux_tbl[] = {
 	 3,
 	 4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
 	14, 15, 16, 17, 18, 19, 20, 21, 22,
 	23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  0,
 };
-
+#endif
 
 static int get_candela_index(int bl_level)
 {

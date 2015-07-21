@@ -32,6 +32,7 @@
 #include <linux/of_gpio.h>
 #endif
 
+#include <linux/input/tsp_ta_callback.h>
 #include "ist30xx.h"
 #include "ist30xx_update.h"
 #include "ist30xx_tracking.h"
@@ -369,11 +370,15 @@ get_info_end:
 #define PRESS_MSG_MASK          (0x01)
 #define MULTI_MSG_MASK          (0x02)
 #define PRESS_MSG_KEY           (0x6)
-#define TOUCH_DOWN_MESSAGE      ("p")
-#define TOUCH_UP_MESSAGE        ("r")
+
+#define TOUCH_DOWN_MESSAGE      ("P")
+#define TOUCH_UP_MESSAGE        ("R")
 #define TOUCH_MOVE_MESSAGE      (" ")
+
 bool tsp_touched[IST30XX_MAX_MT_FINGERS] = { false, };
+int tsp_count[IST30XX_MAX_MT_FINGERS] = { 0, };
 bool tkey_pressed[IST30XX_MAX_KEYS] = { false, };
+
 void print_tsp_event(finger_info *finger)
 {
 	int idx = finger->bit_field.id - 1;
@@ -383,19 +388,33 @@ void print_tsp_event(finger_info *finger)
 
 	if (press) {
 		if (tsp_touched[idx] == false) { // touch down
-			tsp_notc("%s%d (%d, %d)\n",
-				 TOUCH_DOWN_MESSAGE, finger->bit_field.id,
+#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+			tsp_info("%s[%d] (%d, %d)\n",
+				 TOUCH_DOWN_MESSAGE, idx,
 				 finger->bit_field.x, finger->bit_field.y);
+#else
+			tsp_info("%s[%d]\n",
+				 TOUCH_DOWN_MESSAGE, idx);
+#endif
 			tsp_touched[idx] = true;
-		} else {                    // touch move
-			tsp_debug("%s%d (%d, %d)\n",
-				  TOUCH_MOVE_MESSAGE, finger->bit_field.id,
-				  finger->bit_field.x, finger->bit_field.y);
+		} else {		    // touch move
+#if !defined(CONFIG_SAMSUNG_PRODUCT_SHIP)
+			tsp_debug("%s[%d] (%d, %d)\n",
+				 TOUCH_MOVE_MESSAGE, idx,
+				 finger->bit_field.x, finger->bit_field.y);
+#else
+			tsp_debug("%s[%d]\n",
+				 TOUCH_MOVE_MESSAGE, idx);
+#endif
+			tsp_count[idx]++;
 		}
 	} else {
 		if (tsp_touched[idx] == true) { // touch up
-			tsp_notc("%s%d\n", TOUCH_UP_MESSAGE, finger->bit_field.id);
+			tsp_info("%s[%d] M(%d) V(%02x)\n",
+				 TOUCH_UP_MESSAGE, idx, tsp_count[idx],
+				 ts_data->fw.param_ver);
 			tsp_touched[idx] = false;
+			tsp_count[idx] = 0;
 		}
 	}
 }
@@ -407,12 +426,12 @@ void print_tkey_event(int id)
 
 	if (press) {
 		if (tkey_pressed[idx] == false) { // tkey down
-			tsp_notc("k %s%d\n", TOUCH_DOWN_MESSAGE, id);
+			tsp_notc("button %d %s\n", idx, TOUCH_DOWN_MESSAGE);
 			tkey_pressed[idx] = true;
 		}
 	} else {
 		if (tkey_pressed[idx] == true) { // tkey up
-			tsp_notc("k %s%d\n", TOUCH_UP_MESSAGE, id);
+			tsp_notc("button %d %s\n", idx, TOUCH_UP_MESSAGE);
 			tkey_pressed[idx] = false;
 		}
 	}
@@ -678,26 +697,24 @@ static irqreturn_t ist30xx_irq_thread(int irq, void *ptr)
 
 	report_input_data(data, finger_cnt, key_cnt);
 
-    if (intr_debug2_addr > 0 && intr_debug2_size > 0) {
-        tsp_notc("Intr_debug2 (addr: 0x%08x)\n", intr_debug2_addr);
+	if (intr_debug2_addr > 0 && intr_debug2_size > 0) {
+		tsp_notc("Intr_debug2 (addr: 0x%08x)\n", intr_debug2_addr);
 		for (i = 0; i < intr_debug2_size; i++) {
-            ist30xx_read_buf(data->client,
-                intr_debug2_addr + IST30XX_DATA_LEN * i, &msg[i], 1);
-
-            tsp_notc("\t%08x\n", msg[i]);
-        }
-        ist30xx_put_track(msg, intr_debug2_size);
+			ist30xx_read_buf(data->client,
+				intr_debug2_addr + IST30XX_DATA_LEN * i, &msg[i], 1);
+			tsp_notc("\t%08x\n", msg[i]);
+		}
+		ist30xx_put_track(msg, intr_debug2_size);
 	}
 
-    if (intr_debug3_addr > 0 && intr_debug3_size > 0) {
-        tsp_notc("Intr_debug3 (addr: 0x%08x)\n", intr_debug3_addr);
+	if (intr_debug3_addr > 0 && intr_debug3_size > 0) {
+		tsp_notc("Intr_debug3 (addr: 0x%08x)\n", intr_debug3_addr);
 		for (i = 0; i < intr_debug3_size; i++) {
-            ist30xx_read_buf(data->client,
-                intr_debug3_addr + IST30XX_DATA_LEN * i, &msg[i], 1);
-
-            tsp_notc("\t%08x\n", msg[i]);
-        }
-        ist30xx_put_track(msg, intr_debug3_size);
+			ist30xx_read_buf(data->client,
+				intr_debug3_addr + IST30XX_DATA_LEN * i, &msg[i], 1);
+			tsp_notc("\t%08x\n", msg[i]);
+		}
+		ist30xx_put_track(msg, intr_debug3_size);
 	}
 
 	goto irq_end;
@@ -743,7 +760,7 @@ static void ist30xx_late_resume(struct early_suspend *h)
 	struct ist30xx_data *data = container_of(h, struct ist30xx_data,
 						 early_suspend);
 
-    ist30xx_power_status = 1;
+	ist30xx_power_status = 1;
 
 	mutex_lock(&ist30xx_mutex);
 	ist30xx_internal_resume(data);
@@ -876,12 +893,29 @@ void ist30xx_set_cover_mode(int mode)
 }
 EXPORT_SYMBOL(ist30xx_set_cover_mode);
 
+#ifdef USE_TSP_TA_CALLBACKS
+
+void charger_enable(struct tsp_callbacks *cb, int enable)
+{
+	bool charging = enable ? true : false;
+
+	ist30xx_set_ta_mode(charging);
+}
+
+static void ist30xx_register_callback(struct tsp_callbacks *cb)
+{
+	charger_callbacks = cb;
+	pr_info("%s\n", __func__);
+}
+
+#else
 void charger_enable(int enable)
 {
 	bool charging = enable ? true : false;
 
 	ist30xx_set_ta_mode(charging);
 }
+#endif
 
 static void reset_work_func(struct work_struct *work)
 {
@@ -1232,7 +1266,7 @@ static int ist30xx_probe(struct i2c_client *client,
 
 	input_mt_init_slots(input_dev, IST30XX_MAX_MT_FINGERS, 0);
 
-	input_dev->name = "ist30xx_ts_input";
+	input_dev->name = "sec_touchscreen";
 	input_dev->id.bustype = BUS_I2C;
 	input_dev->dev.parent = &client->dev;
 #if defined(USE_OPEN_CLOSE)
@@ -1392,6 +1426,13 @@ static int ist30xx_probe(struct i2c_client *client,
 	event_timer.function = timer_handler;
 	event_timer.expires = jiffies_64 + (EVENT_TIMER_INTERVAL);
 	mod_timer(&event_timer, get_jiffies_64() + EVENT_TIMER_INTERVAL);
+#endif
+
+#ifdef USE_TSP_TA_CALLBACKS
+	data->register_cb = ist30xx_register_callback;
+	data->callbacks.inform_charger = charger_enable;
+	if (data->register_cb)
+		data->register_cb(&data->callbacks);
 #endif
 
 	ist30xx_initialized = 1;

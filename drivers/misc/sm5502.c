@@ -1230,6 +1230,7 @@ static int sm5502_detach_dev(struct sm5502_usbsw *usbsw)
 	pr_err("%s\n", __func__);
 	pr_err("dev1: 0x%x,dev2: 0x%x,chg_typ: 0x%x,vbus %d,ADC: 0x%x\n",
 			usbsw->dev1, usbsw->dev2, usbsw->dev3, usbsw->vbus, usbsw->adc);
+	jig_state = 0;
 #if !defined(CONFIG_USBID_STANDARD_VER_01)
 	switch (usbsw->adc) {
 #if !defined(CONFIG_USB_HOST_NOTIFY)
@@ -1385,6 +1386,7 @@ static int sm5502_detach_dev(struct sm5502_usbsw *usbsw)
 detach_end:
 #endif
 	i2c_smbus_write_byte_data(usbsw->client, REG_CONTROL, CON_MASK);
+	i2c_smbus_write_byte_data(usbsw->client, REG_MANUAL_SW2,0x00);
 
 	usbsw->dev1 = 0;
 	usbsw->dev2 = 0;
@@ -1765,6 +1767,14 @@ static int sm5502_suspend(struct device *dev)
 	struct sm5502_usbsw *usbsw = i2c_get_clientdata(client);
 	int ret;
 	pr_info("%s: suspend\n", __func__);
+	if (jig_state) {
+		/* set to JIG ON "1" */
+		ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW2,
+			0x04);
+		if (ret < 0)
+			dev_err(&client->dev, "%s: Write REG_MANUAL_SW2 err %d\n",
+				__func__, ret);
+	}
 	usbsw->mansw = i2c_smbus_read_byte_data(client, REG_MANUAL_SW1);
 	ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW1,
 		SW_ALL_OPEN_WITHOUT_VBUS);
@@ -1806,6 +1816,12 @@ static int sm5502_resume(struct device *dev)
 				REG_CONTROL, ret | CON_MANUAL_SW);
 		if (ret < 0)
 			dev_err(&client->dev, "%s: write REG_CONTROL err %d\n",
+				__func__, ret);
+		/* set to JIG ON "0" */
+		ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW2,
+			0x00);
+		if (ret < 0)
+			dev_err(&client->dev, "%s: Write REG_MANUAL_SW2 err %d\n",
 				__func__, ret);
 	} else {
 		ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW1,

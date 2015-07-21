@@ -855,7 +855,7 @@ static int pp_vig_pipe_setup(struct mdss_mdp_pipe *pipe, u32 *op)
 	u32 current_opmode;
 	u32 csc_reset;
 	u32 dcm_state = DCM_UNINIT;
-#ifdef CONFIG_FB_MSM_CAMERA_CSC
+#if defined(CONFIG_FB_MSM_CAMERA_CSC) && !defined(CONFIG_SEC_ROSSA_PROJECT) 
 	u32 mixer_num = 0;
 	static u8 pre_csc_value[2] = {0xFF, 0xFF};
 #endif
@@ -889,7 +889,7 @@ static int pp_vig_pipe_setup(struct mdss_mdp_pipe *pipe, u32 *op)
 		 * TODO: Needs to be part of dirty bit logic: if there is a
 		 * previously configured pipe need to re-configure CSC matrix
 		 */
-#ifdef CONFIG_FB_MSM_CAMERA_CSC
+#if defined(CONFIG_FB_MSM_CAMERA_CSC) && !defined(CONFIG_SEC_ROSSA_PROJECT) 
 			mixer_num = pipe->mixer_left->ctl->num;
 			if(pipe->play_cnt == 0) {
 				pr_info("1: play_cnt(%d), num(%d), ndx(%d), pre_csc_value0(%d), pre_csc_value1(%d), csc_update(%d), mixer_num(%d)\n",

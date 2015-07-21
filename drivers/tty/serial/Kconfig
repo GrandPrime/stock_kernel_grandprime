@@ -1067,6 +1067,10 @@ config SERIAL_MSM_HSL_CONSOLE
 	depends on SERIAL_MSM_HSL=y
 	select SERIAL_CORE_CONSOLE
 	default n
+	
+config SEC_2PIN_UART1
+	bool "using RX,TX 2pin as Uart1"
+	default n
 
 config SERIAL_BCM_BT_LPM
 	tristate "Broadcom Bluetooth Low Power Mode"
