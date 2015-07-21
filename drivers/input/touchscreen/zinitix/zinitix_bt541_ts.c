@@ -35,7 +35,6 @@
 #include <linux/gpio.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
-#include <linux/i2c/zinitix_i2c.h>
 #include <linux/input/mt.h>
 #include <linux/regulator/machine.h>
 #include <linux/of_device.h>
@@ -49,17 +48,6 @@
 #endif
 
 #include "zinitix_bt541_ts.h"
-
-#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
-#include <linux/cpufreq.h>
-
-#define TOUCH_BOOSTER_DVFS
-
-#define DVFS_STAGE_TRIPLE       3
-#define DVFS_STAGE_DUAL         2
-#define DVFS_STAGE_SINGLE       1
-#define DVFS_STAGE_NONE         0
-#endif
 
 #if (TSP_TYPE_COUNT == 1)
 u8 *m_pFirmware [TSP_TYPE_COUNT] = {(u8*)m_firmware_data,};
@@ -85,11 +73,6 @@ extern char *saved_command_line;
 #endif
 
 #define MAX_SUPPORTED_FINGER_NUM	5 /* max 10 */
-
-#ifdef TOUCH_BOOSTER_DVFS
-#define TOUCH_BOOSTER_OFF_TIME	500
-#define TOUCH_BOOSTER_CHG_TIME	130
-#endif
 
 #ifdef SUPPORTED_TOUCH_KEY
 #define NOT_SUPPORTED_TOUCH_DUMMY_KEY
@@ -424,8 +407,10 @@ static struct tsp_cmd tsp_cmds[] = {
 
 #define TSP_NORMAL_EVENT_MSG 1
 static int m_ts_debug_mode = ZINITIX_DEBUG;
+#ifdef USE_TSP_TA_CALLBACKS
 static bool ta_connected =0;
 void (*tsp_charger_status_cb)(int);
+#endif
 static u16 m_optional_mode = 0;
 static u16 m_prev_optional_mode = 0;
 
@@ -543,7 +528,7 @@ struct bt541_ts_info {
 	bool stay_awake;
 #endif
 
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 	void (*register_cb) (struct tsp_callbacks *tsp_cb);
 	struct tsp_callbacks callbacks;
 #endif
@@ -585,7 +570,9 @@ u32 BUTTON_MAPPING_KEY[MAX_SUPPORTED_BUTTON_NUM] = {
 #endif
 #endif
 
+#ifdef USE_TSP_TA_CALLBACKS
 static void bt541_set_ta_status(struct bt541_ts_info *info, bool force);
+#endif
 
 /* define i2c sub functions*/
 static inline s32 read_data(struct i2c_client *client,
@@ -1245,6 +1232,7 @@ static bool bt541_power_control(struct bt541_ts_info *info, u8 ctl)
 	return true;
 }
 
+#ifdef USE_TSP_TA_CALLBACKS
 static void bt541_set_ta_status(struct bt541_ts_info *info, bool force)
 {
 	printk("bt541_set ta_connected = %d\n", ta_connected);
@@ -1272,6 +1260,7 @@ static void bt541_charger_status_cb(struct tsp_callbacks *cb, int status)
 	dev_info(&misc_info->client->dev, "TA %s\n",
 		status ? "connected" : "disconnected");
 }
+#endif
 
 static void ts_select_type_hw(struct bt541_ts_info *info) {
 
@@ -2083,6 +2072,30 @@ static bool mini_init_touch(struct bt541_ts_info *info)
 			goto fail_mini_init;
 		}
 	}
+
+#ifdef CONFIG_SEC_FACTORY
+	/* get chip firmware version */
+	if (read_data(client, BT541_HW_ID, (u8 *)&info->cap_info.hw_id, 2) < 0) {
+		dev_err(&client->dev, "Failed to read hw id\n");
+		goto fail_mini_init;
+	}
+
+	if (read_data(client, BT541_FIRMWARE_VERSION,
+		(u8 *)&info->cap_info.fw_version, 2) < 0)
+		goto fail_mini_init;
+
+	if (read_data(client, BT541_MINOR_FW_VERSION,
+		(u8 *)&info->cap_info.fw_minor_version, 2) < 0)
+		goto fail_mini_init;
+
+	if (read_data(client, BT541_DATA_VERSION_REG,
+		(u8 *)&info->cap_info.reg_data_version, 2) < 0)
+		goto fail_mini_init;
+
+	dev_err(&client->dev, "%s: fw version = ZI%02x%x%x%02x\n",
+		__func__, info->cap_info.hw_id, info->cap_info.fw_version,
+		info->cap_info.fw_minor_version, info->cap_info.reg_data_version);
+#endif
 
 #if ESD_TIMER_INTERVAL
 	if (write_reg(client, BT541_PERIODICAL_INTERRUPT_INTERVAL,
@@ -2944,11 +2957,12 @@ static void fw_update(void *device_data)
 
 	switch (info->factory_info->cmd_param[0]) {
 	case BUILT_IN:
-		ts_select_type_hw(info);		
+		ts_select_type_hw(info);
 		ret = ts_upgrade_sequence((u8*)m_pFirmware[m_FirmwareIdx]);
-		if(ret<0) {
-			info->factory_info->cmd_state = 3;
-			return;
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"fail to fw update(BUILT_IN) %d\n", ret);
+			goto err;
 		}
 		break;
 
@@ -2961,28 +2975,26 @@ static void fw_update(void *device_data)
 		if (IS_ERR(fp)) {
 			dev_err(&client->dev,
 				"file %s open error:%d\n", fw_path, (s32)fp);
-			info->factory_info->cmd_state = 3;
 			goto err_open;
 		}
 
 		fsize = fp->f_path.dentry->d_inode->i_size;
 
 		if (fsize != info->cap_info.ic_fw_size) {
-			dev_err(&client->dev, "invalid fw size!!\n");
-			info->factory_info->cmd_state = 3;
+			dev_err(&client->dev, "invalid fw size!!(fsize=%lx, ic_fw_size=%x)\n",
+				fsize, info->cap_info.ic_fw_size);
 			goto err_open;
 		}
 
 		buff = kzalloc((size_t)fsize, GFP_KERNEL);
 		if (!buff) {
 			dev_err(&client->dev, "failed to alloc buffer for fw\n");
-			info->factory_info->cmd_state = 3;
 			goto err_alloc;
 		}
 
 		nread = vfs_read(fp, (char __user *)buff, fsize, &fp->f_pos);
 		if (nread != fsize) {
-			info->factory_info->cmd_state = 3;
+			dev_err(&client->dev, "failed to read fw\n");
 			goto err_fw_size;
 		}
 
@@ -2992,32 +3004,31 @@ static void fw_update(void *device_data)
 		info->checkUMSmode = true;
 		ret = ts_upgrade_sequence((u8 *)buff);
 		info->checkUMSmode = false;
-		if(ret<0) {
-			kfree(buff);
-			info->factory_info->cmd_state = 3;
-			return;
+		kfree(buff);
+		if (ret < 0) {
+			dev_err(&client->dev, "failed to fw update. %d\n", ret);
+			goto err;
 		}
 		break;
 
 	default:
 		dev_err(&client->dev, "invalid fw file type!!\n");
-		goto not_support;
+		goto err;
 	}
 
 	info->factory_info->cmd_state = 2;
 	snprintf(result, sizeof(result) , "%s", "OK");
-	set_cmd_result(info, result,
-			strnlen(result, sizeof(result)));
+	set_cmd_result(info, result, strnlen(result, sizeof(result)));
+	return;
 
-if (fp != NULL) {
 err_fw_size:
 	kfree(buff);
 err_alloc:
 	filp_close(fp, NULL);
 err_open:
 	set_fs(old_fs);
-}
-not_support:
+err:
+	info->factory_info->cmd_state = 3;
 	snprintf(result, sizeof(result) , "%s", "NG");
 	set_cmd_result(info, result, strnlen(result, sizeof(result)));
 	return;
@@ -4624,7 +4635,7 @@ static int bt541_ts_probe_dt(struct device_node *np,
 
 }
 
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 void bt541_register_callback(struct tsp_callbacks *cb)
 {
 	charger_callbacks = cb;
@@ -4660,7 +4671,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 			goto err_no_platform_data;
 		}
 
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 		pdata->register_cb = bt541_register_callback;
 #endif
 		
@@ -4716,7 +4727,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 		goto err_alloc;
 	}
 	
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 	info->register_cb = info->pdata->register_cb;
 #endif
 
@@ -4766,7 +4777,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 		info->button[i] = ICON_BUTTON_UNCHANGE;
 #endif
 
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 	info->callbacks.inform_charger = bt541_charger_status_cb;
 		if (info->register_cb)
 			info->register_cb(&info->callbacks);

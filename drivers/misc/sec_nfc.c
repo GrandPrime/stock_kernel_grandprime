@@ -444,7 +444,6 @@ static void sec_nfc_set_mode(struct sec_nfc_info *info,
 	mutex_unlock(&info->i2c_info.read_mutex);
 #endif
 #endif
-	gpio_set_value_cansleep(pdata->ven, 0);
 	gpio_set_value(pdata->ven, SEC_NFC_PW_OFF);
 	if (pdata->firm)
 		gpio_set_value(pdata->firm, SEC_NFC_FW_OFF);

@@ -103,6 +103,9 @@ static enum power_supply_property sec_charger_props[] = {
 	POWER_SUPPLY_PROP_CURRENT_MAX,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
+#if defined(CONFIG_BATTERY_SWELLING)
+	POWER_SUPPLY_PROP_VOLTAGE_MAX,
+#endif
 };
 
 static int rt5033_get_charging_health(
@@ -134,6 +137,13 @@ static void rt5033_test_read(struct i2c_client *i2c)
 	sprintf(str+strlen(str), "0x22 = 0x%02x, ", rt5033_reg_read(i2c, 0x22));
 	sprintf(str+strlen(str), "#");
 	pr_info("%s: %s\n", __func__, str);
+
+	/* for charging fail issue */
+	data = rt5033_reg_read(i2c, RT5033_UUG);
+	if ((data & 0x1) == 0) {
+		pr_info("%s: RT5033_UUG is incorrect\n", __func__);
+		rt5033_set_bits(i2c, RT5033_UUG, 0x1);
+	}
 }
 
 static void rt5033_charger_otg_control(struct rt5033_charger_data *charger,
@@ -308,6 +318,22 @@ static void rt5033_set_regulation_voltage(struct rt5033_charger_data *charger,
 			data << RT5033_VOREG_SHIFT);
     mutex_unlock(&charger->io_lock);
 }
+
+#if defined(CONFIG_BATTERY_SWELLING)
+static int rt5033_get_regulation_voltage(struct rt5033_charger_data *charger)
+{
+	int data;
+	data = rt5033_reg_read(charger->rt5033->i2c_client, RT5033_CHG_CTRL2);
+	if (data < 0) {
+		pr_info("%s: warning --> fail to read i2c register(%d)\n", __func__, data);
+		return data;
+	}
+	data &= RT5033_VOREG_MASK;
+	pr_info("%s: battery cv voltage 0x%x\n", __func__, data);
+
+	return data;
+}
+#endif
 
 static void __rt5033_set_fast_charging_current(struct i2c_client *i2c,
 		int charging_current)
@@ -546,7 +572,7 @@ int rt5033_chg_fled_init(struct i2c_client *client)
 				goto rt5033_chg_fled_init_exit;
 		}
 		/* Enable charging CV High-GM, reg0x22 bit 5 */
-		ret = rt5033_set_bits(client, 0x22, 0x20);
+		ret = rt5033_set_bits(client, 0x22, 0x24);
 	} else {
 		/* Set switching frequency to 0.75MHz for old revision IC*/
 		ret = rt5033_set_bits(client, RT5033_CHG_CTRL1,
@@ -560,10 +586,13 @@ EXPORT_SYMBOL(rt5033_chg_fled_init);
 /* here is set init charger data */
 static bool rt5033_chg_init(struct rt5033_charger_data *charger)
 {
+#if defined(CONFIG_SEC_KLEOS_PROJECT)
 	int ret;
+#endif
 	rt5033_mfd_chip_t *chip = i2c_get_clientdata(charger->rt5033->i2c_client);
 	chip->charger = charger;
 
+#if defined(CONFIG_SEC_KLEOS_PROJECT)
 	ret = rt5033_reg_read(charger->rt5033->i2c_client, RT5033_UUG);
 	if ( ret != 0x47 ) {
 		/* Force to enable OSC (Reg0x1a[5]) and then send CHG reset command */
@@ -572,6 +601,8 @@ static bool rt5033_chg_init(struct rt5033_charger_data *charger)
 
 		pr_err("%s 0x19h = 0x%x, CHG reset !!! \n",__func__, ret);
 	}
+#endif
+
 	rt5033_chg_fled_init(charger->rt5033->i2c_client);
     /* Disable Timer function (Charging timeout fault) */
     rt5033_clr_bits(charger->rt5033->i2c_client,
@@ -603,7 +634,6 @@ static bool rt5033_chg_init(struct rt5033_charger_data *charger)
 				RT5033_EOC_CTRL, (1 << 5));
 	return true;
 }
-
 
 static int rt5033_get_charging_status(struct rt5033_charger_data *charger)
 {
@@ -688,8 +718,14 @@ static int rt5033_get_charging_health(struct rt5033_charger_data *charger)
 		charger->ovp = false;
 		charger->unhealth_cnt = 0;
 		return POWER_SUPPLY_HEALTH_GOOD;
+	} else if ((ret & (0x04)) == 0) {
+		/* No need to disable charger,
+		 * H/W will do it automatically */
+		charger->unhealth_cnt = HEALTH_DEBOUNCE_CNT;
+		charger->ovp = true;
 	}
-	charger->unhealth_cnt++;
+	if (charger->cable_type > POWER_SUPPLY_TYPE_BATTERY)
+		charger->unhealth_cnt++;
 	if (charger->unhealth_cnt < HEALTH_DEBOUNCE_CNT)
 		return POWER_SUPPLY_HEALTH_GOOD;
 
@@ -735,6 +771,11 @@ static int sec_chg_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		val->intval = rt5033_get_charge_type(charger->rt5033->i2c_client);
 		break;
+#if defined(CONFIG_BATTERY_SWELLING)
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		val->intval = rt5033_get_regulation_voltage(charger);
+		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -810,6 +851,12 @@ static int sec_chg_set_property(struct power_supply *psy,
 			val->intval, eoc);
 		rt5033_set_charging_current(charger, eoc, 0);
 		break;
+#if defined(CONFIG_BATTERY_SWELLING)
+	case POWER_SUPPLY_PROP_VOLTAGE_MAX:
+		pr_info("%s: float voltage(%d)\n", __func__, val->intval);
+		rt5033_set_regulation_voltage(charger, val->intval);
+		break;
+#endif
 	default:
 		return -EINVAL;
 	}

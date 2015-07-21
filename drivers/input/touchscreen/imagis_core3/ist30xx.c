@@ -75,6 +75,13 @@ static struct delayed_work work_fw_update;
 int ist30xx_report_rate = -1;
 int ist30xx_idle_rate = -1;
 
+#if IST30XX_CHECK_BATT_TEMP
+#define IST30XX_MAX_CHK_CNT     1   // 500msec unit
+extern int battery_temp;
+s16 ist30xx_batt_temp = 0;
+int ist30xx_batt_chk_cnt = 0;
+int ist30xx_batt_chk_max_cnt = IST30XX_MAX_CHK_CNT;
+#endif
 u32 event_ms = 0, timer_ms = 0;
 int ist30xx_scan_retry = 0;
 
@@ -253,45 +260,114 @@ int ist30xx_intr_wait(long ms)
 }
 
 #if defined(TOUCH_BOOSTER)
-static void set_dvfs_off(struct work_struct *work)
+static void change_dvfs_lock(struct work_struct *work)
 {
-	struct ist30xx_data *data = container_of(work,
-						 struct ist30xx_data, work_dvfs_off.work);
+	struct ist30xx_data *info = container_of(work,
+						 struct ist30xx_data, work_dvfs_chg.work);
+	int retval = 0;
+	mutex_lock(&info->dvfs_lock);
 
-	mutex_lock(&data->dvfs_lock);
-	set_freq_limit(DVFS_TOUCH_ID, -1);
-	data->dvfs_lock_status = false;
-	mutex_unlock(&data->dvfs_lock);
-	tsp_debug("%s: DVFS Off!\n", __func__);
+	if (info->dvfs_boost_mode == DVFS_STAGE_DUAL) {
+                if (info->stay_awake) {
+                        tsp_debug("%s: do fw update, do not change cpu frequency.\n", __func__);
+                } else {
+                        retval = set_freq_limit(DVFS_TOUCH_ID,
+                                        MIN_TOUCH_LIMIT_SECOND);
+                        info->dvfs_freq = MIN_TOUCH_LIMIT_SECOND;
+                }
+        } else if (info->dvfs_boost_mode == DVFS_STAGE_SINGLE ||
+                        info->dvfs_boost_mode == DVFS_STAGE_TRIPLE) {
+                retval = set_freq_limit(DVFS_TOUCH_ID, -1);
+                info->dvfs_freq = -1;
+        }
+	if (retval < 0)
+		tsp_err ("[TSP] %s: booster stop failed(%d)\n",__func__, retval);
+
+	mutex_unlock(&info->dvfs_lock);
 }
 
-static void set_dvfs_lock(struct ist30xx_data *data, uint32_t on)
+static void set_dvfs_off(struct work_struct *work)
+{
+	struct ist30xx_data *info = container_of(work,
+						 struct ist30xx_data, work_dvfs_off.work);
+	int retval;	
+
+	if (info->stay_awake) {
+                tsp_debug("%s: do fw update, do not change cpu frequency.\n", __func__);
+        } else {
+                mutex_lock(&info->dvfs_lock);
+
+                retval = set_freq_limit(DVFS_TOUCH_ID, -1);
+                info->dvfs_freq = -1;
+
+                if (retval < 0)
+                        tsp_err("%s: booster stop failed(%d).\n", __func__, retval);
+                info->dvfs_lock_status = false;
+
+                mutex_unlock(&info->dvfs_lock);
+        }
+}
+
+static void set_dvfs_lock(struct ist30xx_data *info, int32_t on)
 {
 	int ret = 0;
 
-	mutex_lock(&data->dvfs_lock);
+	if (info->dvfs_boost_mode == DVFS_STAGE_NONE) {
+		tsp_debug( "%s: DVFS stage is none(%d)\n", __func__, info->dvfs_boost_mode);
+		return;
+	}	
+
+	mutex_lock(&info->dvfs_lock);
 	if (on == 0) {
-		if (data->dvfs_lock_status) {
-			schedule_delayed_work(&data->work_dvfs_off,
+		if (info->dvfs_lock_status) {
+			schedule_delayed_work(&info->work_dvfs_off,
 					      msecs_to_jiffies(TOUCH_BOOSTER_OFF_TIME));
 		}
-	} else if (on == 1) {
-		cancel_delayed_work(&data->work_dvfs_off);
-		if (!data->dvfs_lock_status) {
-			ret = set_freq_limit(DVFS_TOUCH_ID, 998400);
-			if (ret < 0)
-				tsp_err("%s: cpu lock failed(%d)\n", \
-					__func__, ret);
+	} else if (on > 0) {
+                cancel_delayed_work(&info->work_dvfs_off);
 
-			data->dvfs_lock_status = true;
-			tsp_debug("%s: DVFS On!\n", __func__);
-		}
-	} else if (on == 2) {
-		cancel_delayed_work(&data->work_dvfs_off);
-		schedule_work(&data->work_dvfs_off.work);
-	}
-	mutex_unlock(&data->dvfs_lock);
+                if ((!info->dvfs_lock_status) || (info->dvfs_old_status < on)) {
+                        cancel_delayed_work(&info->work_dvfs_chg);
+
+                        if (info->dvfs_freq != MIN_TOUCH_LIMIT) {
+                                if (info->dvfs_boost_mode == DVFS_STAGE_TRIPLE)
+                                        ret = set_freq_limit(DVFS_TOUCH_ID,
+                                                MIN_TOUCH_LIMIT_SECOND);
+                                else
+                                        ret = set_freq_limit(DVFS_TOUCH_ID,
+                                                MIN_TOUCH_LIMIT);
+                                info->dvfs_freq = MIN_TOUCH_LIMIT;
+
+                                if (ret < 0)
+					tsp_err("%s: cpu first lock failed(%d)\n", __func__, ret);
+                        }
+			schedule_delayed_work(&info->work_dvfs_chg,
+				msecs_to_jiffies(TOUCH_BOOSTER_CHG_TIME));
+                        info->dvfs_lock_status = true;
+                }
+        } else if (on < 0) {
+                if (info->dvfs_lock_status) {
+                        cancel_delayed_work(&info->work_dvfs_off);
+                        cancel_delayed_work(&info->work_dvfs_chg);
+                        schedule_work(&info->work_dvfs_off.work);
+                }
+        }
+        info->dvfs_old_status = on;
+        mutex_unlock(&info->dvfs_lock);
 }
+
+static void init_dvfs(struct ist30xx_data *info)
+{
+	mutex_init(&info->dvfs_lock);
+
+	info->dvfs_boost_mode = DVFS_STAGE_DUAL;
+
+	INIT_DELAYED_WORK(&info->work_dvfs_off, set_dvfs_off);
+	INIT_DELAYED_WORK(&info->work_dvfs_chg, change_dvfs_lock);
+
+	info->dvfs_lock_status = false;
+}
+
 #endif
 
 void ist30xx_disable_irq(struct ist30xx_data *data)
@@ -640,7 +716,7 @@ static void clear_input_data(struct ist30xx_data *data)
 		  __func__, data->t_status, ts_data->t_status);
 
 #if defined(TOUCH_BOOSTER)
-	set_dvfs_lock(data, 2);
+	set_dvfs_lock(data, -1);
 #endif
 }
 
@@ -773,8 +849,8 @@ static void report_input_data(struct ist30xx_data *data, int finger_counts,
  *   2nd  [31:28]   [27:24]   [23:12]   [11:0]
  *        ID        Area      X         Y
  */
-u32 intr_debug_addr = 0;
-u32 intr_debug_size = 0;
+u32 intr_debug_addr, intr_debug2_addr, intr_debug3_addr = 0;
+u32 intr_debug_size, intr_debug2_size, intr_debug3_size = 0;
 static irqreturn_t ist30xx_irq_thread(int irq, void *ptr)
 {
 	int i, ret;
@@ -792,6 +868,27 @@ static irqreturn_t ist30xx_irq_thread(int irq, void *ptr)
 
 	ms = get_milli_second();
 
+#if IST30XX_CHECK_BATT_TEMP
+    if (ist30xx_batt_chk_cnt >= ist30xx_batt_chk_max_cnt) {
+        ist30xx_batt_temp = battery_temp;
+        ist30xx_write_cmd(data->client, IST30XXB_MEM_BATT_TEMP, 
+                (((u32)ist30xx_batt_temp & 0xFFFF) << 8) | BATTERY_TEMP_MAGIC);
+
+        tsp_verb("battery temperature: %d\n", ist30xx_batt_temp);
+        ist30xx_batt_chk_cnt = 0;
+    }
+#endif
+
+    if (intr_debug_addr > 0 && intr_debug_size > 0) {
+        tsp_notc("Intr_debug (addr: 0x%08x)\n", intr_debug_addr);
+		for (i = 0; i < intr_debug_size; i++) {
+            ist30xx_read_buf(data->client, 
+                intr_debug_addr + IST30XX_DATA_LEN * i, &msg[i], 1);
+
+            tsp_notc("\t%08x\n", msg[i]);
+        }
+		ist30xx_put_track(msg, intr_debug_size);
+	}
 	memset(msg, 0, sizeof(msg));
 
 	ret = ist30xx_get_position(data->client, msg, 1);
@@ -865,12 +962,26 @@ static irqreturn_t ist30xx_irq_thread(int irq, void *ptr)
 
 	report_input_data(data, finger_cnt, key_cnt);
 
-	if (intr_debug_addr > 0 && intr_debug_size > 0) {
-		ret = ist30xxb_burst_read(ts_data->client,
-					  intr_debug_addr, &msg[0], intr_debug_size);
-		for (i = 0; i < intr_debug_size; i++)
-			tsp_debug("\t%08x\n", msg[i]);
-		ist30xx_put_track(msg, intr_debug_size);
+    if (intr_debug2_addr > 0 && intr_debug2_size > 0) {
+        tsp_notc("Intr_debug2 (addr: 0x%08x)\n", intr_debug2_addr);
+		for (i = 0; i < intr_debug2_size; i++) {
+            ist30xx_read_buf(data->client, 
+                intr_debug2_addr + IST30XX_DATA_LEN * i, &msg[i], 1);
+
+            tsp_notc("\t%08x\n", msg[i]);
+        }
+        ist30xx_put_track(msg, intr_debug2_size);
+	}
+
+    if (intr_debug3_addr > 0 && intr_debug3_size > 0) {
+        tsp_notc("Intr_debug3 (addr: 0x%08x)\n", intr_debug3_addr);
+		for (i = 0; i < intr_debug3_size; i++) {
+            ist30xx_read_buf(data->client, 
+                intr_debug3_addr + IST30XX_DATA_LEN * i, &msg[i], 1);
+
+            tsp_notc("\t%08x\n", msg[i]);
+        }
+        ist30xx_put_track(msg, intr_debug3_size);
 	}
 
 	goto irq_end;
@@ -1065,12 +1176,27 @@ void ist30xx_set_cover_mode(int mode)
 }
 EXPORT_SYMBOL(ist30xx_set_cover_mode);
 
+#ifdef USE_TSP_TA_CALLBACKS
+void charger_enable(struct tsp_callbacks *cb, int enable)
+{
+	bool charging = enable ? true : false;
+
+	ist30xx_set_ta_mode(charging);
+}
+
+static void ist30xx_register_callback(struct tsp_callbacks *cb)
+{
+	charger_callbacks = cb;
+	pr_info("%s\n", __func__);
+}
+#else
 void charger_enable(int enable)
 {
 	bool charging = enable ? true : false;
 
 	ist30xx_set_ta_mode(charging);
 }
+#endif
 
 static void reset_work_func(struct work_struct *work)
 {
@@ -1159,6 +1285,16 @@ static void noise_work_func(struct work_struct *work)
 
 	ist30xx_scan_count = scan_status;
 
+#if IST30XX_CHECK_BATT_TEMP
+    if (ist30xx_batt_chk_cnt >= ist30xx_batt_chk_max_cnt) {
+        ist30xx_batt_temp = battery_temp;
+        ist30xx_write_cmd(ts_data->client, IST30XXB_MEM_BATT_TEMP, 
+                (((u32)ist30xx_batt_temp & 0xFFFF) << 8) | BATTERY_TEMP_MAGIC);
+
+        tsp_verb("battery temperature: %d\n", ist30xx_batt_temp);
+        ist30xx_batt_chk_cnt = 0;
+    }
+#endif
 	return;
 
 retry_timer:
@@ -1238,6 +1374,9 @@ void timer_handler(unsigned long data)
 	}
 
 restart_timer:
+#if IST30XX_CHECK_BATT_TEMP    
+    ist30xx_batt_chk_cnt++;
+#endif
 	mod_timer(&event_timer, get_jiffies_64() + EVENT_TIMER_INTERVAL);
 }
 
@@ -1442,9 +1581,7 @@ static int ist30xx_probe(struct i2c_client *client,
 	}
 
 #if defined(TOUCH_BOOSTER)
-	mutex_init(&data->dvfs_lock);
-	INIT_DELAYED_WORK(&data->work_dvfs_off, set_dvfs_off);
-	data->dvfs_lock_status = false;
+	init_dvfs(data);
 #endif
 
 	INIT_DELAYED_WORK(&work_reset_check, reset_work_func);
@@ -1572,6 +1709,13 @@ static int ist30xx_probe(struct i2c_client *client,
 	event_timer.expires = jiffies_64 + (EVENT_TIMER_INTERVAL);
 	mod_timer(&event_timer, get_jiffies_64() + EVENT_TIMER_INTERVAL);
 
+#ifdef USE_TSP_TA_CALLBACKS
+	data->register_cb = ist30xx_register_callback;
+	data->callbacks.inform_charger = charger_enable;
+	if (data->register_cb)
+		data->register_cb(&data->callbacks);
+#endif
+
 	ist30xx_initialized = 1;
 	tsp_err("%s: Probe end\n", __func__);
 	ist30xx_dbg_level = prev_dbg_level;
@@ -1616,6 +1760,9 @@ static int ist30xx_remove(struct i2c_client *client)
 
 	input_unregister_device(data->input_dev);
 	input_free_device(data->input_dev);
+#if defined(TOUCH_BOOSTER)
+	mutex_destroy(&data->dvfs_lock);
+#endif	
 
 	if (data->dt_data)
 		kfree(data->dt_data);

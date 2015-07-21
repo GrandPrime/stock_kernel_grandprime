@@ -351,6 +351,13 @@ config MACH_KLEOS_CHN_OPEN
 		help
 		  Support for Samsung KLEOS CHN Open device.
 
+config MACH_KLEOS_CTC
+	depends on SEC_KLEOS_PROJECT
+		default n
+		bool "Samsung KLEOS CTC"
+		help
+		  Support for Samsung KLEOS CTC device.
+
 config SEC_A3_PROJECT
 	depends on ARCH_MSM8916
 		default n

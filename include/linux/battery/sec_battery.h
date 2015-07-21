@@ -173,6 +173,21 @@ struct sec_battery_info {
 	int siop_level;
 	int stability_test;
 	int eng_not_full_status;
+
+#if defined(CONFIG_BATTERY_SWELLING)
+	int swelling_temp_high_threshold;
+	int swelling_temp_high_recovery;
+	int swelling_temp_low_threshold;
+	int swelling_temp_low_recovery;
+	int swelling_recharge_voltage;
+	int swelling_block_time;
+
+	bool swelling_mode;
+	bool swelling_block;
+	unsigned long swelling_block_start;
+	unsigned long swelling_block_passed;
+	int swelling_full_check_cnt;
+#endif
 };
 
 ssize_t sec_bat_show_attrs(struct device *dev,

@@ -357,10 +357,10 @@ static void get_fw_ver_ic(void *dev_data)
 
 	if (data->fw.sub_ver > 0) {
 		sprintf(msg, "(T%d)", data->fw.sub_ver);
-		strcat(buf, msg);
+	//	strcat(buf, msg);
 	}
 
-	tsp_info("%s(), %s\n", __func__, buf);
+	tsp_info("%s(), %s%s\n", __func__, buf, msg);
 
 	set_cmd_result(sec, buf, strnlen(buf, sizeof(buf)));
 	sec->cmd_state = CMD_STATE_OK;
@@ -893,28 +893,25 @@ static ssize_t touchkey_threshold_show(struct device *dev,
 static ssize_t ist30xx_touchkey_led_control(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
-	struct ist30xx_data *data = dev_get_drvdata(dev);
-	int scan_buffer, ret, rc;
+	int scan_buffer, ret;
 
 	ret = sscanf(buf, "%d", &scan_buffer);
 	if (ret != 1) {
 		tsp_info("%s() %d err\n", __func__, __LINE__);
 		return size;
 	}
-	tsp_info("called %s: %d\n", __func__, scan_buffer);
 
 	if (scan_buffer != 0 && scan_buffer != 1) {
-		tsp_info("%s() wrong cmd %x\n",
-			__func__, data);
+		tsp_info("%s() wrong cmd %d\n",	__func__, scan_buffer);
 		return size;
 	}
 
-	rc = gpio_direction_output(ts_data->dt_data->keyled_en_gpio, scan_buffer);
-	if (rc)
+	ret = gpio_direction_output(ts_data->dt_data->keyled_en_gpio, scan_buffer);
+	if (ret)
 		tsp_err("%s: unable to set_direction for keyled_en [%d]\n",
 			__func__, ts_data->dt_data->keyled_en_gpio);
 
-	tsp_info("%s: touch_led_control : %d\n", __func__,
+	tsp_info("%s: %d[%d]\n", __func__, scan_buffer,
 			gpio_get_value(ts_data->dt_data->keyled_en_gpio));
 
 	return size;

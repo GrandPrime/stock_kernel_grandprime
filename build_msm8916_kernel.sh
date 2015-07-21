@@ -7,6 +7,8 @@ SELINUX_LOG_DEFCONFIG=selinux_log_defconfig
 BUILD_COMMAND=$1
 if [ "$BUILD_COMMAND" == "kleos_eur" ]; then
         PRODUCT_NAME=kleoslte;
+elif [ "$BUILD_COMMAND" == "kleos_ctc" ]; then
+        PRODUCT_NAME=kleoslte;
 elif [ "$BUILD_COMMAND" == "rossa_cmcc" ]; then
         PRODUCT_NAME=rossalte;
 elif [ "$BUILD_COMMAND" == "rossa_ctc" ]; then
@@ -336,6 +338,7 @@ SECFUNC_PRINT_HELP()
 	echo "$0 \$1 \$2 \$3"
 	echo "  \$1 : "
 	echo " for KLEOS EUR OPEN use kleos_eur"
+	echo " for KLEOS CHN CTC use kleos_ctc"
 	echo " for ROSSA CHN CMCC use rossa_cmcc"
 	echo " for ROSSA CHN CTC use rossa_ctc"
 	echo " for ROSSA CHN CTC use rossa_spr"

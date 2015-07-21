@@ -1298,10 +1298,8 @@ struct bma2x2_data {
 #endif
 	//struct bma2x2_platform_data *pdata;
 
-	u8 axis_map_x;
-	u8 axis_map_y;
-	u8 axis_map_z;
-
+	int trim_x;
+	int trim_x_use;
 };
 
 static struct device *bma2x2_device;
@@ -1311,12 +1309,7 @@ static int bma2x2_open_cal(struct i2c_client *client);
 static void bma2x2_remap_sensor_data(struct bma2x2acc *val,
 		struct bma2x2_data *client_data)
 {
-
-#ifdef CONFIG_BMA_USE_PLATFORM_DATA
 	struct bosch_sensor_data bsd;
-
-	//if (NULL == client_data->bst_pd)
-	//	return;
 
 	bsd.x = val->x;
 	bsd.y = val->y;
@@ -1328,10 +1321,6 @@ static void bma2x2_remap_sensor_data(struct bma2x2acc *val,
 	val->x = bsd.x;
 	val->y = bsd.y;
 	val->z = bsd.z;
-#else
-	(void)val;
-	(void)client_data;
-#endif
 }
 
 
@@ -3378,6 +3367,7 @@ static int bma2x2_open_cal(struct i2c_client *client)
 	bma2x2_set_offset_x(bma2x2->bma2x2_client, (unsigned char)cal_data[0]);
 	bma2x2_set_offset_y(bma2x2->bma2x2_client, (unsigned char)cal_data[1]);
 	bma2x2_set_offset_z(bma2x2->bma2x2_client, (unsigned char)cal_data[2]);
+	bma2x2->trim_x_use = 0;
 
 	return 0;
 }
@@ -4557,6 +4547,7 @@ static void bma2x2_work_func(struct work_struct *work)
 	unsigned long delay = msecs_to_jiffies(atomic_read(&bma2x2->delay));
 
 	bma2x2_read_accel_xyz(bma2x2->bma2x2_client, bma2x2->sensor_type, &acc);
+	acc.x -= bma2x2->trim_x_use * 16;
 
 	input_report_rel(bma2x2->input, REL_X, acc.x);
 	input_report_rel(bma2x2->input, REL_Y, acc.y);
@@ -4736,6 +4727,8 @@ static ssize_t bma2x2_raw_data_show(struct device *dev,
 
 	bma2x2_read_accel_xyz(bma2x2->bma2x2_client, bma2x2->sensor_type,
 								&acc_value);
+	acc_value.x -= bma2x2->trim_x_use * 16;
+
 	acc_value.x = acc_value.x >> 4;
 	acc_value.y = acc_value.y >> 4;
 	acc_value.z = acc_value.z >> 4;
@@ -4753,6 +4746,7 @@ static ssize_t bma2x2_raw_value_show(struct device *dev,
 
 	bma2x2_read_accel_xyz(bma2x2->bma2x2_client, bma2x2->sensor_type,
 								&acc_value);
+	acc_value.x -= bma2x2->trim_x_use * 16;
 
 	return sprintf(buf, "%d,%d,%d\n", acc_value.x, acc_value.y,
 			acc_value.z);
@@ -4781,18 +4775,17 @@ static ssize_t bma2x2_chip_id_show(struct device *dev,
 static ssize_t bma2x2_place_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-#ifdef CONFIG_BMA_USE_PLATFORM_DATA
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bma2x2_data *bma2x2 = i2c_get_clientdata(client);
-#endif
+
 	int place = BOSCH_SENSOR_PLACE_UNKNOWN;
 
 #ifdef CONFIG_BMA_USE_PLATFORM_DATA
 	if (NULL != bma2x2->bst_pd)
 		place = bma2x2->bst_pd->place;
 	else
-		place = bma2x2->place;
 #endif
+		place = bma2x2->place;
 	pr_info("%s acc sensor place=%d\n", __func__, place);
 	return sprintf(buf, "%d\n", place);
 }
@@ -5176,9 +5169,6 @@ static ssize_t bma2x2_calibration_store(struct device *dev,
 		bma2x2_get_offset_z(bma2x2->bma2x2_client,
 					(unsigned char *)&cal_data[2]);
 
-		pr_debug("[ACC] (%d,%d,%d)", cal_data[0], cal_data[1],
-								cal_data[2]);
-
 		old_fs = get_fs();
 		set_fs(KERNEL_DS);
 		cal_filp = filp_open(CALIBRATION_FILE_PATH,
@@ -5201,6 +5191,8 @@ static ssize_t bma2x2_calibration_store(struct device *dev,
 		}
 		filp_close(cal_filp, current->files);
 		set_fs(old_fs);
+
+		bma2x2->trim_x_use = 0;
 	} else {
 		/* erase cal data */
 		old_fs = get_fs();
@@ -5235,8 +5227,9 @@ static ssize_t bma2x2_calibration_store(struct device *dev,
 						(unsigned char)cal_data[1]);
 		bma2x2_set_offset_z(bma2x2->bma2x2_client,
 						(unsigned char)cal_data[2]);
+		bma2x2->trim_x_use = bma2x2->trim_x;
 	}
-	pr_debug("[ACC] cal_data (%d,%d,%d)===== end",
+	pr_info("[ACC]%s cal_data (%d,%d,%d) finished\n", __func__,
 				cal_data[0], cal_data[1], cal_data[2]);
 
 	return count;
@@ -5674,7 +5667,7 @@ static ssize_t bma2x2_reactive_enable_store(struct device *dev,
 	mdelay(1);
 	mutex_unlock(&bma2x2->data_mutex);
 
-	pr_debug("%s: onoff = %d, state =%d\n", __func__,
+	pr_info("%s: onoff = %d, state =%d\n", __func__,
 		atomic_read(&bma2x2->reactive_enable),
 		atomic_read(&bma2x2->reactive_state));
 
@@ -6306,7 +6299,7 @@ static int bma2x2_parse_dt(struct bma2x2_data *data, struct device *dev) {
 	struct device_node *np = dev->of_node;
 	enum of_gpio_flags flags;
 	int ret = 0;
-	u32 temp;
+//	u32 temp;
 
 	pr_info("%s\n", __func__);
 
@@ -6320,7 +6313,7 @@ static int bma2x2_parse_dt(struct bma2x2_data *data, struct device *dev) {
 		pr_err("%s - get gpio_int error\n", __func__);
 		return -ENODEV;
 	}
-
+/*
 	ret = of_property_read_u32(np, "bma2x2,axis_map_x", &temp);
 	if ((data->axis_map_x > 2) || (ret < 0)) {
 		pr_err("%s: invalid x axis_map value %u\n",
@@ -6347,47 +6340,29 @@ static int bma2x2_parse_dt(struct bma2x2_data *data, struct device *dev) {
 	} else {
 		data->axis_map_z = (u8)temp;
 	}
-/*
-	ret = of_property_read_u32(np, "bma2x2,negate_x", &temp);
-	if ((data->negate_x > 1) || (ret < 0)) {
-		pr_err("%s: invalid x axis_map value %u\n",
-			__func__, data->negate_x);
-		data->negate_x = 0;
-	} else {
-		data->negate_x = (u8)temp;
-	}
-
-	ret = of_property_read_u32(np, "bma2x2,negate_y", &temp);
-	if ((data->negate_y > 1) || (ret < 0)) {
-		pr_err("%s: invalid y axis_map value %u\n",
-			__func__, data->negate_y);
-		data->negate_y = 0;
-	} else {
-		data->negate_y = (u8)temp;
-	}
-
-	ret = of_property_read_u32(np, "bma2x2,negate_z", &temp);
-	if ((data->negate_z > 1) || (ret < 0)) {
-		pr_err("%s: invalid z axis_map value %u\n",
-			__func__, data->negate_z);
-		data->negate_z = 0;
-	} else {
-		data->negate_z = (u8)temp;
-	}
 */
 	ret = of_property_read_u32(np, "bma2x2,supply_type", &data->supply_type);
 	if (unlikely(ret)) {
-		dev_err(dev, "error reading property supply_type from device node\n");
+		pr_err("%s: error reading property supply_type.\n",__func__);
 		goto error;
 	}
-#ifdef CONFIG_BMA_USE_PLATFORM_DATA
+
 	ret = of_property_read_u32(np, "bma2x2,accel_place", &data->place);
 	if (unlikely(ret)) {
-		dev_err(dev, "error reading property acc_place from device node %d\n", data->place);
+		pr_err("%s: error reading property acc_place.\n", __func__);
 		goto error;
 	}
-#endif
 
+	ret = of_property_read_u32(np, "bma2x2,trim_x", &data->trim_x);
+	if (unlikely(ret)) {
+		pr_err("%s: error reading property acc_place.\n", __func__);
+		data->trim_x = 0;
+	}
+#if defined(CONFIG_SEC_FACTORY)
+	data->trim_x = 0;
+#endif
+	pr_info("%s: trim_x[%d]\n", __func__, data->trim_x);
+	data->trim_x_use = data->trim_x;
 	return 0;
 error:
 	return ret;
@@ -6731,9 +6706,8 @@ static int bma2x2_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
 
-static int bma2x2_runtime_suspend(struct device *dev)
+static int bma2x2_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bma2x2_data *data = i2c_get_clientdata(client);
@@ -6744,18 +6718,24 @@ static int bma2x2_runtime_suspend(struct device *dev)
 		dev_err(dev, "failed to activate sleep pinctrl state\n");
 */
 	mutex_lock(&data->enable_mutex);
+	pr_info("%s: sensor enable : %d, reactive_enable: onoff = %d, reactive_state =%d\n", __func__,
+		atomic_read(&data->enable),
+		atomic_read(&data->reactive_enable),
+		atomic_read(&data->reactive_state));
+
 	if (atomic_read(&data->enable) == 1) {
 		if (!atomic_read(&data->reactive_enable)) {
 			bma2x2_set_mode(data->bma2x2_client,
 						BMA2X2_MODE_SUSPEND);
 			cancel_delayed_work_sync(&data->work);
+			pr_info("%s, is called\n", __func__);
 		}
 	}
 	mutex_unlock(&data->enable_mutex);
 	return 0;
 }
 
-static int bma2x2_runtime_resume(struct device *dev)
+static int bma2x2_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct bma2x2_data *data = i2c_get_clientdata(client);
@@ -6765,17 +6745,18 @@ static int bma2x2_runtime_resume(struct device *dev)
 	if (ret)
 		dev_err(dev, "failed to activate default pinctrl state\n");
 */
+	pr_info("%s function entrance\n", __func__);
 	mutex_lock(&data->enable_mutex);
 	if (atomic_read(&data->enable) == 1) {
 		bma2x2_set_mode(data->bma2x2_client, BMA2X2_MODE_NORMAL);
 		schedule_delayed_work(&data->work,
 				msecs_to_jiffies(atomic_read(&data->delay)));
+		pr_info("%s, is called\n", __func__);
 	}
 	mutex_unlock(&data->enable_mutex);
 
 	return 0;
 }
-#endif /* CONFIG_PM_RUNTIME */
 
 static const struct i2c_device_id bma2x2_id[] = {
 	{ SENSOR_NAME, 0 },
@@ -6783,25 +6764,16 @@ static const struct i2c_device_id bma2x2_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, bma2x2_id);
 
-#ifdef CONFIG_PM_RUNTIME
 static const struct dev_pm_ops bma_pm_ops = {
-#if defined(CONFIG_PM_RUNTIME)
-	SET_RUNTIME_PM_OPS(bma2x2_runtime_suspend, bma2x2_runtime_resume,
-			   NULL)
-#else
-	.suspend = bma2x2_runtime_suspend,
-	.resume = bma2x2_runtime_resume,
-#endif
+	.suspend = bma2x2_suspend,
+	.resume = bma2x2_resume,
 };
-#endif
 
 static struct i2c_driver bma2x2_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= SENSOR_NAME,
-#ifdef CONFIG_PM_RUNTIME
 		.pm	= &bma_pm_ops,
-#endif
 #ifdef CONFIG_OF
 		.of_match_table = of_match_ptr(bma2x2_dt_ids),
 #endif

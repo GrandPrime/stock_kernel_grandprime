@@ -19,7 +19,11 @@
 #ifndef _MDNIE_LITE_TUNING_DATA_H_
 #define _MDNIE_LITE_TUNING_DATA_H_
 
-/* 2014.08.14 */
+/* 2014.09.04 */
+
+#define ADDRESS_SCR_WHITE_RED   	0x24
+#define ADDRESS_SCR_WHITE_GREEN 	0x26
+#define ADDRESS_SCR_WHITE_BLUE  	0x28
 
 ////////////////// SCREEN CURTAIN//////////////////
 
@@ -419,9 +423,9 @@ static char DYNAMIC_UI_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x20, //scr Rg Bg
+	0x24, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x20, //scr Rb Br
+	0x24, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -1023,9 +1027,9 @@ static char DYNAMIC_GALLERY_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x20, //scr Rg Bg
+	0x24, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x20, //scr Rb Br
+	0x24, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -1263,9 +1267,9 @@ char AUTO_GALLERY_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x1c, //scr Rg Bg
+	0x2c, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x1c, //scr Rb Br
+	0x2c, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -1628,9 +1632,9 @@ static char DYNAMIC_VIDEO_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x20, //scr Rg Bg
+	0x24, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x20, //scr Rb Br
+	0x24, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -1868,9 +1872,9 @@ char AUTO_VIDEO_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x20, //scr Rg Bg
+	0x24, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x20, //scr Rb Br
+	0x24, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -2233,9 +2237,9 @@ static char DYNAMIC_VT_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x20, //scr Rg Bg
+	0x24, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x20, //scr Rb Br
+	0x24, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -2717,9 +2721,9 @@ char AUTO_CAMERA_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x1c, //scr Rg Bg
+	0x2c, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x1c, //scr Rb Br
+	0x2c, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -3607,9 +3611,9 @@ char DYNAMIC_BROWSER_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x20, //scr Rg Bg
+	0x24, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x20, //scr Rb Br
+	0x24, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -3847,9 +3851,9 @@ char AUTO_BROWSER_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x1c, //scr Rg Bg
+	0x2c, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x1c, //scr Rb Br
+	0x2c, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -4212,9 +4216,9 @@ char DYNAMIC_EBOOK_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x20, //scr Rg Bg
+	0x24, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x20, //scr Rb Br
+	0x24, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -4694,9 +4698,9 @@ char LOCAL_CE_2[] = {
 	0x00, //scr Cr Yb
 	0xff, //scr Rr Bb
 	0xff, //scr Cg Yg
-	0x00, //scr Rg Bg
+	0x1c, //scr Rg Bg
 	0xff, //scr Cb Yr
-	0x00, //scr Rb Br
+	0x1c, //scr Rb Br
 	0xff, //scr Mr Mb
 	0x00, //scr Gr Gb
 	0x00, //scr Mg Mg
@@ -4705,7 +4709,128 @@ char LOCAL_CE_2[] = {
 	0x00, //scr Gb Gr
 	0xff, //scr Yr Cb
 	0x00, //scr Br Rb
-	0xf0, //scr Yg Cg
+	0xff, //scr Yg Cg
+	0x00, //scr Bg Rg
+	0x00, //scr Yb Cr
+	0xff, //scr Bb Rr
+	0xff, //scr Wr Wb
+	0x00, //scr Kr Kb
+	0xff, //scr Wg Wg
+	0x00, //scr Kg Kg
+	0xff, //scr Wb Wr
+	0x00, //scr Kb Kr
+	0x00, //curve_1_b
+	0x7f, //curve_1_a
+	0x00, //curve_2_b
+	0x7f, //curve_2_a
+	0x12, //curve_3_b
+	0x32, //curve_3_a
+	0x12, //curve_4_b
+	0x32, //curve_4_a
+	0x12, //curve_5_b
+	0x32, //curve_5_a
+	0x12, //curve_6_b
+	0x32, //curve_6_a
+	0x12, //curve_7_b
+	0x32, //curve_7_a
+	0x1a, //curve_8_b
+	0x28, //curve_8_a
+	0x1a, //curve_9_b
+	0x28, //curve_9_a
+	0x1a, //curve10_b
+	0x28, //curve10_a
+	0x1a, //curve11_b
+	0x28, //curve11_a
+	0x52, //curve12_b
+	0xf7, //curve12_a
+	0x52, //curve13_b
+	0xf7, //curve13_a
+	0x52, //curve14_b
+	0xf7, //curve14_a
+	0x52, //curve15_b
+	0xf7, //curve15_a
+	0x52, //curve16_b
+	0xf7, //curve16_a
+	0x3d, //curve17_b
+	0x30, //curve17_a
+	0x87, //curve18_b
+	0x10, //curve18_a
+	0x87, //curve19_b
+	0x10, //curve19_a
+	0x87, //curve20_b
+	0x10, //curve20_a
+	0x92, //curve21_b
+	0x0e, //curve21_a
+	0x98, //curve22_b
+	0x0d, //curve22_a
+	0x9f, //curve23_b
+	0x0c, //curve23_a
+	0x00, //curve24_b
+	0xff, //curve24_a
+	0x04, //cc r1 0.06
+	0x2b,
+	0x1f, //cc r2
+	0xdc,
+	0x1f, //cc r3
+	0xf9,
+	0x1f, //cc g1
+	0xee,
+	0x04, //cc g2
+	0x19,
+	0x1f, //cc g3
+	0xf9,
+	0x1f, //cc b1
+	0xee,
+	0x1f, //cc b2
+	0xdc,
+	0x04, //cc b3
+	0x36,
+	//end
+};
+
+char LOCAL_CE_1_TEXT[] = {
+	//start
+	0xEB,
+	0x01, //mdnie_en
+	0x00, //data_width mask 00 000
+	0x33, //scr_roi 1 scr algo_roi 1 algo 00 1 0 00 1 0
+	0x03, //sharpen cc gamma 00 0 0
+};
+
+char LOCAL_CE_2_TEXT[] = {
+	0xEC,
+	0x00, //roi ctrl
+	0x00, //roi0 x start
+	0x00,
+	0x00, //roi0 x end
+	0x00,
+	0x00, //roi0 y start
+	0x00,
+	0x00, //roi0 y end
+	0x00,
+	0x00, //roi1 x strat
+	0x00,
+	0x00, //roi1 x end
+	0x00,
+	0x00, //roi1 y start
+	0x00,
+	0x00, //roi1 y end
+	0x00,
+	0x00, //scr Cr Yb
+	0xff, //scr Rr Bb
+	0xff, //scr Cg Yg
+	0x1c, //scr Rg Bg
+	0xff, //scr Cb Yr
+	0x1c, //scr Rb Br
+	0xff, //scr Mr Mb
+	0x00, //scr Gr Gb
+	0x00, //scr Mg Mg
+	0xff, //scr Gg Gg
+	0xff, //scr Mb Mr
+	0x00, //scr Gb Gr
+	0xff, //scr Yr Cb
+	0x00, //scr Br Rb
+	0xff, //scr Yg Cg
 	0x00, //scr Bg Rg
 	0x00, //scr Yb Cr
 	0xff, //scr Bb Rr
@@ -4716,53 +4841,53 @@ char LOCAL_CE_2[] = {
 	0xff, //scr Wb Wr
 	0x00, //scr Kb Kr
 	0x00, //curve 1 b
-	0x7b, //curve 1 a
-	0x03, //curve 2 b
-	0x48, //curve 2 a
-	0x08, //curve 3 b
-	0x32, //curve 3 a
-	0x08, //curve 4 b
-	0x32, //curve 4 a
-	0x08, //curve 5 b
-	0x32, //curve 5 a
-	0x08, //curve 6 b
-	0x32, //curve 6 a
-	0x08, //curve 7 b
-	0x32, //curve 7 a
-	0x10, //curve 8 b
-	0x28, //curve 8 a
-	0x10, //curve 9 b
-	0x28, //curve 9 a
-	0x10, //curve10 b
-	0x28, //curve10 a
-	0x10, //curve11 b
-	0x28, //curve11 a
-	0x10, //curve12 b
-	0x28, //curve12 a
-	0x19, //curve13 b
-	0x22, //curve13 a
-	0x19, //curve14 b
-	0x22, //curve14 a
-	0x19, //curve15 b
-	0x22, //curve15 a
-	0x19, //curve16 b
-	0x22, //curve16 a
-	0x19, //curve17 b
-	0x22, //curve17 a
-	0x19, //curve18 b
-	0x22, //curve18 a
-	0x23, //curve19 b
-	0x1e, //curve19 a
-	0x2e, //curve20 b
-	0x1b, //curve20 a
-	0x33, //curve21 b
-	0x1a, //curve21 a
-	0x40, //curve22 b
-	0x18, //curve22 a
-	0x48, //curve23 b
-	0x17, //curve23 a
+	0x20, //curve 1 a
+	0x00, //curve 2 b
+	0x20, //curve 2 a
+	0x00, //curve 3 b
+	0x20, //curve 3 a
+	0x00, //curve 4 b
+	0x20, //curve 4 a
+	0x02, //curve 5 b
+	0x1b, //curve 5 a
+	0x02, //curve 6 b
+	0x1b, //curve 6 a
+	0x02, //curve 7 b
+	0x1b, //curve 7 a
+	0x02, //curve 8 b
+	0x1b, //curve 8 a
+	0x09, //curve 9 b
+	0xa6, //curve 9 a
+	0x09, //curve10 b
+	0xa6, //curve10 a
+	0x09, //curve11 b
+	0xa6, //curve11 a
+	0x09, //curve12 b
+	0xa6, //curve12 a
+	0x00, //curve13 b
+	0x20, //curve13 a
+	0x00, //curve14 b
+	0x20, //curve14 a
+	0x00, //curve15 b
+	0x20, //curve15 a
+	0x00, //curve16 b
+	0x20, //curve16 a
+	0x00, //curve17 b
+	0x20, //curve17 a
+	0x00, //curve18 b
+	0x20, //curve18 a
+	0x00, //curve19 b
+	0x20, //curve19 a
+	0x00, //curve20 b
+	0x20, //curve20 a
+	0x00, //curve21 b
+	0x20, //curve21 a
+	0x00, //curve22 b
+	0x20, //curve22 a
+	0x00, //curve23 b
+	0x20, //curve23 a
 	0x00, //curve24 b
-	0xFF, //curve24 a
+	0xff, //curve24 a
 	0x04, //cc r1 0.06
 	0x2b,
 	0x1f, //cc r2

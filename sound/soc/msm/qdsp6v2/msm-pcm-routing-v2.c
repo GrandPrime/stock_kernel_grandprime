@@ -4013,6 +4013,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"VOC_EXT_EC MUX", "TERT_MI2S_TX" , "TERT_MI2S_TX"},
 	{"VOC_EXT_EC MUX", "QUAT_MI2S_TX" , "QUAT_MI2S_TX"},
 	{"CS-VOICE_UL1", NULL, "VOC_EXT_EC MUX"},
+	{"VOICE2_UL", NULL, "VOC_EXT_EC MUX"},
 	{"VOIP_UL", NULL, "VOC_EXT_EC MUX"},
 	{"VoLTE_UL", NULL, "VOC_EXT_EC MUX"},
 

@@ -338,7 +338,7 @@ static unsigned char get_brightness_mapped(int bl_level)
 	case 232 ...233 : backlightlevel = 230 ; break;
 	case 229 ...231 : backlightlevel = 227 ; break;
 	case 227 ...228 : backlightlevel = 224 ; break;
-	case 225 ...226 : backlightlevel = 221 ; break;
+	case 224 ...226 : backlightlevel = 221 ; break;
 	case 222 ...223 : backlightlevel = 218 ; break;
 	case 219 ...221 : backlightlevel = 215 ; break;
 	case 217 ...218 : backlightlevel = 212 ; break;
@@ -394,7 +394,7 @@ static unsigned char get_brightness_mapped(int bl_level)
 	case 91 ...92 : backlightlevel = 75 ; break;
 	case 88 ...90 : backlightlevel = 73 ; break;
 	case 86 ...87 : backlightlevel = 71 ; break;
-	case 84 ...85 : backlightlevel = 69 ; break;
+	case 83 ...85 : backlightlevel = 69 ; break;
 	case 81 ...82 : backlightlevel = 67 ; break;
 	case 78 ...80 : backlightlevel = 65 ; break;
 	case 76 ...77 : backlightlevel = 63 ; break;

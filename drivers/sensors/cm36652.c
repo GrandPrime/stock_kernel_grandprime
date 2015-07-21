@@ -69,17 +69,17 @@
 #define CM36652_CANCELATION
 #ifdef CM36652_CANCELATION
 #define CANCELATION_FILE_PATH	"/efs/prox_cal"
-#define CAL_SKIP_ADC	5
-#define CAL_FAIL_ADC	15
+#define CAL_SKIP_ADC	13
+#define CAL_FAIL_ADC	21
 #endif
 
 #define PROX_READ_NUM		40
 
  /* proximity sensor threshold */
-#define DEFUALT_HI_THD		0x000C
-#define DEFUALT_LOW_THD		0x0008
-#define CANCEL_HI_THD		0x000C
-#define CANCEL_LOW_THD		0x0008
+#define DEFUALT_HI_THD		0x0013
+#define DEFUALT_LOW_THD		0x0010
+#define CANCEL_HI_THD		0x0009
+#define CANCEL_LOW_THD		0x0006
 
  /*lightsnesor log time 6SEC 200mec X 30*/
 #define LIGHT_LOG_TIME		30
@@ -110,7 +110,7 @@ enum {
 static u16 ps_reg_init_setting[PS_REG_NUM][2] = {
 	{REG_PS_CONF1, 0x5308},	/* REG_PS_CONF1 */ ///
 	{REG_PS_CONF3, 0x0000},	/* REG_PS_CONF3 */
-	{REG_PS_THD, 0x0C09},	/* REG_PS_THD */
+	{REG_PS_THD, 0x01411},	/* REG_PS_THD */
 	{REG_PS_CANC, 0x0000},	/* REG_PS_CANC */
 };
 
@@ -317,29 +317,16 @@ static int proximity_open_cancelation(struct cm36652_data *data)
 		pr_err("%s: Can't read the cancel data from file\n", __func__);
 		err = -EIO;
 	}
-#if 0 ////
+
 	/*If there is an offset cal data. */
 	if (ps_reg_init_setting[PS_CANCEL][CMD] != 0) {
-		ps_reg_init_setting[PS_THD_HIGH][CMD] =
-			data->pdata->cancel_hi_thd ?
-			data->pdata->cancel_hi_thd :
-			CANCEL_HI_THD;
-		ps_reg_init_setting[PS_THD_LOW][CMD] =
-			data->pdata->cancel_low_thd ?
-			data->pdata->cancel_low_thd :
-			CANCEL_LOW_THD;
+			ps_reg_init_setting[PS_THD][CMD] =
+				((data->pdata->cancel_hi_thd << 8) & 0xff00)
+				| (data->pdata->cancel_low_thd & 0xff);
 	}
 
-	pr_err("[SENSOR] %s: prox_cal = 0x%x, ps_high_thresh = 0x%x, ps_low_thresh = 0x%x\n",
-		__func__,
-		ps_reg_init_setting[PS_CANCEL][CMD],
-		ps_reg_init_setting[PS_THD_HIGH][CMD],
-		ps_reg_init_setting[PS_THD_LOW][CMD]);
-#endif
-	pr_info("[SENSOR] cm366 %s: prox_cal = 0x%x, ps_threshold = 0x%x(Far/Close)\n",
-		__func__,
-		ps_reg_init_setting[PS_CANCEL][CMD],
-		ps_reg_init_setting[PS_THD][CMD]);
+	pr_info("%s prox_cal[%d] PS_THD[%x]\n", __func__,
+		ps_reg_init_setting[PS_CANCEL][CMD], ps_reg_init_setting[PS_THD][CMD]);
 
 	filp_close(cancel_filp, current->files);
 	set_fs(old_fs);
@@ -364,56 +351,33 @@ static int proximity_store_cancelation(struct device *dev, bool do_calib)
 
 		if (ps_reg_init_setting[PS_CANCEL][CMD] < CAL_SKIP_ADC) {
 			ps_reg_init_setting[PS_CANCEL][CMD] = 0;
-			pr_info("%s:crosstalk <= %d\n", __func__, CAL_SKIP_ADC);
+			pr_info("%s:crosstalk <= %d SKIP!!\n", __func__, CAL_SKIP_ADC);
 			cm36652->uProxCalResult = 2;
 			err = 1;
 		} else if (ps_reg_init_setting[PS_CANCEL][CMD] < CAL_FAIL_ADC) {
-			ps_reg_init_setting[PS_CANCEL][CMD] =
-				ps_reg_init_setting[PS_CANCEL][CMD];
-			pr_info("%s:crosstalk_offset = %u", __func__,
+			//ps_reg_init_setting[PS_CANCEL][CMD] =
+			//	ps_reg_init_setting[PS_CANCEL][CMD];
+			pr_info("%s:crosstalk_offset = %u Canceled", __func__,
 				ps_reg_init_setting[PS_CANCEL][CMD]);
 			cm36652->uProxCalResult = 1;
 			err = 0;
+			ps_reg_init_setting[PS_THD][CMD] =
+				((cm36652->pdata->cancel_hi_thd<< 8) & 0xff00)
+				| (cm36652->pdata->cancel_low_thd & 0xff);
 		} else {
 			ps_reg_init_setting[PS_CANCEL][CMD] = 0;
-			pr_info("%s:crosstalk > %d\n", __func__, CAL_FAIL_ADC);
+			pr_info("%s:crosstalk >= %d\n FAILED!!", __func__, CAL_FAIL_ADC);
+			ps_reg_init_setting[PS_THD][CMD] =
+				((cm36652->pdata->default_hi_thd << 8) & 0xff00)
+				| (cm36652->pdata->default_low_thd & 0xff);
 			cm36652->uProxCalResult = 0;
 			err = 1;
 		}
-
-#if 0 ///
-		if (err == 0) {
-			ps_reg_init_setting[PS_THD_HIGH][CMD] =
-				cm36652->pdata->cancel_hi_thd ?
-				cm36652->pdata->cancel_hi_thd :
-				CANCEL_HI_THD;
-			ps_reg_init_setting[PS_THD_LOW][CMD] =
-				cm36652->pdata->cancel_low_thd ?
-				cm36652->pdata->cancel_low_thd :
-				CANCEL_LOW_THD;
-		} else {
-			ps_reg_init_setting[PS_THD_HIGH][CMD] =
-				cm36652->pdata->default_hi_thd ?
-				cm36652->pdata->default_hi_thd :
-				DEFUALT_HI_THD;
-			ps_reg_init_setting[PS_THD_LOW][CMD] =
-				cm36652->pdata->default_low_thd ?
-				cm36652->pdata->default_low_thd :
-				DEFUALT_LOW_THD;
-		}
-#endif
 	} else { /* reset */
 		ps_reg_init_setting[PS_CANCEL][CMD] = 0;
-#if 0 ///
-		ps_reg_init_setting[PS_THD_HIGH][CMD] =
-			cm36652->pdata->default_hi_thd ?
-			cm36652->pdata->default_hi_thd :
-			DEFUALT_HI_THD;
-		ps_reg_init_setting[PS_THD_LOW][CMD] =
-			cm36652->pdata->default_low_thd ?
-			cm36652->pdata->default_low_thd :
-			DEFUALT_LOW_THD;
-#endif
+		ps_reg_init_setting[PS_THD][CMD] =
+			((cm36652->pdata->default_hi_thd << 8) & 0xff00)
+			| (cm36652->pdata->default_low_thd & 0xff);
 	}
 
 	err = cm36652_i2c_write_word(cm36652, REG_PS_CANC,
@@ -421,23 +385,15 @@ static int proximity_store_cancelation(struct device *dev, bool do_calib)
 	if (err < 0)
 		pr_err("%s: cm36652_ps_canc_reg is failed. %d\n", __func__,
 			err);
-#if 0 ///
-	err = cm36652_i2c_write_word(cm36652, REG_PS_THD_HIGH,
-		ps_reg_init_setting[PS_THD_HIGH][CMD]);
+	
+	usleep_range(2900, 3000);
+	err = cm36652_i2c_write_word(cm36652, REG_PS_THD,
+		ps_reg_init_setting[PS_THD][CMD]);
 	if (err < 0)
-		pr_err("%s: cm36652_ps_high_reg is failed. %d\n", __func__,
+		pr_err("%s: cm36652_ps_canc_reg is failed. %d\n", __func__,
 			err);
-	err = cm36652_i2c_write_word(cm36652, REG_PS_THD_LOW,	ps_reg_init_setting[PS_THD_LOW][CMD]);
-	if (err < 0)
-		pr_err("%s: cm36652_ps_low_reg is failed. %d\n", __func__,
-			err);
-
-	pr_info("%s: prox_cal = 0x%x, ps_high_thresh = 0x%x, ps_low_thresh = 0x%x\n",
-		__func__,
-		ps_reg_init_setting[PS_CANCEL][CMD],
-		ps_reg_init_setting[PS_THD_HIGH][CMD],
-		ps_reg_init_setting[PS_THD_LOW][CMD]);
-#endif
+	pr_info("%s CalResult[%d] PS_THD[%x]\n", __func__,
+		cm36652->uProxCalResult, ps_reg_init_setting[PS_THD][CMD]);
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -799,15 +755,17 @@ static ssize_t proximity_thresh_high_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct cm36652_data *cm36652 = dev_get_drvdata(dev);
-	u16 thresh_value = ps_reg_init_setting[PS_THD][CMD];
+	u16 thresh_value;
 	int err;
 
 	err = kstrtou16(buf, 10, &thresh_value);
 	if (err < 0)
-		pr_err("%s, kstrtoint failed.", __func__);
+		pr_err("%s, kstrtoint failed.\n", __func__);
+	pr_info("%s, thresh_value:%u\n", __func__, thresh_value);
 
 	if (thresh_value > 2) {
-		ps_reg_init_setting[PS_THD][CMD] = thresh_value;
+		ps_reg_init_setting[PS_THD][CMD] =
+			(ps_reg_init_setting[PS_THD][CMD] & 0xff) | ((thresh_value << 8) & 0xff00);
 		err = cm36652_i2c_write_word(cm36652, REG_PS_THD,
 			ps_reg_init_setting[PS_THD][CMD]);
 		if (err < 0)
@@ -839,15 +797,17 @@ static ssize_t proximity_thresh_low_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t size)
 {
 	struct cm36652_data *cm36652 = dev_get_drvdata(dev);
-	u16 thresh_value = ps_reg_init_setting[PS_THD][CMD];
+	u16 thresh_value;
 	int err;
 
 	err = kstrtou16(buf, 10, &thresh_value);
 	if (err < 0)
 		pr_err("%s, kstrtoint failed.", __func__);
+	pr_info("%s, thresh_value:%u\n", __func__, thresh_value);
 
-	if (thresh_value > 2) { //////////////////////////Todo
-		ps_reg_init_setting[PS_THD][CMD] = thresh_value;
+	if (thresh_value > 2) {
+		ps_reg_init_setting[PS_THD][CMD] =
+			(ps_reg_init_setting[PS_THD][CMD] & 0xff00) | (thresh_value & 0x00ff) ;
 		err = cm36652_i2c_write_word(cm36652, REG_PS_THD,
 			ps_reg_init_setting[PS_THD][CMD]);
 		if (err < 0)
@@ -1165,7 +1125,7 @@ static int cm36652_parse_dt(struct device *dev,
 	ret = of_property_read_u32(np, "cm36652,default_hi_thd",
 	&pdata->default_hi_thd);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - Cannot set default_hi_thd through DTSI\n",
+		pr_err("[SENSOR]: %s - Cannot set default_hi_thd through DTSI error!!\n",
 			__func__);
 		pdata->default_hi_thd = DEFUALT_HI_THD;
 	}
@@ -1173,7 +1133,7 @@ static int cm36652_parse_dt(struct device *dev,
 	ret = of_property_read_u32(np, "cm36652,default_low_thd",
 		&pdata->default_low_thd);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - Cannot set default_low_thd through DTSI\n",
+		pr_err("[SENSOR]: %s - Cannot set default_low_thd through DTSI error!!\n",
 			__func__);
 		pdata->default_low_thd = DEFUALT_LOW_THD;
 	}
@@ -1181,7 +1141,7 @@ static int cm36652_parse_dt(struct device *dev,
 	ret = of_property_read_u32(np, "cm36652,cancel_hi_thd",
 		&pdata->cancel_hi_thd);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - Cannot set cancel_hi_thd through DTSI\n",
+		pr_err("[SENSOR]: %s - Cannot set cancel_hi_thd through DTSI error!!\n",
 			__func__);
 		pdata->cancel_hi_thd = CANCEL_HI_THD;
 	}
@@ -1189,15 +1149,16 @@ static int cm36652_parse_dt(struct device *dev,
 	ret = of_property_read_u32(np, "cm36652,cancel_low_thd",
 		&pdata->cancel_low_thd);
 	if (ret < 0) {
-		pr_err("[SENSOR]: %s - Cannot set cancel_low_thd through DTSI\n",
+		pr_err("[SENSOR]: %s - Cannot set cancel_low_thd through DTSI error!!\n",
 			__func__);
 		pdata->cancel_low_thd = CANCEL_LOW_THD;
 	}
+	ps_reg_init_setting[PS_THD][CMD] =
+		((pdata->default_hi_thd << 8) & 0xff00) | (pdata->default_low_thd & 0xff);
 
-////TODO
-//	ps_reg_init_setting[2][CMD] = pdata->default_low_thd;
-//	ps_reg_init_setting[3][CMD] = pdata->default_hi_thd;
-
+	pr_info("%s DefaultTHS[%d/%d] CancelTHD[%d/%d] PS_THD[%x]\n", __func__,
+		pdata->default_hi_thd, pdata->default_low_thd,
+		pdata->cancel_hi_thd, pdata->cancel_low_thd, ps_reg_init_setting[PS_THD][CMD]);
 	return 0;
 }
 #else
@@ -1654,6 +1615,7 @@ static int cm36652_suspend(struct device *dev)
 
 	if (cm36652->power_state & LIGHT_ENABLED)
 		cm36652_light_disable(cm36652);
+	pr_info("%s is called.\n", __func__);
 
 	return 0;
 }
@@ -1664,6 +1626,7 @@ static int cm36652_resume(struct device *dev)
 
 	if (cm36652->power_state & LIGHT_ENABLED)
 		cm36652_light_enable(cm36652);
+	pr_info("%s is called.\n", __func__);
 
 	return 0;
 }

@@ -44,6 +44,11 @@
 #undef EXT4FS_DEBUG
 
 /*
+ * For mballoc.h
+ */
+#define DOUBLE_CHECK
+
+/*
  * Debug code
  */
 #ifdef EXT4FS_DEBUG

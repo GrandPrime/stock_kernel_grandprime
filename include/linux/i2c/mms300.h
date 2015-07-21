@@ -20,20 +20,11 @@
 
 #undef TOUCHKEY	
 
+#include <linux/input/tsp_ta_callback.h>
+
 #if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
 #define TEMP_USE_FOR_DEV
 #undef USE_TSP_TA_CALLBACKS
-#else
-#ifndef CONFIG_EXTCON
-#define USE_TSP_TA_CALLBACKS
-#endif
-#endif
-
-#ifdef USE_TSP_TA_CALLBACKS
-extern struct tsp_callbacks *charger_callbacks;
-struct tsp_callbacks {
-	void (*inform_charger)(struct tsp_callbacks *, int);
-};
 #endif
 
 #if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(TEMP_USE_FOR_DEV)
