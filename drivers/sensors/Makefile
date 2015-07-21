@@ -1,6 +1,7 @@
 #obj-$(CONFIG_SENSORS)		+= sensors_class.o
 obj-$(CONFIG_SENSORS)		+= sensors_core.o
 obj-$(CONFIG_SENSORS_SSC)	+= sensors_ssc.o
+obj-$(CONFIG_SENSORS_AK09911C)	+= ak09911c.o
 obj-$(CONFIG_SENSORS_HSCDTD008A)	+= hscdtd008a_i2c.o alps-input.o
 obj-$(CONFIG_SENSORS_BMA255) += bma255.o
 obj-$(CONFIG_SENSORS_GP2A002)	+= gp2a002.o

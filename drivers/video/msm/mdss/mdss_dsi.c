@@ -91,7 +91,8 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 		return 0;
 
 	if (enable) {
-#ifndef CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL
+#if !defined(CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL) && !defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL)\
+	&& !defined(CONFIG_FB_MSM_MIPI_SHARP_HD_VIDEO_PANEL)
 		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 			pr_debug("reset enable: pinctrl not enabled\n");
 #endif
@@ -111,6 +112,9 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 				goto error_enable;
 			}
 		}
+#if defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL)
+		mdelay(10);
+#endif
 #if defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL) || defined(CONFIG_FB_MSM_MIPI_SAMSUNG_WVGA_VIDEO_PT_PANEL)
 	if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 		ret = gpio_request(ctrl_pdata->disp_en_gpio,
@@ -799,7 +803,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, 0x1F << 16);
 		wmb();
 		if (mipi->lp11_init){
-#if defined(CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
+#if defined(CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL) || defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL) 
 			mdelay(5);
 			if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 				pr_debug("reset enable: pinctrl not enabled\n");

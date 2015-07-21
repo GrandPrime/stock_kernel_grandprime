@@ -255,7 +255,7 @@ static void apply_rule(struct rule_node_info *node,
 			}
 		} else {
 			rule->state_change = false;
-			if ((rule->state == RULE_STATE_APPLIED)) {
+			if (rule->state == RULE_STATE_APPLIED) {
 				node->apply.id = rule->rule_ops.dst_node[0];
 				node->apply.throttle = rule->rule_ops.mode;
 				node->apply.lim_bw = rule->rule_ops.dst_bw;
@@ -316,7 +316,13 @@ static int node_rules_compare(void *priv, struct list_head *a,
 	int64_t th_diff = 0;
 
 
-	if (ra->rule_ops.mode == rb->rule_ops.mode) {
+	if ((ra->rule_ops.mode == THROTTLE_OVERRIDE_OFF) &&
+			(rb->rule_ops.mode != THROTTLE_OVERRIDE_OFF)) {
+		ret = -1;
+	} else if ((ra->rule_ops.mode != THROTTLE_OVERRIDE_OFF) &&
+			(rb->rule_ops.mode == THROTTLE_OVERRIDE_OFF)) {
+		ret = 1;
+	} else if (ra->rule_ops.mode == rb->rule_ops.mode) {
 		if (ops_equal(ra->rule_ops.op, rb->rule_ops.op)) {
 			if ((ra->rule_ops.op == OP_LT) ||
 				(ra->rule_ops.op == OP_LE)) {

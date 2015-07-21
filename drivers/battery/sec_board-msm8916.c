@@ -331,22 +331,28 @@ void board_fuelgauge_init(struct sec_fuelgauge_info *fuelgauge)
 
 void cable_initial_check(struct sec_battery_info *battery)
 {
-  union power_supply_propval value;
+	union power_supply_propval value;
 
-  pr_info("%s : current_cable_type : (%d)\n", __func__, current_cable_type);
-  if (POWER_SUPPLY_TYPE_BATTERY != current_cable_type) {
-    value.intval = current_cable_type;
-    psy_do_property("battery", set,
-        POWER_SUPPLY_PROP_ONLINE, value);
-  } else {
-    psy_do_property(battery->pdata->charger_name, get,
-        POWER_SUPPLY_PROP_ONLINE, value);
-    if (value.intval == POWER_SUPPLY_TYPE_WIRELESS) {
-      value.intval = 1;
-      psy_do_property("wireless", set,
-          POWER_SUPPLY_PROP_ONLINE, value);
-    }
-  }
+	pr_info("%s : current_cable_type : (%d)\n", __func__, current_cable_type);
+	if (POWER_SUPPLY_TYPE_BATTERY != current_cable_type) {
+		if (current_cable_type == POWER_SUPPLY_TYPE_POWER_SHARING) {
+			value.intval = current_cable_type;
+			psy_do_property("ps", set,
+					POWER_SUPPLY_PROP_ONLINE, value);
+		} else {
+			value.intval = current_cable_type;
+			psy_do_property("battery", set,
+					POWER_SUPPLY_PROP_ONLINE, value);
+		}
+	} else {
+		psy_do_property(battery->pdata->charger_name, get,
+				POWER_SUPPLY_PROP_ONLINE, value);
+		if (value.intval == POWER_SUPPLY_TYPE_WIRELESS) {
+			value.intval = 1;
+			psy_do_property("wireless", set,
+					POWER_SUPPLY_PROP_ONLINE, value);
+		}
+	}
 }
 
 EXPORT_SYMBOL(cable_initial_check);

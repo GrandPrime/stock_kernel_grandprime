@@ -192,6 +192,7 @@ struct sm5504_usbsw {
 	int				dev2;
 	int				dev3;
 	int				mansw;
+	int				mode;
 	int				vbus;
 	int				dock_attached;
 	int				dev_id;
@@ -365,12 +366,18 @@ static void sm5504_reg_init(struct sm5504_usbsw *usbsw)
 	ret = i2c_smbus_write_byte_data(client, REG_CONTROL, ctrl);
 	if (ret < 0)
 		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+	usbsw->mode = CON_MANUAL_SW;
 
 #if !defined(CONFIG_SEC_FACTORY)
 	/* Single scan for JIG Accessory */
-	ret = i2c_smbus_write_byte_data(client, REG_RESERVED_1, 0x06);
+	ret = i2c_smbus_write_byte_data(client, REG_RESERVED_1, 0x0D);
 	if (ret < 0)
 		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+#else
+	ret = i2c_smbus_write_byte_data(client, REG_RESERVED_1, 0x8D);
+	if (ret < 0)
+		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+
 #endif
 	/*Manual SW2 bit2 : JIG_ON '1' */
 	ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW2, 0x04);
@@ -937,7 +944,9 @@ static int sm5504_attach_dev(struct sm5504_usbsw *usbsw)
 	case ADC_OTG:
 #endif
 	case (ADC_VZW_DOCK)...(ADC_MPOS):
+#if !defined(CONFIG_MUIC_SUPPORT_DESKDOCK)
 	case ADC_DESKDOCK:
+#endif
 		pr_info("%s,[SM5504 MUIC] Unsupported Accessory!\n", __func__);
 		goto attach_end;
 		break;
@@ -1085,6 +1094,13 @@ static int sm5504_attach_dev(struct sm5504_usbsw *usbsw)
 				sm5504_detect_lanhub(usbsw);
 			}
 #endif
+#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
+		/* Charging Cable */
+		} else if (adc == ADC_CHARGING_CABLE) {
+			pr_info("[MUIC] Charging Cable Connected\n");
+			pdata->callback(CABLE_TYPE_CHARGING_CABLE,
+				SM5504_ATTACHED);
+#endif
 			/* Incompatible */
 		} else if (usbsw->vbus) {
 			pr_info("[MUIC] Undefined Charger Connected\n");
@@ -1134,7 +1150,9 @@ static int sm5504_detach_dev(struct sm5504_usbsw *usbsw)
 	case ADC_OTG:
 #endif
 	case (ADC_VZW_DOCK)...(ADC_MPOS):
+#if !defined(CONFIG_MUIC_SUPPORT_DESKDOCK)
 	case ADC_DESKDOCK:
+#endif
 		pr_info("%s,[SM5504 MUIC] Unsupported Accessory!\n", __func__);
 		goto detach_end;
 		break;
@@ -1250,6 +1268,13 @@ static int sm5504_detach_dev(struct sm5504_usbsw *usbsw)
 		usbsw->lanhub_ta_status=0;
 		usbsw->dock_attached = SM5504_DETACHED;
 
+#endif
+#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
+		/* Charging Cable */
+	} else if (usbsw->adc == ADC_CHARGING_CABLE) {
+		pr_info("[MUIC] Charging Cable Disconnected\n");
+		pdata->callback(CABLE_TYPE_CHARGING_CABLE,
+			SM5504_DETACHED);
 #endif
 	/* Incompatible */
 	} else if (usbsw->undefined_attached) {
@@ -1656,20 +1681,24 @@ static int sm5504_suspend(struct device *dev)
 	struct i2c_client *client = to_i2c_client(dev);
 	struct sm5504_usbsw *usbsw = i2c_get_clientdata(client);
 	int ret;
+	pr_info("%s: suspend \n",__func__);
 	usbsw->mansw = i2c_smbus_read_byte_data(client, REG_MANUAL_SW1);
 	ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW1, SW_ALL_OPEN);
 	if (ret < 0)
-		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+		dev_err(&client->dev, "%s: write REG_MANUAL_SW1 err %d\n", __func__, ret);
 	ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW2,
 		SW_ALL_OPEN_WITHOUT_VBUS);
 	if (ret < 0)
-		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+		dev_err(&client->dev, "%s: read REG_MANUAL_SW1 err %d\n", __func__, ret);
 	ret = i2c_smbus_read_byte_data(client, REG_CONTROL);
 	if (ret < 0)
-		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
+		dev_err(&client->dev, "%s: read REG_CONTROL err %d\n", __func__, ret);
 	else {
+		usbsw->mode = ret & CON_MANUAL_SW;
 		ret = i2c_smbus_write_byte_data(client,
 				REG_CONTROL, ret & ~CON_MANUAL_SW);
+		if (ret < 0)
+			dev_err(&client->dev, "%s: write REG_CONTROL err %d\n", __func__, ret);
 	}
 
 	return 0;
@@ -1685,15 +1714,18 @@ static int sm5504_resume(struct device *dev)
 #endif
 	pr_info("%s: resume \n",__func__);
 #if defined(CONFIG_MUIC_SUPPORT_RUSTPROOF_INBATT)
-	ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW1, usbsw->mansw);
-	if (ret < 0)
-		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
-	ret = i2c_smbus_read_byte_data(client, REG_CONTROL);
-	if (ret < 0)
-		dev_err(&client->dev, "%s: err %d\n", __func__, ret);
-	else {
+	if (usbsw->mode == CON_MANUAL_SW) {
+		ret = i2c_smbus_read_byte_data(client, REG_CONTROL);
+		if (ret < 0)
+			dev_err(&client->dev, "%s: read REG_CONTROL err %d\n", __func__, ret);
 		ret = i2c_smbus_write_byte_data(client,
 				REG_CONTROL, ret | CON_MANUAL_SW);
+		if (ret < 0)
+			dev_err(&client->dev, "%s: write REG_CONTROL err %d\n", __func__, ret);
+	} else {
+		ret = i2c_smbus_write_byte_data(client, REG_MANUAL_SW1, usbsw->mansw);
+		if (ret < 0)
+			dev_err(&client->dev, "%s: write REG_MANUAL_SW1 err %d\n", __func__, ret);
 	}
 #endif
 	ldev1 = i2c_smbus_read_byte_data(client, REG_DEVICE_TYPE1);

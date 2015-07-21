@@ -607,6 +607,18 @@ config MUIC_SUPPORT_RUSTPROOF_INBATT
          This option will muic path open in the suspend
 	 this is for only in-battery model
 
+config MUIC_SUPPORT_CHARGING_CABLE
+	bool "MUIC CHARGING CABLE SUPPORT"
+	default n
+	help
+	 This option will enable the Charging Cable
+
+config MUIC_SUPPORT_DESKDOCK
+	bool "MUIC DESK DOCK SUPPORT"
+	default n
+	help
+	 This option will enble the deskdock
+
 config MUIC_SM5504_SUPPORT_LANHUB_TA
 	bool "SM5504 Muic Lanhub TA support"
 	depends on SM5504_MUIC && !SEC_FACTORY

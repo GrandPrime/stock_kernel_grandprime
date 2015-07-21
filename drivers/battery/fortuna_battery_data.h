@@ -1,5 +1,5 @@
-#define CAPACITY_MAX			1000
-#define CAPACITY_MAX_MARGIN     30
+#define CAPACITY_MAX			960
+#define CAPACITY_MAX_MARGIN     50
 #define CAPACITY_MIN			0
 
 #if defined(CONFIG_MACH_FORTUNA_CTC)
@@ -21,9 +21,9 @@ static sec_bat_adc_table_data_t temp_table[] = {
 	{34629, 200},
 	{35684, 150},
 	{36739, 100},
-	{37688, 50},
-	{39224, 0},
-	{39635, -50},
+	{37810, 50},
+	{38760, 0},
+	{39858, -50},
 	{40461, -100},
 	{41124, -150},
 	{41510, -200},

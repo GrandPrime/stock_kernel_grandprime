@@ -33,42 +33,38 @@
 #include <mach/gpio.h>
 #include <asm/unaligned.h>
 #include <linux/regulator/consumer.h>
-
 #include <linux/pinctrl/consumer.h>
 
 #ifdef CONFIG_OF
 #include <linux/of_gpio.h>
 #endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
 /* registers */
 #define ABOV_BTNSTATUS		0x00
-#define ABOV_FW_VER			0x01
+#define ABOV_FW_VER		0x01
 #define ABOV_PCB_VER		0x02
 #define ABOV_COMMAND		0x03
 #define ABOV_THRESHOLD		0x04
-#define ABOV_SENS			0x05
+#define ABOV_SENS		0x05
 #define ABOV_SETIDAC		0x06
 #define ABOV_DIFFDATA		0x0A
 #define ABOV_RAWDATA		0x0E
 #define ABOV_VENDORID		0x12
-#define ABOV_GLOVE			0x13
+#define ABOV_GLOVE		0x13
 #define ABOV_MD_VER		0x14
 
 /* command */
-#define CMD_LED_ON			0x10
-#define CMD_LED_OFF			0x20
+#define CMD_LED_ON		0x10
+#define CMD_LED_OFF		0x20
 #define CMD_DATA_UPDATE		0x40
 #define CMD_LED_CTRL_ON		0x60
 #define CMD_LED_CTRL_OFF	0x70
 #define CMD_STOP_MODE		0x80
-#define CMD_GLOVE_ON		0x10
-#define CMD_GLOVE_OFF		0x20
+#define CMD_GLOVE_ON		0x20
+#define CMD_GLOVE_OFF		0x10
 
 #define ABOV_BOOT_DELAY		26
-#define ABOV_RESET_DELAY	150//94
+#define ABOV_RESET_DELAY	150
 
 static struct device *sec_touchkey;
 
@@ -81,9 +77,9 @@ static struct device *sec_touchkey;
 #elif defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT)\
 	|| defined(CONFIG_SEC_A33G_EUR_PROJECT)
 #define TK_FW_PATH_BIN "abov/abov_tk_a3.fw"
-#define FW_VERSION 0x4
-#define FW_CHECKSUM_H 0x3D
-#define FW_CHECKSUM_L 0x52
+#define FW_VERSION 0x5
+#define FW_CHECKSUM_H 0xCF
+#define FW_CHECKSUM_L 0x34
 #define FORCE_FW_UPDATE_DIFF_MODULE
 #define MD_VERSION 0x89
 
@@ -103,10 +99,6 @@ enum {
 	SDCARD,
 };
 
-#define CONFIG_INPUT_ENABLED
-
-#define NOT_USE_THIS_ROUTINE	0
-
 #ifdef CONFIG_SAMSUNG_LPM_MODE
 extern int poweroff_charging;
 #endif
@@ -120,9 +112,6 @@ struct abov_tk_info {
 	struct i2c_client *client;
 	struct input_dev *input_dev;
 	struct abov_touchkey_platform_data *pdata;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	struct early_suspend early_suspend;
-#endif
 	struct mutex lock;
 	struct pinctrl *pinctrl;
 
@@ -144,20 +133,13 @@ struct abov_tk_info {
 	u8 checksum_h;
 	u8 checksum_l;
 	bool enabled;
-	bool fw_update_possible;
 	bool glovemode;
+	bool probe_done;
 };
 
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void abov_tk_early_suspend(struct early_suspend *h);
-static void abov_tk_late_resume(struct early_suspend *h);
-#endif
-
-#ifdef CONFIG_INPUT_ENABLED
 static int abov_tk_input_open(struct input_dev *dev);
 static void abov_tk_input_close(struct input_dev *dev);
-#endif
 
 static int abov_tk_i2c_read_checksum(struct abov_tk_info *info);
 
@@ -167,11 +149,6 @@ static int abov_touchled_cmd_reserved;
 static int abov_glove_mode_enable(struct i2c_client *client, u8 cmd)
 {
 	return i2c_smbus_write_byte_data(client, ABOV_GLOVE, cmd);
-}
-
-static int abov_sleep_mode(struct i2c_client *client, u8 cmd)
-{
-	return i2c_smbus_write_byte_data(client, ABOV_BTNSTATUS, cmd);
 }
 
 static int abov_tk_i2c_read(struct i2c_client *client,
@@ -265,13 +242,9 @@ static void release_all_fingers(struct abov_tk_info *info)
 
 static int abov_tk_reset_for_bootmode(struct abov_tk_info *info)
 {
-	int ret;
-	ret = gpio_get_value(info->pdata->gpio_en);
-	pr_err("%s: gpio_en : %d\n", __func__, ret);
-	if (ret)
+	if (gpio_get_value(info->pdata->gpio_en)) {
 		gpio_direction_output(info->pdata->gpio_en, 0);
-	else {
-		pr_err("%s: gpio_en is low[%d]\n", __func__, ret);
+		usleep_range(10 * 1000, 12 * 1000);
 	}
 
 	gpio_direction_output(info->pdata->gpio_en, 1);
@@ -649,242 +622,6 @@ fail_sdcard_open:
 	return ret;
 }
 
-#if NOT_USE_THIS_ROUTINE
-void abov_i2c_start(int scl, int sda)
-{
-	gpio_direction_output(sda, 1);
-	gpio_direction_output(scl, 1);
-	usleep_range(15, 17);
-	gpio_direction_output(sda, 0);
-	usleep_range(10, 12);
-	gpio_direction_output(scl, 0);
-	usleep_range(10, 12);
-}
-
-void abov_i2c_stop(int scl, int sda)
-{
-	gpio_direction_output(scl, 0);
-	usleep_range(10, 12);
-	gpio_direction_output(sda, 0);
-	usleep_range(10, 12);
-	gpio_direction_output(scl, 1);
-	usleep_range(10, 12);
-	gpio_direction_output(sda, 1);
-}
-
-void abov_testdelay(void)
-{
-	u8 i;
-	u8 delay;
-
-	/* 120nms */
-	for (i = 0; i < 15; i++)
-		delay = 0;
-}
-
-
-void abov_byte_send(u8 data, int scl, int sda)
-{
-	u8 i;
-
-	for (i = 0x80; i != 0; i >>= 1) {
-		gpio_direction_output(scl, 0);
-		usleep_range(5, 6);
-
-		if (data & i)
-			gpio_direction_output(sda, 1);
-		else
-			gpio_direction_output(sda, 0);
-
-		usleep_range(5, 6);
-		gpio_direction_output(scl, 1);
-		usleep_range(5, 6);
-	}
-	usleep_range(5, 6);
-
-	gpio_direction_output(scl, 0);
-	gpio_direction_input(sda);
-//	gpio_tlmm_config(GPIO_CFG(sda,0,GPIO_CFG_INPUT,GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	usleep_range(5, 6);
-
-	gpio_direction_output(scl, 1);
-	usleep_range(5, 6);
-
-	gpio_get_value(sda);
-	abov_testdelay();
-
-	gpio_direction_output(scl, 0);
-	gpio_direction_output(sda, 0);
-	usleep_range(20, 22);
-}
-
-u8 abov_byte_read(bool type, int scl, int sda)
-{
-	u8 i;
-	u8 data = 0;
-	u8 index = 0x7;
-
-	gpio_direction_output(scl, 0);
-	gpio_direction_input(sda);
-//	gpio_tlmm_config(GPIO_CFG(sda,0,GPIO_CFG_INPUT,GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	usleep_range(20, 22);
-
-	for (i = 0; i < 8; i++) {
-		gpio_direction_output(scl, 0);
-		usleep_range(10, 12);
-		gpio_direction_output(scl, 1);
-		usleep_range(5, 6);
-
-		data = data | (u8)(gpio_get_value(sda) << index);
-		index -= 1;
-	}
-	usleep_range(5, 6);
-	gpio_direction_output(scl, 0);
-
-	gpio_direction_output(sda, 0);
-	usleep_range(5, 6);
-
-	if (type) { /*ACK */
-		gpio_direction_output(sda, 0);
-		usleep_range(5, 6);
-		gpio_direction_output(scl, 1);
-		usleep_range(5, 6);
-		gpio_direction_output(scl, 0);
-		usleep_range(5, 6);
-	} else { /* NAK */
-		gpio_direction_output(sda, 1);
-		usleep_range(5, 6);
-		gpio_direction_output(scl, 1);
-		usleep_range(10, 12);
-		gpio_direction_output(scl, 0);
-		usleep_range(5, 6);
-		gpio_direction_output(sda, 0);
-		usleep_range(5, 6);
-	}
-	usleep_range(20, 22);
-
-	return data;
-}
-
-void abov_enter_mode(int scl, int sda)
-{
-	abov_i2c_start(scl, sda);
-	abov_testdelay();
-	abov_byte_send(ABOV_ID, scl, sda);
-	abov_byte_send(0xAC, scl, sda);
-	abov_byte_send(0x5B, scl, sda);
-	abov_byte_send(0x2D, scl, sda);
-	abov_i2c_stop(scl, sda);
-}
-
-void abov_firm_write(const u8 *fw_data, int block, int scl, int sda)
-{
-	int i, j;
-	u16 pos = 0;
-	u8 addr[2];
-
-	addr[0] = 0x10;
-	addr[1] = 0x00;
-	for (i = 0; i < block; i++) {
-		u8 data[32] = {0, };
-		if (i % 8 == 0) {
-			addr[0] = 0x10 + i/8;
-			addr[1] = 0;
-		} else
-			addr[1] = addr[1] + 0x20;
-		memcpy(data, fw_data + pos, 32);
-		abov_i2c_start(scl, sda);
-		abov_testdelay();
-		abov_byte_send(ABOV_ID, scl, sda);
-		abov_byte_send(0xAC, scl, sda);
-		abov_byte_send(0x7A, scl, sda);
-		abov_byte_send(addr[0], scl, sda);
-		abov_byte_send(addr[1], scl, sda);
-		for (j = 0; j < 32; j++)
-			abov_byte_send(data[j], scl, sda);
-		abov_i2c_stop(scl, sda);
-
-		pos += 0x20;
-
-		msleep(2);
-	}
-}
-
-void abov_read_address_set(int scl, int sda)
-{
-		abov_i2c_start(scl, sda);
-		abov_testdelay();
-		abov_byte_send(ABOV_ID, scl, sda);
-		abov_byte_send(0xAC, scl, sda);
-		abov_byte_send(0x9E, scl, sda);
-		abov_byte_send(0x10, scl, sda); /* start addr H */
-		abov_byte_send(0x00, scl, sda); /* start addr L */
-		abov_byte_send(0x3F, scl, sda); /* end addr H  */
-		abov_byte_send(0xFF, scl, sda); /* end addr L  */
-		abov_i2c_stop(scl, sda);
-}
-
-void abov_checksum(struct abov_tk_info *info, int scl, int sda)
-{
-	struct i2c_client *client = info->client;
-
-	u8 status;
-	u8 bootver;
-	u8 firmver;
-	u8 checksumh;
-	u8 checksuml;
-
-	abov_read_address_set(scl, sda);
-	msleep(5);
-
-	abov_i2c_start(scl, sda);
-	abov_testdelay();
-	abov_byte_send(ABOV_ID, scl, sda);
-	abov_byte_send(0x00, scl, sda);
-
-	abov_i2c_start(scl, sda); /* restart */
-	abov_testdelay();
-	abov_byte_send(ABOV_ID + 1, scl, sda);
-	status = abov_byte_read(true, scl, sda);
-	bootver = abov_byte_read(true, scl, sda);
-	firmver = abov_byte_read(true, scl, sda);
-	checksumh = abov_byte_read(true, scl, sda);
-	checksuml = abov_byte_read(false, scl, sda);
-	abov_i2c_stop(scl, sda);
-	msleep(3);
-
-	info->checksum_h = checksumh;
-	info->checksum_l = checksuml;
-
-	dev_err(&client->dev,
-		"%s status(0x%x), boot(0x%x), firm(0x%x), cs_h(0x%x), cs_l(0x%x)\n",
-		__func__, status, bootver, firmver, checksumh, checksuml);
-}
-
-void abov_exit_mode(int scl, int sda)
-{
-	abov_i2c_start(scl, sda);
-	abov_testdelay();
-	abov_byte_send(ABOV_ID, scl, sda);
-	abov_byte_send(0xAC, scl, sda);
-	abov_byte_send(0x5B, scl, sda);
-	abov_byte_send(0xE1, scl, sda);
-	abov_i2c_stop(scl, sda);
-}
-
-static int abov_fw_update(struct abov_tk_info *info,
-				const u8 *fw_data, int block, int scl, int sda)
-{
-
-	usleep(ABOV_BOOT_DELAY * 1000);
-	abov_enter_mode(scl, sda);
-	msleep(600);
-	abov_firm_write(fw_data, block, scl, sda);
-	abov_checksum(info, scl, sda);
-	return 0;
-}
-#endif
-
 static int abov_tk_check_busy(struct abov_tk_info *info)
 {
 	int ret, count = 0;
@@ -1092,12 +829,6 @@ static int abov_flash_fw(struct abov_tk_info *info, bool probe, u8 cmd)
 		if (ret < 0)
 			break;
 
-#if NOT_USE_THIS_ROUTINE
-		abov_tk_reset_for_bootmode(info);
-		abov_fw_update(info, fw_data, block_count,
-			info->pdata->gpio_scl, info->pdata->gpio_sda);
-#endif
-		
 		if (cmd == BUILT_IN) {
 			if ((info->checksum_h != FW_CHECKSUM_H) ||
 				(info->checksum_l != FW_CHECKSUM_L)) {
@@ -1147,12 +878,6 @@ static ssize_t touchkey_fw_update(struct device *dev,
 	struct i2c_client *client = info->client;
 	int ret;
 	u8 cmd;
-
-	if (info->fw_update_possible == false) {
-		dev_err(&client->dev, "%s fail (no reset pin)\n", __func__);
-		info->fw_update_state = 2;
-		goto touchkey_fw_update_out;
-	}
 
 	switch(*buf) {
 	case 's':
@@ -1310,17 +1035,11 @@ static int abov_tk_fw_check(struct abov_tk_info *info)
 	bool force = false;
 
 	ret = get_tk_fw_version(info, true);
-	if (0/*ret*/) {
+	if (ret) {
 		dev_err(&client->dev,
 			"%s: i2c fail...[%d], addr[%d]\n",
 			__func__, ret, info->client->addr);
-		dev_err(&client->dev,
-			"%s: touchkey driver unload\n", __func__);
-		return ret;
 	}
-
-	if (!info->fw_update_possible)
-		return ret;
 
 #ifdef FORCE_FW_UPDATE_DIFF_MODULE
 	if (info->md_ver != MD_VERSION) {
@@ -1351,24 +1070,19 @@ int abov_power(struct abov_touchkey_platform_data *pdata, bool on)
 {
 	int ret = 0;
 
-	if(pdata->vdd_io_vreg)
-		ret = regulator_enable(pdata->vdd_io_vreg);
+	if(pdata->vdd_io_vreg) {
+		if (on)
+			ret = regulator_enable(pdata->vdd_io_vreg);
+		else
+			ret = regulator_disable(pdata->vdd_io_vreg);
+	}
 	else
 		pr_err("[TKEY] %s: iovdd reg NULL!! \n", __func__);
-	if(ret){
-		pr_err("[TKEY] %s: iovdd reg enable fail\n", __func__);
-		return ret;
-	}
 
-#if 0// !defined (CONFIG_SEC_GNOTE_PROJECT)
-	if(pdata->avdd_vreg)
-		ret = regulator_enable(pdata->avdd_vreg);
-	if(ret){
-		pr_err("[TKEY] %s: avdd reg enable fail\n", __func__);
-		return ret;
-	}
-#endif
-	msleep(50);
+	if(ret)
+		pr_err("[TKEY] %s: iovdd reg %s fail\n",
+			__func__, on ? "enable" : "disable");
+
 	return ret;
 }
 
@@ -1422,37 +1136,25 @@ int abov_gpio_reg_init(struct device *dev,
 		return ret;
 	}
 
-	if (pdata->gpio_seperated) {
-		ret = gpio_request(pdata->gpio_en, "tkey_gpio_en");
-		if(ret < 0){
-			dev_err(dev, "unable to request gpio_en\n");
-			return ret;
-		}
+	ret = gpio_request(pdata->gpio_en, "tkey_gpio_en");
+	if(ret < 0){
+		dev_err(dev, "unable to request gpio_en\n");
+		return ret;
 	}
-		
+
 	ret = gpio_request(pdata->gpio_tkey_led_en, "gpio_tkey_led_en");
 	if(ret < 0){
 		dev_err(dev, "unable to request gpio_tkey_led_en..Tkey led will not work...ignoring\n");
 		ret = 0;
 	}
-	#if !defined CONFIG_MACH_A3_CHN_CTC
+
 	pdata->vdd_io_vreg = regulator_get(dev, "vddo");
-	//pdata->vdd_io_vreg = regulator_get(dev, "8226_l6");
 	if (IS_ERR(pdata->vdd_io_vreg)){
 		pdata->vdd_io_vreg = NULL;
 		dev_err(dev, "pdata->vdd_io_vreg get error, ignoring\n");
 	} else
 		regulator_set_voltage(pdata->vdd_io_vreg, 1800000, 1800000);
-	#endif
-#if 0// !defined (CONFIG_SEC_GNOTE_PROJECT)
-	//pdata->avdd_vreg = regulator_get(dev, "8226_l19");
-	pdata->avdd_vreg = regulator_get(dev, "avdd");
-	if (IS_ERR(pdata->avdd_vreg)){
-		pdata->avdd_vreg = NULL;
-		dev_err(dev, "pdata->avdd_vreg get error, ignoring\n");
-	}
-	regulator_set_voltage(pdata->avdd_vreg, 2850000, 2850000);
-#endif
+
 	pdata->power = abov_power;
 
 	return ret;
@@ -1519,10 +1221,6 @@ static int abov_tk_probe(struct i2c_client *client,
 {
 	struct abov_tk_info *info;
 	struct input_dev *input_dev;
-#if 0
-	struct device *touchkey_dev;
-	int i;
-#endif
 	int ret = 0;
 
 	pr_err("%s++\n", __func__);
@@ -1550,6 +1248,7 @@ static int abov_tk_probe(struct i2c_client *client,
 
 	info->client = client;
 	info->input_dev = input_dev;
+	info->probe_done = false;
 
 	if (client->dev.of_node) {
 		struct abov_touchkey_platform_data *pdata;
@@ -1575,20 +1274,20 @@ static int abov_tk_probe(struct i2c_client *client,
 	}
 
 	/* Get pinctrl if target uses pinctrl */
-		info->pinctrl = devm_pinctrl_get(&client->dev);
-		if (IS_ERR(info->pinctrl)) {
-			if (PTR_ERR(info->pinctrl) == -EPROBE_DEFER)
-				goto err_config;
-	
-			pr_err("%s: Target does not use pinctrl\n", __func__);
-			info->pinctrl = NULL;
-		}
-	
-		if (info->pinctrl) {
-			ret = abov_pinctrl_configure(info, true);
-			if (ret)
-				pr_err("%s: cannot set ts pinctrl active state\n", __func__);
-		}
+	info->pinctrl = devm_pinctrl_get(&client->dev);
+	if (IS_ERR(info->pinctrl)) {
+		if (PTR_ERR(info->pinctrl) == -EPROBE_DEFER)
+			goto err_config;
+
+		pr_err("%s: Target does not use pinctrl\n", __func__);
+		info->pinctrl = NULL;
+	}
+
+	if (info->pinctrl) {
+		ret = abov_pinctrl_configure(info, true);
+		if (ret)
+			pr_err("%s: cannot set ts pinctrl active state\n", __func__);
+	}
 
 	ret = abov_gpio_reg_init(&client->dev, info->pdata);
 	if(ret){
@@ -1601,13 +1300,8 @@ static int abov_tk_probe(struct i2c_client *client,
 	info->irq = -1;
 	mutex_init(&info->lock);
 
-//	if (info->pdata->gpio_rst) {
-		info->fw_update_possible = true;
-		/*s3c_gpio_setpull(info->pdata->gpio_rst, S3C_GPIO_PULL_UP);*/
-		abov_tk_reset_for_bootmode(info);
-		msleep(ABOV_RESET_DELAY);
-//	} else
-//		info->fw_update_possible = false;
+	abov_tk_reset_for_bootmode(info);
+	msleep(ABOV_RESET_DELAY);
 
 	info->input_event = info->pdata->input_event;
 	info->touchkey_count = sizeof(touchkey_keycode) / sizeof(int);
@@ -1626,10 +1320,9 @@ static int abov_tk_probe(struct i2c_client *client,
 	input_dev->phys = info->phys;
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->dev.parent = &client->dev;
-#ifdef CONFIG_INPUT_ENABLED
 	input_dev->open = abov_tk_input_open;
 	input_dev->close = abov_tk_input_close;
-#endif
+
 	set_bit(EV_KEY, input_dev->evbit);
 	set_bit(KEY_RECENT, input_dev->keybit);
 	set_bit(KEY_BACK, input_dev->keybit);
@@ -1660,13 +1353,6 @@ static int abov_tk_probe(struct i2c_client *client,
 	}
 	info->irq = client->irq;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	info->early_suspend.level = EARLY_SUSPEND_LEVEL_STOP_DRAWING;
-	info->early_suspend.suspend = abov_tk_early_suspend;
-	info->early_suspend.resume = abov_tk_late_resume;
-	register_early_suspend(&info->early_suspend);
-#endif
-
 	sec_touchkey = device_create(sec_class,
 		NULL, 0, info, "sec_touchkey");
 	if (IS_ERR(sec_touchkey))
@@ -1686,9 +1372,11 @@ static int abov_tk_probe(struct i2c_client *client,
 			__func__);
 	}
 
-	dev_err(&client->dev, "%s done\n", __func__);
-
 	gpio_direction_output(info->pdata->gpio_tkey_led_en, 0);
+
+	dev_err(&client->dev, "%s done\n", __func__);
+	info->probe_done = true;
+
 	return 0;
 
 err_req_irq:
@@ -1709,13 +1397,10 @@ static int abov_tk_remove(struct i2c_client *client)
 {
 	struct abov_tk_info *info = i2c_get_clientdata(client);
 
-/*	if (info->enabled)
-		info->pdata->power(0);
-*/
+	if (info->enabled)
+		info->pdata->power(info->pdata, false);
+
 	info->enabled = false;
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	unregister_early_suspend(&info->early_suspend);
-#endif
 	if (info->irq >= 0)
 		free_irq(info->irq, info);
 	input_unregister_device(info->input_dev);
@@ -1735,41 +1420,28 @@ static void abov_tk_shutdown(struct i2c_client *client)
 	abov_tk_i2c_write(client, ABOV_BTNSTATUS, &cmd, 1);
 }
 
-#if defined(CONFIG_PM)
 static int abov_tk_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct abov_tk_info *info = i2c_get_clientdata(client);
-#if !defined(CONFIG_SEC_GPEN_PROJECT)
-	int ret;
-#endif
 
 	if (!info->enabled)
 		return 0;
-	printk("Inside abov_tk_suspend \n");
-	dev_notice(&info->client->dev, "%s: users=%d\n", __func__,
+
+	dev_info(&info->client->dev, "%s: users=%d\n", __func__,
 		   info->input_dev->users);
 
 	disable_irq(info->irq);
 	info->enabled = false;
 	release_all_fingers(info);
 
-#if defined(CONFIG_SEC_GPEN_PROJECT)
 	if (info->pdata->power)
 		info->pdata->power(info->pdata, false);
-#else
-	ret = gpio_get_value(info->pdata->gpio_en);
-	if (ret)
-		gpio_direction_output(info->pdata->gpio_en, 0);
-#endif
-	return 0;
-#if 1
-	/*if (info->pdata->power)
-		info->pdata->power(info->pdata, false);
-	else*/
-		abov_sleep_mode(client, CMD_STOP_MODE);
-#endif
 
+	if (info->pdata->gpio_seperated > 0) {
+		if (gpio_get_value(info->pdata->gpio_en))
+			gpio_direction_output(info->pdata->gpio_en, 0);
+	}
 
 	return 0;
 }
@@ -1780,77 +1452,52 @@ static int abov_tk_resume(struct device *dev)
 	struct abov_tk_info *info = i2c_get_clientdata(client);
 	u8 led_data;
 
-	if (info->enabled)
-		return 0;	
-	printk("Inside abov_tk_resume \n");
+	if (!info->probe_done)
+		return 0;
 
-	dev_notice(&info->client->dev, "%s: users=%d\n", __func__,
+	if (info->enabled)
+		return 0;
+
+	dev_info(&info->client->dev, "%s: users=%d\n", __func__,
 		   info->input_dev->users);
-#if 0
-	abov_tk_reset_for_bootmode(info);
+
+	if (info->pdata->gpio_seperated > 0)
+		gpio_direction_output(info->pdata->gpio_en, 1);
+
+	if (info->pdata->power)
+		info->pdata->power(info->pdata, true);
+	else
+		get_tk_fw_version(info, true);
+
 	msleep(ABOV_RESET_DELAY);
+
+	info->enabled = true;
+
 	if (info->glovemode)
 		abov_glove_mode_enable(client, CMD_GLOVE_ON);
-#else
-
-	if (info->pdata->gpio_seperated > 0) {
-		gpio_direction_output(info->pdata->gpio_en, 1);
-		msleep(ABOV_RESET_DELAY);
-	}
-#if defined(CONFIG_SEC_GPEN_PROJECT)
-	if (info->pdata->power) {
-		info->pdata->power(info->pdata, true);
-		msleep(ABOV_RESET_DELAY);
-	} else
-#endif
-		/* touchkey on by i2c */
-		get_tk_fw_version(info, true);
-#endif
-	info->enabled = true;
 
 	if (abov_touchled_cmd_reserved) {
 		abov_touchled_cmd_reserved = 0;
 		led_data=abov_touchkey_led_status;
-		
+
 		if(info->pdata->gpio_tkey_led_en >= 0)
 			gpio_direction_output(info->pdata->gpio_tkey_led_en,1);
 		abov_tk_i2c_write(client, ABOV_BTNSTATUS, &led_data, 1);
 
-		dev_notice(&info->client->dev, "%s: LED reserved on\n", __func__);
+		dev_info(&info->client->dev, "%s: LED reserved %s\n",
+			__func__, (led_data == CMD_LED_ON) ? "on" : "off");
 	}
 	enable_irq(info->irq);
 
 	return 0;
 }
-#endif
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-static void abov_tk_early_suspend(struct early_suspend *h)
-{
-	struct abov_tk_info *info;
-	info = container_of(h, struct abov_tk_info, early_suspend);
-	abov_tk_suspend(&info->client->dev);
-
-}
-
-static void abov_tk_late_resume(struct early_suspend *h)
-{
-	struct abov_tk_info *info;
-	info = container_of(h, struct abov_tk_info, early_suspend);
-	abov_tk_resume(&info->client->dev);
-}
-#endif
-
-#ifdef CONFIG_INPUT_ENABLED
 static int abov_tk_input_open(struct input_dev *dev)
 {
 	struct abov_tk_info *info = input_get_drvdata(dev);
 
-	dev_info(&info->client->dev, "%s: users=%d\n", __func__,
-		   info->input_dev->users);
-
 	gpio_direction_input(info->pdata->gpio_scl);
-	gpio_direction_input(info->pdata->gpio_sda);	
+	gpio_direction_input(info->pdata->gpio_sda);
 
 	abov_tk_resume(&info->client->dev);
 
@@ -1859,22 +1506,11 @@ static int abov_tk_input_open(struct input_dev *dev)
 static void abov_tk_input_close(struct input_dev *dev)
 {
 	struct abov_tk_info *info = input_get_drvdata(dev);
-	dev_info(&info->client->dev, "%s: users=%d\n", __func__,
-		   info->input_dev->users);
 
 	abov_tk_suspend(&info->client->dev);
 	gpio_set_value(info->pdata->gpio_scl, 1);
-	gpio_set_value(info->pdata->gpio_sda, 1);	
+	gpio_set_value(info->pdata->gpio_sda, 1);
 }
-#endif
-
-#if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND) &&\
-	!defined(CONFIG_INPUT_ENABLED)
-static const struct dev_pm_ops abov_tk_pm_ops = {
-	.suspend = abov_tk_suspend,
-	.resume = abov_tk_resume,
-};
-#endif
 
 static const struct i2c_device_id abov_tk_id[] = {
 	{ABOV_TK_NAME, 0},
@@ -1899,10 +1535,6 @@ static struct i2c_driver abov_tk_driver = {
 	.driver = {
 		   .name = ABOV_TK_NAME,
 		   .of_match_table = abov_match_table,
-#if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND) &&\
-	!defined(CONFIG_INPUT_ENABLED)
-		   .pm = &abov_tk_pm_ops,
-#endif
 	},
 	.id_table = abov_tk_id,
 };

@@ -2028,6 +2028,8 @@ static irqreturn_t sdhci_msm_sdiowakeup_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+void sdhci_dumpregs(struct sdhci_host *host);
+static int sdhci_msm_enable_controller_clock(struct sdhci_host *host);
 static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 {
 	struct sdhci_host *host = (struct sdhci_host *)data;
@@ -2039,8 +2041,16 @@ static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 	int pwr_state = 0, io_level = 0;
 	unsigned long flags;
 
+
+	if(!atomic_read(&msm_host->controller_clock)) { 
+		sdhci_msm_enable_controller_clock(host); // To enable clock 
+		pr_err("%s: Power IRQ while clock is turned off\n", mmc_hostname(msm_host->mmc)); 
+		sdhci_dumpregs(host); // Dump host registers including power control registers 
+		BUG_ON(1); // Force panic! 
+	}
+
 	irq_status = readb_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
-	pr_debug("%s: Received IRQ(%d), status=0x%x\n",
+	pr_info("%s: Received IRQ(%d), status=0x%x\n", 
 		mmc_hostname(msm_host->mmc), irq, irq_status);
 
 	/* Clear the interrupt */
@@ -2126,7 +2136,7 @@ static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 				host->ioaddr + CORE_VENDOR_SPEC);
 	mb();
 
-	pr_debug("%s: Handled IRQ(%d), ret=%d, ack=0x%x\n",
+	pr_info("%s: Handled IRQ(%d), ret=%d, ack=0x%x\n",
 		mmc_hostname(msm_host->mmc), irq, ret, irq_ack);
 	spin_lock_irqsave(&host->lock, flags);
 	if (pwr_state)
@@ -2769,6 +2779,11 @@ void sdhci_msm_dump_vendor_regs(struct sdhci_host *host)
 	/* Disable test bus */
 	writel_relaxed(~CORE_TESTBUS_ENA, msm_host->core_mem +
 			CORE_TESTBUS_CONFIG);
+
+	pr_info("PWRCTL_STATUS: 0x%08x | PWRCTL_MASK: 0x%08x | PWRCTL_CTL: 0x%08x\n", 
+	readl_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS), 
+	readl_relaxed(msm_host->core_mem + CORE_PWRCTL_MASK), 
+	readl_relaxed(msm_host->core_mem + CORE_PWRCTL_CTL)); 
 }
 
 static struct sdhci_ops sdhci_msm_ops = {
