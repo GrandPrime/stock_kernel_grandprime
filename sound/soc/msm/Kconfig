@@ -249,6 +249,7 @@ config SND_SOC_MSM8X16
 	select SND_SOC_MSM_STUB
 	select SND_SOC_MSM_HOSTLESS_PCM
 	select SND_SOC_MSM8X16_WCD
+	select SLIMBUS
 	select MFD_CORE
 	select SND_DYNAMIC_MINORS
 	select QTI_PP
@@ -286,7 +287,7 @@ config SND_SOC_MSMPLUTONIUM
 	 interfaces with DSP, also it will enable
 	 the machine drivers and the corresponding
 	 DAI-links.
-	 
+
 config SAMSUNG_AUDIO
 	tristate "samsung audio feature"
 	help
@@ -296,5 +297,10 @@ config AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE
 	tristate "samsung audio speaker NXP amp feature"
 	help
 	 To add support for speaker NXP amp
+
+config AUDIO_QUAT_I2S_ENABLE
+	tristate "QUAT_I2S feature"
+	help
+	 To add support for quat_i2s 
 
 endmenu

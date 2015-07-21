@@ -31,6 +31,7 @@
 #define CSID_VERSION_V31_1                    0x30010001
 #define CSID_VERSION_V32                      0x30020000
 #define CSID_VERSION_V33                      0x30030000
+#define CSID_VERSION_V34                      0x30040000
 #define CSID_VERSION_V40                      0x40000000
 #define MSM_CSID_DRV_NAME                    "msm_csid"
 
@@ -177,7 +178,7 @@ static int msm_csid_config(struct csid_device *csid_dev,
 static irqreturn_t msm_csid_irq(int irq_num, void *data)
 {
 	uint32_t irq;
-	struct csid_device *csid_dev ;
+	struct csid_device *csid_dev;
 	void __iomem *csidbase;
 
 	if (!data) {
@@ -393,7 +394,8 @@ static int msm_csid_release(struct csid_device *csid_dev)
 			NULL, 0, &csid_dev->csi_vdd, 0);
 	} else if ((csid_dev->hw_version == CSID_VERSION_V31) ||
 		(csid_dev->hw_version == CSID_VERSION_V32) ||
-		(csid_dev->hw_version == CSID_VERSION_V33)) {
+		(csid_dev->hw_version == CSID_VERSION_V33) ||
+		(csid_dev->hw_version == CSID_VERSION_V34)) {
 		msm_cam_clk_enable(&csid_dev->pdev->dev, csid_clk_info,
 			csid_dev->csid_clk, csid_dev->num_clk, 0);
 		msm_camera_enable_vreg(&csid_dev->pdev->dev,
@@ -707,7 +709,7 @@ static int csid_probe(struct platform_device *pdev)
 	rc = msm_csid_get_clk_info(new_csid_dev, pdev);
 	if (rc < 0) {
 		pr_err("%s: msm_csid_get_clk_info() failed", __func__);
-		rc = -EFAULT;
+		rc = -ENODEV;
 		goto csid_no_resource;
 	}
 
@@ -789,7 +791,7 @@ static int csid_probe(struct platform_device *pdev)
 	} else {
 		pr_err("%s:%d, invalid hw version : 0x%x", __func__, __LINE__,
 		new_csid_dev->hw_dts_version);
-		rc = -EINVAL;
+		rc = -ENODEV;
 		goto csid_no_resource;
 	}
 

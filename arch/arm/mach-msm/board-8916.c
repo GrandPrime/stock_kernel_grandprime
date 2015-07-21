@@ -42,28 +42,6 @@
 #include <linux/proc_avc.h>
 #endif
 
-struct class *sec_class;
-EXPORT_SYMBOL(sec_class);
-
-static void samsung_sys_class_init(void)
-{
-	pr_info("samsung sys class init.\n");
-
-	sec_class = class_create(THIS_MODULE, "sec");
-
-	if (IS_ERR(sec_class)) {
-		pr_err("Failed to create class(sec)!\n");
-		return;
-	}
-
-	pr_info("samsung sys class end.\n");
-};
-
-static void __init msm8916_early_memory(void)
-{
-	of_scan_flat_dt(dt_scan_for_memory_hole, NULL);
-}
-
 static void __init msm8916_dt_reserve(void)
 {
 	of_scan_flat_dt(dt_scan_for_memory_reserve, NULL);
@@ -98,6 +76,19 @@ void __init msm8916_add_drivers(void)
 	msm_pm_sleep_status_init();
 }
 
+struct class *sec_class;
+EXPORT_SYMBOL(sec_class);
+
+static void samsung_sys_class_init(void)
+{
+	sec_class = class_create(THIS_MODULE, "sec");
+
+	if (IS_ERR(sec_class)) {
+		pr_err("Failed to create class(sec)!\n");
+		return;
+	}
+};
+
 static void __init msm8916_init(void)
 {
 	struct of_dev_auxdata *adata = msm8916_auxdata_lookup;
@@ -108,6 +99,7 @@ static void __init msm8916_init(void)
 #ifdef CONFIG_PROC_AVC
 	sec_avc_log_init();
 #endif
+
 	/*
 	 * populate devices from DT first so smem probe will get called as part
 	 * of msm_smem_init.  socinfo_init needs smem support so call
@@ -146,7 +138,6 @@ DT_MACHINE_START(MSM8916_DT,
 	.init_machine = msm8916_init,
 	.dt_compat = msm8916_dt_match,
 	.reserve = msm8916_dt_reserve,
-	.init_very_early = msm8916_early_memory,
 	.smp = &msm8916_smp_ops,
 MACHINE_END
 
@@ -165,6 +156,5 @@ DT_MACHINE_START(MSM8936_DT,
 	.init_machine = msm8916_init,
 	.dt_compat = msm8936_dt_match,
 	.reserve = msm8916_dt_reserve,
-	.init_very_early = msm8916_early_memory,
 	.smp = &msm8936_smp_ops,
 MACHINE_END

@@ -140,7 +140,7 @@ static ssize_t back_camera_type_show(struct device *dev,
 
 #if defined(CONFIG_S5K4ECGX)
 	char type[] = "SLSI_S5K4ECGX\n";
-#elif defined(CONFIG_MACH_ROSSA_CMCC)
+#elif defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
 	char type[] = "SILICONFILE_SR544\n";
 #else
 	char type[] = "SONY_IMX219\n";
@@ -154,11 +154,7 @@ static ssize_t front_camera_type_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
 
-#if defined(CONFIG_SR130PC20)
-	char cam_type[] = "SILICONFILE_SR130PC20\n";
-#elif defined(CONFIG_SR030PC50)
-	char cam_type[] = "SILICONFILE_SR030PC50\n";
-#elif defined(CONFIG_SR200PC20)
+#if defined(CONFIG_SR200PC20)
 	char cam_type[] = "SILICONFILE_SR200PC20\n";
 #else
 	char cam_type[] = "SLSI_S5K5E3YX\n";
@@ -188,6 +184,41 @@ static ssize_t back_camera_firmware_store(struct device *dev,
 
 	return size;
 }
+
+char cam_fw_user_ver[40] = "NULL NULL\n";//multi module
+static ssize_t back_camera_firmware_user_show(struct device *dev,
+					 struct device_attribute *attr, char *buf)
+{
+	CDBG("[FW_DBG] cam_fw_ver : %s\n", cam_fw_user_ver);
+	return snprintf(buf, sizeof(cam_fw_user_ver), "%s", cam_fw_user_ver);
+}
+
+static ssize_t back_camera_firmware_user_store(struct device *dev,
+					  struct device_attribute *attr, const char *buf, size_t size)
+{
+	CDBG("[FW_DBG] buf : %s\n", buf);
+	snprintf(cam_fw_user_ver, sizeof(cam_fw_user_ver), "%s", buf);
+
+	return size;
+}
+
+char cam_fw_factory_ver[40] = "NULL NULL\n";//multi module
+static ssize_t back_camera_firmware_factory_show(struct device *dev,
+					 struct device_attribute *attr, char *buf)
+{
+	CDBG("[FW_DBG] cam_fw_ver : %s\n", cam_fw_factory_ver);
+	return snprintf(buf, sizeof(cam_fw_factory_ver), "%s", cam_fw_factory_ver);
+}
+
+static ssize_t back_camera_firmware_factory_store(struct device *dev,
+					  struct device_attribute *attr, const char *buf, size_t size)
+{
+	CDBG("[FW_DBG] buf : %s\n", buf);
+	snprintf(cam_fw_factory_ver, sizeof(cam_fw_factory_ver), "%s", buf);
+
+	return size;
+}
+
 char cam_load_fw[25] = "NULL\n";
 static ssize_t back_camera_firmware_load_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -237,11 +268,7 @@ static ssize_t rear_camera_vendorid_show(struct device *dev,
 	return  snprintf(buf, sizeof(vendor_id), "%s", vendor_id);
 }
 
-#if defined(CONFIG_SR130PC20)
-	char front_cam_fw_ver[25] = "SR130PC20 N\n";
-#elif defined(CONFIG_SR030PC50)
-	char front_cam_fw_ver[25] = "SR030PC50 N\n";
-#elif defined(CONFIG_SR200PC20)
+#if defined(CONFIG_SR200PC20)
 	char front_cam_fw_ver[25] = "SR200PC20M N\n";
 #else
 	char front_cam_fw_ver[25] = "S5K5E3YX N\n";
@@ -295,6 +322,10 @@ static ssize_t front_camera_firmware_full_store(struct device *dev,
 static DEVICE_ATTR(rear_camtype, S_IRUGO, back_camera_type_show, NULL);
 static DEVICE_ATTR(rear_camfw, S_IRUGO|S_IWUSR|S_IWGRP,
     back_camera_firmware_show, back_camera_firmware_store);
+static DEVICE_ATTR(rear_checkfw_user, S_IRUGO|S_IWUSR|S_IWGRP,
+    back_camera_firmware_user_show, back_camera_firmware_user_store);
+static DEVICE_ATTR(rear_checkfw_factory, S_IRUGO|S_IWUSR|S_IWGRP,
+    back_camera_firmware_factory_show, back_camera_firmware_factory_store);
 static DEVICE_ATTR(rear_camfw_load, S_IRUGO|S_IWUSR|S_IWGRP,
 	back_camera_firmware_load_show, back_camera_firmware_load_store);
 static DEVICE_ATTR(rear_camfw_full, S_IRUGO | S_IWUSR | S_IWGRP,
@@ -365,6 +396,19 @@ static int __init msm_sensor_init_module(void)
 	if (device_create_file(cam_dev_back, &dev_attr_rear_camfw) < 0) {
 		printk("Failed to create device file!(%s)!\n",
 				dev_attr_rear_camfw.attr.name);
+		goto device_create_fail;
+	}
+
+	if (device_create_file(cam_dev_back, &dev_attr_rear_checkfw_user) < 0) {
+		printk("Failed to create device file!(%s)!\n",
+			dev_attr_rear_checkfw_user.attr.name);
+		rc = -ENODEV;
+		goto device_create_fail;
+	}
+	if (device_create_file(cam_dev_back, &dev_attr_rear_checkfw_factory) < 0) {
+		printk("Failed to create device file!(%s)!\n",
+			dev_attr_rear_checkfw_factory.attr.name);
+		rc = -ENODEV;
 		goto device_create_fail;
 	}
 

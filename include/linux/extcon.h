@@ -29,7 +29,6 @@
 
 #define SUPPORTED_CABLE_MAX	32
 #define CABLE_NAME_MAX		30
-#define EXTCON_DEV_NAME			"extcon-muic"
 
 /*
  * The standard cable name is to help support general notifier
@@ -52,35 +51,26 @@
 enum extcon_cable_name {
 	EXTCON_USB = 0,
 	EXTCON_USB_HOST,
-	EXTCON_USB_HOST_5V,
 	EXTCON_TA, /* Travel Adaptor */
-	EXTCON_HV_TA, /* High Voltage Travel Adaptor */
-	EXTCON_CEA936_CHG,	/* CEA936 A/B USB cable, Only for charging. */
+	EXTCON_FAST_CHARGER,
+	EXTCON_SLOW_CHARGER,
 	EXTCON_CHARGE_DOWNSTREAM, /* Charging an external device */
+	EXTCON_HDMI,
 	EXTCON_MHL,
-	EXTCON_MHL_VB,
-	EXTCON_DESKDOCK,
-	EXTCON_DESKDOCK_VB,
-	EXTCON_CARDOCK,
-	EXTCON_CARDOCK_VB,
-	EXTCON_AUDIODOCK,
-	EXTCON_SMARTDOCK,
-	EXTCON_SMARTDOCK_TA,
-	EXTCON_SMARTDOCK_USB,
-	EXTCON_JIG_UARTOFF,
-	EXTCON_JIG_UARTOFF_VB,
-	EXTCON_JIG_UARTON,
-	EXTCON_JIG_USBOFF,
-	EXTCON_JIG_USBON,
-	EXTCON_INCOMPATIBLE,
-	EXTCON_CHARGING_CABLE,
-#if defined(CONFIG_MUIC_MAX77804K_SUPPORT_HMT_DETECTION)
-	EXTCON_HMT,
-#endif
-	EXTCON_LANHUB,
-	EXTCON_NONE,
+	EXTCON_DVI,
+	EXTCON_VGA,
+	EXTCON_DOCK,
+	EXTCON_LINE_IN,
+	EXTCON_LINE_OUT,
+	EXTCON_MIC_IN,
+	EXTCON_HEADPHONE_OUT,
+	EXTCON_SPDIF_IN,
+	EXTCON_SPDIF_OUT,
+	EXTCON_VIDEO_IN,
+	EXTCON_VIDEO_OUT,
+	EXTCON_MECHANICAL,
 };
-extern const char *extcon_cable_name[CABLE_NAME_MAX+1];
+extern const char extcon_cable_name[][CABLE_NAME_MAX + 1];
 
 struct extcon_cable;
 
@@ -332,8 +322,5 @@ static inline int extcon_unregister_interest(struct extcon_specific_cable_nb
 {
 	return 0;
 }
-
-/* added sec common function */
-extern int get_jig_state(void);
 #endif /* CONFIG_EXTCON */
 #endif /* __LINUX_EXTCON_H__ */

@@ -151,8 +151,6 @@ class Builder():
 
         with open('/dev/null', 'r') as devnull:
             subprocess.check_call(['make', 'O=%s' % dest_dir,
-	        'SELINUX_DEFCONFIG=selinux_defconfig',
-	        'SELINUX_LOG_DEFCONFIG=selinux_log_defconfig',
                 self.confname], env=self.make_env,
                 stdin=devnull)
 

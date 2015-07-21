@@ -41,35 +41,16 @@
 #define DEFAULT_DISABLE	0
 
 /* feature define */
-#define TSP_BOOSTER	/* DVFS feature : TOUCH BOOSTER */
+#undef TSP_BOOSTER	/* DVFS feature : TOUCH BOOSTER */
 #define USE_OPEN_CLOSE	/* Use when CONFIG_HAS_EARLYSUSPEND is disabled */
 #define REPORT_2D_W
 #define REDUCE_I2C_DATA_LENGTH
 #define USE_SENSOR_SLEEP
 
 #define	TSP_IRQ_TYPE_LEVEL	IRQF_TRIGGER_LOW | IRQF_ONESHOT
-#define	TSP_IRQ_TYPE_EDGE	IRQF_TRIGGER_FALLING
+#define	TSP_IRQ_TYPE_EDGE	IRQF_TRIGGER_FALLING | IRQF_ONESHOT
 
-#if defined(CONFIG_SEC_HESTIA_PROJECT)
-#undef TSP_BOOSTER /* Temporarily diabling TOUCH BOOSTER for Hestia */
-#endif
-
-#if defined(CONFIG_SEC_MONDRIAN_PROJECT)
-#define TOUCHKEY_ENABLE
-#define USE_RECENT_TOUCHKEY
-#define PROXIMITY
-#define EDGE_SWIPE
-#define TKEY_BOOSTER
-#define SYNAPTICS_DEVICE_NAME	"T320"
-#define USE_PALM_REJECTION_KERNEL
-
-#elif defined(CONFIG_SEC_CHAGALL_PROJECT)
-#define PROXIMITY
-#define EDGE_SWIPE
-#define SYNAPTICS_DEVICE_NAME	"T807"
-#define USE_PALM_REJECTION_KERNEL
-
-#elif defined(CONFIG_SEC_K_PROJECT)
+#if 1//defined(CONFIG_SEC_K_PROJECT)
 #define PROXIMITY
 #define EDGE_SWIPE
 #define SIDE_TOUCH
@@ -83,68 +64,6 @@
 #define USE_STYLUS
 #define USE_DETECTION_FLAG2
 #define USE_EDGE_EXCLUSION
-
-#elif defined(CONFIG_SEC_KACTIVE_PROJECT)
-#define PROXIMITY
-#define EDGE_SWIPE
-#define SIDE_TOUCH
-#define USE_HOVER_REZERO
-#define GLOVE_MODE
-#define USE_SHUTDOWN_CB
-#define CHECK_BASE_FIRMWARE
-#define USE_ACTIVE_REPORT_RATE
-#define USE_F51_OFFSET_CALCULATE
-#define SYNAPTICS_DEVICE_NAME	"G870"
-#define USE_STYLUS
-#define USE_DETECTION_FLAG2
-#define USE_EDGE_EXCLUSION
-
-#elif defined(CONFIG_SEC_KSPORTS_PROJECT)
-#define PROXIMITY
-#define EDGE_SWIPE
-#define SIDE_TOUCH
-#define USE_HOVER_REZERO
-#define GLOVE_MODE
-#define USE_SHUTDOWN_CB
-#define CHECK_BASE_FIRMWARE
-#define USE_ACTIVE_REPORT_RATE
-#define USE_F51_OFFSET_CALCULATE
-#define SYNAPTICS_DEVICE_NAME	"G860"
-#define USE_STYLUS
-#define USE_DETECTION_FLAG2
-#define USE_EDGE_EXCLUSION
-
-#elif defined(CONFIG_SEC_H_PROJECT)
-#define PROXIMITY
-#define EDGE_SWIPE
-#define USE_HOVER_REZERO
-#define GLOVE_MODE
-#define READ_LCD_ID
-#define REPORT_ANGLE
-#define SYNAPTICS_DEVICE_NAME	"N9005"
-#define USE_PALM_REJECTION_KERNEL
-#define USE_EDGE_EXCLUSION
-#define USE_EDGE_SWIPE_WIDTH_MAJOR
-
-#elif defined(CONFIG_SEC_F_PROJECT)
-#define PROXIMITY
-#define EDGE_SWIPE
-#define USE_HOVER_REZERO
-#define GLOVE_MODE
-#define TOUCHKEY_ENABLE
-#define EDGE_SWIPE_SCALE
-#define TOUCHKEY_LED_GPIO
-#define USE_PALM_REJECTION_KERNEL
-#define USE_EDGE_EXCLUSION
-#define USE_EDGE_SWIPE_WIDTH_MAJOR
-
-#elif defined(CONFIG_SEC_GPEN_PROJECT)
-#define REPORT_ANGLE
-#define SYNAPTICS_DEVICE_NAME	"S5006"
-#define USE_PALM_REJECTION_KERNEL
-#define USE_EDGE_EXCLUSION
-#define USE_EDGE_SWIPE_WIDTH_MAJOR
-#undef TSP_BOOSTER     ///// temp code for new model setup
 
 #else /* default undefine all */
 #undef PROXIMITY			/* Use F51 - edge_swipe, hover, side_touch, stylus, hand_grip */
@@ -242,6 +161,7 @@
 #define FW_IMAGE_NAME_S5100_HESTIA	"tsp_synaptics/synaptics_s5100_hestia.fw"
 #define FW_IMAGE_NAME_S5707		"tsp_synaptics/synaptics_s5707.fw"
 #define FW_IMAGE_NAME_S5707_KLIMT	"tsp_synaptics/synaptics_s5707_klimt.fw"
+#define FW_IMAGE_NAME_S5707_RUBENS	"tsp_synaptics/synaptics_s5707_rubens.fw"
 #define FW_IMAGE_NAME_S5708		"tsp_synaptics/synaptics_s5708.fw"
 #define FW_IMAGE_NAME_S5050		"tsp_synaptics/synaptics_s5050.fw"
 #define FW_IMAGE_NAME_S5050_F		"tsp_synaptics/synaptics_s5050_f.fw"
@@ -405,7 +325,8 @@
 
 #ifdef EDGE_SWIPE
 
-#if defined(CONFIG_SEC_MONDRIAN_PROJECT) || defined(CONFIG_SEC_CHAGALL_PROJECT)
+#if defined(CONFIG_SEC_MONDRIAN_PROJECT) || defined(CONFIG_SEC_CHAGALL_PROJECT)\
+	|| defined(CONFIG_SEC_KLIMT_PROJECT)
 #define EDGE_SWIPE_DATA_OFFSET	3
 #else
 #define EDGE_SWIPE_DATA_OFFSET	9
@@ -481,6 +402,19 @@
 #define HOVER_PRESSED		0x5
 #define GLOVE_PRESSED		0x6
 
+#ifdef ENABLE_F12_OBJTYPE 
+/* Define for object type report enable Mask(F12_2D_CTRL23) */
+#define OBJ_TYPE_FINGER			(1 << 0)
+#define OBJ_TYPE_PASSIVE_STYLUS	(1 << 1)
+#define OBJ_TYPE_PALM			(1 << 2)
+#define OBJ_TYPE_UNCLASSIFIED	(1 << 3)
+#define OBJ_TYPE_HOVER			(1 << 4)
+#define OBJ_TYPE_GLOVE			(1 << 5)
+#define OBJ_TYPE_NARROW_SWIPE	(1 << 6)
+#define OBJ_TYPE_HANDEDGE		(1 << 7)
+#define OBJ_TYPE_DEFAUT			(0x85)
+/*OBJ_TYPE_FINGER, OBJ_TYPE_UNCLASSIFIED, OBJ_TYPE_HANDEDGE*/
+#endif
 /*
  * synaptics_rmi4_set_custom_ctrl_register()
  * mode TRUE : read, mode FALSE : write
@@ -996,7 +930,6 @@ struct synaptics_rmi_f1a_button_map {
  * struct synaptics_device_tree_data - power supply information
  * @ coords : horizontal, vertical max width and max hight
  * @ external_ldo : sensor power supply : 3.3V, enbled by GPIO
- * @ external_ldo_1p8 : sensor power supply : 1.9V, enbled by GPIO 
  * @ sub_pmic : sensor power supply : 3.3V, enabled by subp_mic MAX77826
  * @ irq_gpio : interrupt GPIO PIN defined device tree files(dtsi)
  * @ project : project name string for Firmware name
@@ -1007,7 +940,7 @@ struct synaptics_rmi4_device_tree_data {
 	int coords[2];
 	int extra_config[4];
 	int external_ldo;
-	int external_ldo_1p8;	
+	int external_ldo2;
 	int tkey_led_en;
 	int scl_gpio;
 	int sda_gpio;
@@ -1069,6 +1002,10 @@ struct synaptics_rmi4_data {
 	struct synaptics_rmi4_f51_handle *f51_handle;
 #endif
 
+	struct pinctrl *ts_pinctrl;
+	struct pinctrl_state *gpio_state_active;
+	struct pinctrl_state *gpio_state_suspend;
+
 	struct mutex rmi4_device_mutex;
 	struct mutex rmi4_reset_mutex;
 	struct mutex rmi4_io_ctrl_mutex;
@@ -1097,7 +1034,10 @@ struct synaptics_rmi4_data {
 	unsigned char intr_mask[MAX_INTR_REGISTERS];
 	unsigned char *button_txrx_mapping;
 	unsigned char bootloader_id[4];
-
+#ifdef ENABLE_F12_OBJTYPE
+	unsigned char obj_type_enable;	/* F12_2D_CTRL23 */
+	unsigned short f12_ctrl23_addr;		/* F12_2D_CTRL23 : object report enable */
+#endif
 	unsigned short num_of_intr_regs;
 	unsigned short f01_query_base_addr;
 	unsigned short f01_cmd_base_addr;
@@ -1220,9 +1160,6 @@ struct synaptics_rmi4_data {
 	int (*reset_device)(struct synaptics_rmi4_data *rmi4_data);
 	int (*stop_device)(struct synaptics_rmi4_data *rmi4_data);
 	int (*start_device)(struct synaptics_rmi4_data *rmi4_data);
-	struct pinctrl *ts_pinctrl;
-	struct pinctrl_state *gpio_state_active;
-	struct pinctrl_state *gpio_state_suspend;	
 };
 
 enum exp_fn {

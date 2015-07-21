@@ -59,38 +59,33 @@ int32_t msm_led_i2c_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		return -EINVAL;
 	}
 	switch (cfg->cfgtype) {
+
 	case MSM_CAMERA_LED_INIT:
-		CDBG("MSM_CAMERA_LED_INIT\n");
 		if (fctrl->func_tbl->flash_led_init)
 			rc = fctrl->func_tbl->flash_led_init(fctrl);
 		break;
 
 	case MSM_CAMERA_LED_RELEASE:
-		CDBG("MSM_CAMERA_LED_RELEASE\n");
 		if (fctrl->func_tbl->flash_led_release)
 			rc = fctrl->func_tbl->
 				flash_led_release(fctrl);
 		break;
 
 	case MSM_CAMERA_LED_OFF:
-		CDBG("MSM_CAMERA_LED_OFF\n");
 		if (fctrl->func_tbl->flash_led_off)
 			rc = fctrl->func_tbl->flash_led_off(fctrl);
 		break;
 
 	case MSM_CAMERA_LED_LOW:
-		CDBG("MSM_CAMERA_LED_LOW\n");
 		if (fctrl->func_tbl->flash_led_low)
 			rc = fctrl->func_tbl->flash_led_low(fctrl);
 		break;
 
 	case MSM_CAMERA_LED_HIGH:
-		CDBG("MSM_CAMERA_LED_HIGH\n");
 		if (fctrl->func_tbl->flash_led_high)
 			rc = fctrl->func_tbl->flash_led_high(fctrl);
 		break;
 	default:
-		pr_err("MSM_LED ERROR\n");
 		rc = -EFAULT;
 		break;
 	}
@@ -220,14 +215,16 @@ int msm_flash_led_release(struct msm_led_flash_ctrl_t *fctrl)
 		pr_err("%s:%d fctrl NULL\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-	flashdata = fctrl->flashdata;
-	power_info = &flashdata->power_info;
-	CDBG("%s:%d called\n", __func__, __LINE__);
 
 	if (fctrl->led_state != MSM_CAMERA_LED_INIT) {
 		pr_err("%s:%d invalid led state\n", __func__, __LINE__);
 		return -EINVAL;
 	}
+
+	flashdata = fctrl->flashdata;
+	power_info = &flashdata->power_info;
+	CDBG("%s:%d called\n", __func__, __LINE__);
+
 	gpio_set_value_cansleep(
 		power_info->gpio_conf->gpio_num_info->
 		gpio_num[SENSOR_GPIO_FL_EN],
@@ -280,10 +277,10 @@ int msm_flash_led_off(struct msm_led_flash_ctrl_t *fctrl)
 		pr_err("%s:%d fctrl NULL\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-
 	flashdata = fctrl->flashdata;
 	power_info = &flashdata->power_info;
 	CDBG("%s:%d called\n", __func__, __LINE__);
+
 	if (fctrl->flash_i2c_client && fctrl->reg_setting) {
 		rc = fctrl->flash_i2c_client->i2c_func_tbl->i2c_write_table(
 			fctrl->flash_i2c_client,
@@ -700,7 +697,8 @@ int msm_flash_probe(struct platform_device *pdev,
 	if (NULL == fctrl->flash_i2c_client) {
 		pr_err("%s flash_i2c_client NULL\n",
 			__func__);
-		return -EFAULT;
+		rc = -EFAULT;
+		goto probe_failure;
 	}
 
 	fctrl->flash_i2c_client->cci_client = kzalloc(sizeof(

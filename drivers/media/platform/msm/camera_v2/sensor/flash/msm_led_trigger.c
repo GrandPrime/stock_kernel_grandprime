@@ -205,7 +205,6 @@ static int32_t msm_led_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
 		rc = -EFAULT;
 		break;
 	}
-
 	CDBG("flash_set_led_state: return %d\n", rc);
 	return rc;
 }

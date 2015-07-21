@@ -53,7 +53,6 @@ obj-y				+= carma/
 obj-$(CONFIG_USB_SWITCH_FSA9480) += fsa9480.o
 obj-$(CONFIG_SM5502_MUIC) += sm5502.o
 obj-$(CONFIG_SM5504_MUIC) += sm5504.o
-obj-$(CONFIG_RT8973_MUIC) += rt8973.o
 obj-$(CONFIG_ALTERA_STAPL)	+=altera-stapl/
 obj-$(CONFIG_INTEL_MEI)		+= mei/
 obj-$(CONFIG_VMWARE_VMCI)	+= vmw_vmci/
@@ -72,8 +71,6 @@ obj-$(CONFIG_APQ8084_DOCKING_STATION)	+= apq8084_dock.o
 obj-y				+= qcom/
 obj-$(CONFIG_SEC_MISC)	+= sec_param.o sec_misc.o
 obj-$(CONFIG_SEC_GPIO_SETTINGS) += gpio_settings.o
-obj-$(CONFIG_NFC_PN547)	+= pn547.o
-
 ifeq ($(TIMA_ENABLED),1)
 obj-y += ktest/
 obj-$(CONFIG_TIMA_LOG)		+= tima_debug_log.o

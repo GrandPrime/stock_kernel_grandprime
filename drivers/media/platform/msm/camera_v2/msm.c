@@ -42,7 +42,6 @@ spinlock_t msm_eventq_lock;
 
 static struct pid *msm_pid;
 spinlock_t msm_pid_lock;
-
 static int  module_init_status;
 struct msm_cam_dummy_queue {
 	wait_queue_head_t state_wait;
@@ -361,7 +360,6 @@ int msm_cam_get_module_init_status(void)
 	pr_err("msm_cam_get_module_init_status : end %d\n", rc);
 	return 0;
 }
-
 int msm_create_session(unsigned int session_id, struct video_device *vdev)
 {
 	struct msm_session *session = NULL;
@@ -572,7 +570,8 @@ static long msm_private_ioctl(struct file *file, void *fh,
 	bool valid_prio, unsigned int cmd, void *arg)
 {
 	int rc = 0;
-	struct msm_v4l2_event_data *event_data;
+	struct msm_v4l2_event_data *event_data = arg;
+	struct v4l2_event event;
 	struct msm_session *session;
 	unsigned int session_id;
 	unsigned int stream_id;
@@ -584,9 +583,6 @@ static long msm_private_ioctl(struct file *file, void *fh,
 			wake_up(&cam_dummy_queue.state_wait);
 		return rc;
 	}
-
-	event_data = (struct msm_v4l2_event_data *)
-		((struct v4l2_event *)arg)->u.data;
 
 	session_id = event_data->session_id;
 	stream_id = event_data->stream_id;
@@ -603,9 +599,12 @@ static long msm_private_ioctl(struct file *file, void *fh,
 			rc = -EFAULT;
 			break;
 		}
-
+		event.type = event_data->v4l2_event_type;
+		event.id = event_data->v4l2_event_id;
+		memcpy(&event.u.data, event_data,
+			sizeof(struct msm_v4l2_event_data));
 		v4l2_event_queue(session->event_q.vdev,
-			(struct v4l2_event *)arg);
+			&event);
 	}
 		break;
 
@@ -631,7 +630,11 @@ static long msm_private_ioctl(struct file *file, void *fh,
 
 		spin_lock_irqsave(&(session->command_ack_q.lock),
 		   spin_flags);
-		ret_cmd->event = *(struct v4l2_event *)arg;
+		event.type = event_data->v4l2_event_type;
+		event.id = event_data->v4l2_event_id;
+		memcpy(&event.u.data, event_data,
+			sizeof(struct msm_v4l2_event_data));
+		memcpy(&ret_cmd->event, &event, sizeof(struct v4l2_event));
 		msm_enqueue(&cmd_ack->command_q, &ret_cmd->list);
 		complete(&cmd_ack->wait_complete);
 		spin_unlock_irqrestore(&(session->command_ack_q.lock),

@@ -906,12 +906,10 @@ static struct rcg_clk jpeg0_clk_src = {
 };
 
 static struct clk_freq_tbl ftbl_gcc_camss_mclk0_1_clk[] = {
-	F(   9600000,	       xo,   2,  0,  0),
-	F(  20000000,	    gpll0,  10,  1,  4),
-	F(  22110000,	gpll1_aux,  10,  1,  4),
-	F(  23880000,	    gpll0,   1,  2, 67),
-	F(  26022000,	gpll1_aux,   1,  1, 34),
-	F(  66670000,	    gpll0,  12,  0,  0),
+	F(   9600000,	      xo,   2,	  0,	0),
+	F(  23880000,      gpll0,   1,    2,   67),
+	F(  26022000,	   gpll1_aux,	 1,  1, 34),
+	F(  66670000,	   gpll0,  12,	  0,	0),
 	F_END
 };
 
@@ -1199,7 +1197,7 @@ static struct clk_freq_tbl ftbl_gcc_sdcc2_apps_clk[] = {
 	F(  25000000,	   gpll0,  16,	  1,	2),
 	F(  50000000,	   gpll0,  16,	  0,	0),
 	F( 100000000,	   gpll0,   8,	  0,	0),
-#if defined(CONFIG_MACH_FORTUNA3G_EUR) || defined(CONFIG_MACH_FORTUNA_SEA_OPEN)
+#if defined(CONFIG_SEC_FORTUNA_PROJECT)
 	F( 200000000,	   gpll0,   4.5,  0,	0),
 #else
 	F( 200000000,	   gpll0,   4,	  0,	0),

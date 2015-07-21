@@ -35,13 +35,6 @@
 
 #include <asm/fb.h>
 
-/******************************************/
-/* Customizing Code for DCT(Display Clock Tunning) */
-#ifdef CONFIG_SEC_DISP_CLK_TUNNING
-#include <linux/sec_dct.h>
-extern struct sec_dct_info_t *sec_dct_info;
-#endif
-/******************************************/
 
     /*
      *  Frame buffer device initialization and setup routines
@@ -1198,34 +1191,9 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (!lock_fb_info(info))
 			return -ENODEV;
 		console_lock();
-		/******************************************/
-		/* Customizing Code for DCT(Display Clock Tunning) */
-#ifdef CONFIG_SEC_DISP_CLK_TUNNING
-		DCT_LOG("[DCT][%s] call fb_blank (%lu)\n", __func__, arg);
-		if (unlikely(sec_dct_info) && unlikely(sec_dct_info->enabled)
-			&& (arg != FB_BLANK_UNBLANK))
-			/******************************************/
-			/* This function must be located in appropriate SETTING position	
-			  * in accordance with the specification of each BB platform	*/
-			/******************************************/
-			sec_dct_info->applyData(info);
-#endif
-		/******************************************/
 		info->flags |= FBINFO_MISC_USEREVENT;
 		ret = fb_blank(info, arg);
 		info->flags &= ~FBINFO_MISC_USEREVENT;
-		/******************************************/
-		/* Customizing Code for DCT(Display Clock Tunning) */
-#ifdef CONFIG_SEC_DISP_CLK_TUNNING
-		if (unlikely(sec_dct_info) && unlikely(sec_dct_info->enabled)
-			&& (arg != FB_BLANK_UNBLANK))
-			/************************************************/
-			/* This function must be located in appropriate END position	
-			  * in accordance with the specification of each BB platform	*/
-			/************************************************/
-			sec_dct_info->finish_applyData();
-#endif
-		/******************************************/
 		console_unlock();
 		unlock_fb_info(info);
 		break;

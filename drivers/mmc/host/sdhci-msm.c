@@ -290,6 +290,7 @@ struct sdhci_msm_pltfm_data {
 	unsigned long mmc_bus_width;
 	struct sdhci_msm_slot_reg_data *vreg_data;
 	bool nonremovable;
+	bool nonhotplug;
 	bool pin_cfg_sts;
 	struct sdhci_msm_pin_data *pin_data;
 	struct sdhci_pinctrl_data *pctrl_data;
@@ -1010,7 +1011,6 @@ retry:
 		 */
 		if (cmd.error)
 			usleep_range(1000, 1200);
-
 		if (!cmd.error && !data.error &&
 			!memcmp(data_buf, tuning_block_pattern, size)) {
 			/* tuning is successful at this tuning point */
@@ -1486,6 +1486,9 @@ static struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev)
 
 	if (of_get_property(np, "qcom,nonremovable", NULL))
 		pdata->nonremovable = true;
+
+	if (of_get_property(np, "qcom,nonhotplug", NULL))
+		pdata->nonhotplug = true;
 
 	if (!of_property_read_u32(np, "qcom,dat1-mpm-int",
 				  &mpm_int))
@@ -2853,17 +2856,12 @@ static ssize_t t_flash_detect_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct sdhci_msm_host *msm_host = dev_get_drvdata(dev);
-#if	defined(CONFIG_NO_DETECT_PIN) || \
-	defined(CONFIG_MACH_A3_EUR_OPEN) || \
-	defined(CONFIG_MACH_A3_CHN_OPEN) || \
-	defined(CONFIG_MACH_A3_CHN_CTC) || \
-	defined(CONFIG_MACH_A33G_EUR_OPEN)
-
+#if	defined(CONFIG_NO_DETECT_PIN)|| defined(CONFIG_SEC_HYBRID_TRAY)
 	if (msm_host->mmc->card) {
-		printk(KERN_DEBUG "sdcc3: card inserted.\n");
+		printk(KERN_DEBUG "sdcc2: card inserted.\n");
 		return sprintf(buf, "Insert\n");
 	} else {
-		printk(KERN_DEBUG "sdcc3: card removed.\n");
+		printk(KERN_DEBUG "sdcc2: card removed.\n");
 		return sprintf(buf, "Remove\n");
 	}
 #else
@@ -2889,7 +2887,6 @@ static ssize_t t_flash_detect_show(struct device *dev,
 }
 
 static DEVICE_ATTR(status, 0444, t_flash_detect_show, NULL);
-
 
 static int sdhci_msm_probe(struct platform_device *pdev)
 {
@@ -3147,10 +3144,14 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->mmc->caps |= msm_host->pdata->mmc_bus_width;
 	msm_host->mmc->caps |= msm_host->pdata->caps;
 	msm_host->mmc->caps2 |= msm_host->pdata->caps2;
+	//msm_host->mmc->caps2 |= MMC_CAP2_CORE_RUNTIME_PM;
+	//msm_host->mmc->caps2 |= MMC_CAP2_PACKED_WR;
+	//msm_host->mmc->caps2 |= MMC_CAP2_PACKED_WR_CONTROL;
 	msm_host->mmc->caps2 |= (MMC_CAP2_BOOTPART_NOACC |
 				MMC_CAP2_DETECT_ON_ERR);
 	msm_host->mmc->caps2 |= MMC_CAP2_CACHE_CTRL;
 	msm_host->mmc->caps2 |= MMC_CAP2_POWEROFF_NOTIFY;
+	//msm_host->mmc->caps2 |= MMC_CAP2_CLK_SCALE;
 	msm_host->mmc->caps2 |= MMC_CAP2_STOP_REQUEST;
 	msm_host->mmc->caps2 |= MMC_CAP2_ASYNC_SDIO_IRQ_4BIT_MODE;
 	msm_host->mmc->pm_caps |= MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
@@ -3160,11 +3161,21 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (msm_host->pdata->nonremovable)
 		msm_host->mmc->caps |= MMC_CAP_NONREMOVABLE;
 
+	if (msm_host->pdata->nonhotplug)
+		msm_host->mmc->caps2 |= MMC_CAP2_NONHOTPLUG;
+
 	host->cpu_dma_latency_us = msm_host->pdata->cpu_dma_latency_us;
 
 	init_completion(&msm_host->pwr_irq_completion);
 
 	if (gpio_is_valid(msm_host->pdata->status_gpio)) {
+		/*
+		 * Set up the card detect GPIO in active configuration before
+		 * configuring it as an IRQ. Otherwise, it can be in some
+		 * weird/inconsistent state resulting in flood of interrupts.
+		 */
+		sdhci_msm_setup_pins(msm_host->pdata, true);
+
 		ret = mmc_gpio_request_cd(msm_host->mmc,
 				msm_host->pdata->status_gpio);
 		if (ret) {
@@ -3493,10 +3504,9 @@ out:
 static int sdhci_msm_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
-	int ret = 0;
-
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
+	int ret = 0;
 
 	if (gpio_is_valid(msm_host->pdata->status_gpio)) {
 		ret = mmc_gpio_request_cd(msm_host->mmc,

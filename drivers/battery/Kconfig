@@ -21,6 +21,11 @@ config CHARGING_VZWCONCEPT
 	help
 	 Say Y to include support for the VZW concepts.
 
+config BATTERY_SWELLING
+	bool "prevent battery swelling"
+	help
+	 Say Y to include support for prevent battery swelling
+
 # Fuel Gauge
 config FUELGAUGE_RT5033
 	tristate "RT5033 fuel gauge driver"
@@ -40,6 +45,15 @@ config FUELGAUGE_DUMMY
 	 for dummy fuel gauge driver.
 	 This driver source code implemented
 	 skeleton source code for fuel gauge functions.
+config FUELGAUGE_STC3117
+	tristate "STC3117 fuel gauge driver"
+	default n
+	depends on BATTERY_SAMSUNG
+	help
+	 Say Y to include support
+	 for STC3117 fuel gauge driver.
+	 This driver source code implemented
+	 all functions for STC3117 fuel gauge.
 
 config FUELGAUGE_MAX17042
 	tristate "MAX17042 fuel gauge driver"
@@ -233,6 +247,13 @@ config CHARGER_BQ24260
 	 This driver source code implemented
 	 all functions for BQ24260 charger.
 
+config CHARGER_SM5701
+	tristate "SM5701 charger driver"
+	depends on MFD_SM5701 && I2C
+	default n
+	help
+	 Say Y to include support
+	 for SiliconMitus SM5701 charger driver..
 config CHARGER_MAX77693
 	tristate "MAX77693 battery charger support"
 	depends on MFD_MAX77693 && I2C
@@ -282,7 +303,14 @@ config CHARGER_RT5033
 	 Say Y to include support
 	 for RT5033 charger driver.
 	 This driver source code implemented
-	 all functions for RT5033 charger.	 
+	 all functions for RT5033 charger.
+
+config AFC_CHARGER_MODE
+	bool "afc charging support in sec battery driver"
+	default n
+	depends on CHARGER_MAX77843
+	help
+	  Say Y to include support for sec afc charging support
 
 config SAMSUNG_LPM_MODE
 	bool "Off charging mode support in sec battery driver"
@@ -314,7 +342,7 @@ config SAMSUNG_BATTERY_FACTORY
 config SAMSUNG_BATTERY_DISALLOW_DEEP_SLEEP
 	bool "Disallow deep sleep during charging"
 	default n
-	depends on BATTERY_SAMSUNG && ARCH_MSM8974
+	depends on BATTERY_SAMSUNG && (ARCH_MSM8974 || ARCH_APQ8084)
 	help
 	  Say Y to include support
 	  Disallow deep sleep during charging for stablity.
@@ -324,3 +352,9 @@ config SIOP_CHARGING_LIMIT_CURRENT
 	default 0
 	help
 	  set SIOP charging limit current.
+
+config EN_OOPS
+	bool "enable oops filter"
+	default n
+	help
+	  Say Y to enable oops filter

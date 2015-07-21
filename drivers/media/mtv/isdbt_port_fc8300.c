@@ -11,9 +11,20 @@ int probe_drv(void)
 {
 	int res;
 
+	isdbt_gpio_config(true);
+	isdbt_control_irq(true);
+
+	isdbt_control_gpio(true);
+	isdbt_control_gpio(false);
+	isdbt_control_gpio(true);
+
 	fc8300_set_port_if((unsigned long)isdbt_get_if_handle());
 	
 	res = isdbt_drv_probe();
+
+	isdbt_control_gpio(false);
+	isdbt_control_irq(false);
+	isdbt_gpio_config(false);
 
 	return res;
 }
@@ -31,7 +42,7 @@ int remove_drv(void)
 int hw_init_drv(unsigned long arg)
 {
 	isdbt_control_gpio(true);
-	isdbt_control_irq(true);
+//	isdbt_control_irq(true);
 	isdbt_set_drv_mode(0);
 
 	return arg;
@@ -40,7 +51,7 @@ int hw_init_drv(unsigned long arg)
 void hw_deinit_drv(void)
 {
 	isdbt_control_gpio(false);
-	isdbt_control_irq(false);
+//	isdbt_control_irq(false);
 }
 
 int open_drv(struct inode *inode, struct file *filp)

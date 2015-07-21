@@ -63,7 +63,8 @@ void mtv222_set_port_if(unsigned long interface)
 unsigned char mtv222_spi_read(unsigned char page, unsigned char reg)
 {
 	int ret;
-	u8 out_buf[4], in_buf[4];
+	static u8 out_buf[4] __attribute__((aligned(8)));
+	static u8 in_buf[4] __attribute__((aligned(8)));
 	struct spi_message msg;
 	struct spi_transfer msg_xfer = {
 		.tx_buf = out_buf,
@@ -98,7 +99,7 @@ void mtv222_spi_read_burst(unsigned char page, unsigned char reg,
 			unsigned char *buf, int size)
 {
 	int ret;
-	u8 out_buf[SPI_CMD_SIZE];
+	static u8 out_buf[SPI_CMD_SIZE] __attribute__((aligned(8)));
 	struct spi_message msg;
 	struct spi_transfer msg_xfer0 = {
 		.tx_buf = out_buf,
@@ -137,8 +138,8 @@ void mtv222_spi_read_burst(unsigned char page, unsigned char reg,
 
 void mtv222_spi_write(unsigned char page, unsigned char reg, unsigned char val)
 {
-	u8 out_buf[4];
-	u8 in_buf[4];
+	static u8 out_buf[4] __attribute__((aligned(8)));
+	static u8 in_buf[4] __attribute__((aligned(8)));
 	struct spi_message msg;
 	struct spi_transfer msg_xfer = {
 		.tx_buf = out_buf,

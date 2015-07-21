@@ -43,9 +43,6 @@
 #define NUM_USER_ASIDS		ASID_FIRST_VERSION
 
 static DEFINE_RAW_SPINLOCK(cpu_asid_lock);
-#ifdef CONFIG_TIMA_RKP_DEBUG
-unsigned long tima_debug_infra_cnt;
-#endif
 static atomic64_t asid_generation = ATOMIC64_INIT(ASID_FIRST_VERSION);
 static DECLARE_BITMAP(asid_map, NUM_USER_ASIDS);
 

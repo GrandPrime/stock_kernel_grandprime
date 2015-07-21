@@ -173,7 +173,18 @@ static int msm_vfe44_init_hardware(struct vfe_device *vfe_dev)
 		pr_err("msm_isp_get_clk_info() failed\n");
 		goto fs_failed;
 	}
-
+	if (vfe_dev->num_clk <= 0) {
+		pr_err("%s: Invalid num of clock\n", __func__);
+		goto fs_failed;
+	} else {
+		vfe_dev->vfe_clk =
+			kzalloc(sizeof(struct clk *) * vfe_dev->num_clk,
+			GFP_KERNEL);
+		if (!vfe_dev->vfe_clk) {
+			pr_err("%s:%d No memory\n", __func__, __LINE__);
+			return -ENOMEM;
+		}
+	}
 	rc = msm_cam_clk_enable(&vfe_dev->pdev->dev, msm_vfe44_clk_info,
 		vfe_dev->vfe_clk, vfe_dev->num_clk, 1);
 	if (rc < 0)
@@ -211,6 +222,7 @@ vfe_remap_failed:
 		vfe_dev->vfe_clk, vfe_dev->num_clk, 0);
 clk_enable_failed:
 	regulator_disable(vfe_dev->fs_vfe);
+	kfree(vfe_dev->vfe_clk);
 fs_failed:
 	msm_isp_deinit_bandwidth_mgr(ISP_VFE0 + vfe_dev->pdev->id);
 bus_scale_register_failed:
@@ -225,6 +237,7 @@ static void msm_vfe44_release_hardware(struct vfe_device *vfe_dev)
 	iounmap(vfe_dev->vfe_base);
 	msm_cam_clk_enable(&vfe_dev->pdev->dev, msm_vfe44_clk_info,
 		vfe_dev->vfe_clk, vfe_dev->num_clk, 0);
+	kfree(vfe_dev->vfe_clk);
 	regulator_disable(vfe_dev->fs_vfe);
 	msm_isp_deinit_bandwidth_mgr(ISP_VFE0 + vfe_dev->pdev->id);
 }
@@ -1353,15 +1366,6 @@ static void msm_vfe44_get_error_mask(
 	*error_mask1 = 0x01FFFEFF;
 }
 
-static int msm_vfe44_get_reg_update(uint32_t irq0_status,
-	uint32_t irq1_statuss)
-{
-	int rc = 0;
-	if (irq0_status & 0xF0)
-		rc = 1;
-	return rc;
-}
-
 static struct msm_vfe_axi_hardware_info msm_vfe44_axi_hw_info = {
 	.num_wm = 5,
 	.num_comp_mask = 3,
@@ -1445,7 +1449,6 @@ struct msm_vfe_hardware_info vfe44_hw_info = {
 			.get_platform_data = msm_vfe44_get_platform_data,
 			.get_error_mask = msm_vfe44_get_error_mask,
 			.process_error_status = msm_vfe44_process_error_status,
-			.get_regupdate_status = msm_vfe44_get_reg_update,
 		},
 		.stats_ops = {
 			.get_stats_idx = msm_vfe44_get_stats_idx,

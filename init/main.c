@@ -77,9 +77,6 @@
 #include <linux/sched_clock.h>
 #include <linux/random.h>
 
-#ifdef CONFIG_TIMA_RKP_COHERENT_TT
-#include <linux/memblock.h>
-#endif
 #include <asm/io.h>
 #include <asm/bugs.h>
 #include <asm/setup.h>
@@ -813,27 +810,16 @@ static int run_init_process(const char *init_filename)
 		(const char __user *const __user *)argv_init,
 		(const char __user *const __user *)envp_init);
 }
-#ifdef CONFIG_TIMA_RKP_30
-#define PGT_BIT_ARRAY_LENGTH 0x40000
-unsigned long pgt_bit_array[PGT_BIT_ARRAY_LENGTH];
-EXPORT_SYMBOL(pgt_bit_array);
-#endif
 
 static noinline void __init kernel_init_freeable(void);
 
 static int __ref kernel_init(void *unused)
 {
 	kernel_init_freeable();
-
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
 	free_initmem();
 	mark_rodata_ro();
-#ifdef CONFIG_TIMA_RKP
-#ifndef CONFIG_TIMA_RKP_30
-	tima_send_cmd4((unsigned long)_stext, (unsigned long)init_mm.pgd, (unsigned long)__init_begin, (unsigned long)__init_end, 0x3f80c221);
-#endif
-#endif
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 
@@ -869,9 +855,6 @@ static int __ref kernel_init(void *unused)
 
 static noinline void __init kernel_init_freeable(void)
 {
-#ifdef CONFIG_TIMA_RKP_COHERENT_TT
-	struct memblock_type *type = (struct memblock_type*)(&memblock.memory);
-#endif
 	/*
 	 * Wait until kthreadd is all set-up.
 	 */
@@ -893,14 +876,6 @@ static noinline void __init kernel_init_freeable(void)
 
 	smp_prepare_cpus(setup_max_cpus);
 
-#ifdef CONFIG_TIMA_RKP
-#ifdef CONFIG_TIMA_RKP_30
-#ifdef CONFIG_TIMA_RKP_COHERENT_TT
-	tima_send_cmd2(type->cnt, __pa(type->regions), 0x3f804221);
-#endif
-	tima_send_cmd5((unsigned long)_stext, (unsigned long)init_mm.pgd, (unsigned long)__init_begin, (unsigned long)__init_end,(unsigned long)__pa(pgt_bit_array),0x3f80c221);
-#endif
-#endif
 	do_pre_smp_initcalls();
 	lockup_detector_init();
 

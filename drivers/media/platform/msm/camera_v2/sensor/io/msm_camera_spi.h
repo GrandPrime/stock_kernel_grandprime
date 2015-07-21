@@ -27,21 +27,38 @@ struct msm_camera_spi_inst {
 	uint8_t opcode;		/* one-byte opcode */
 	uint8_t addr_len;	/* addr len in bytes */
 	uint8_t dummy_len;	/* setup cycles */
+	uint8_t delay_intv;	/* delay intv for this inst (ms) */
+	uint8_t delay_count;	/* total delay count for this inst */
 };
 
 struct msm_camera_spi_inst_tbl {
 	struct msm_camera_spi_inst read;
 	struct msm_camera_spi_inst read_seq;
 	struct msm_camera_spi_inst query_id;
+	struct msm_camera_spi_inst page_program;
+	struct msm_camera_spi_inst write_enable;
+	struct msm_camera_spi_inst read_status;
+	struct msm_camera_spi_inst erase;
 };
 
 struct msm_camera_spi_client {
 	struct spi_device *spi_master;
 	struct msm_camera_spi_inst_tbl cmd_tbl;
-	uint8_t device_id;
-	uint8_t mfr_id;
+	uint8_t device_id;	/*for otp*/
+	uint8_t mfr_id;	/*for otp*/
+
+	uint8_t device_id0;
+	uint8_t device_id1;
+	uint8_t device_id2;
+
+	uint8_t mfr_id0;
+	uint8_t mfr_id1;
+	uint8_t mfr_id2;
 	uint8_t retry_delay;	/* ms */
 	uint8_t retries;	/* retry times upon failure */
+	uint8_t busy_mask;	/* busy bit in status reg */
+	uint16_t page_size;	/* page size for page program */
+	uint32_t erase_size;	/* minimal erase size */
 };
 
 static __always_inline
@@ -63,4 +80,8 @@ int32_t msm_camera_spi_read_seq_l(struct msm_camera_i2c_client *client,
 int32_t msm_camera_spi_query_id(struct msm_camera_i2c_client *client,
 	uint32_t addr, uint8_t *data, uint32_t num_byte);
 
+int32_t msm_camera_spi_write_seq(struct msm_camera_i2c_client *client,
+	uint32_t addr, uint8_t *data, uint32_t num_byte);
+int32_t msm_camera_spi_erase(struct msm_camera_i2c_client *client,
+			     uint32_t addr, uint32_t size);
 #endif

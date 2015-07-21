@@ -17,10 +17,8 @@ enum input_booster_id {
 
 /* Set DVFS STAGE for each model */
 /* TSP BOOSTER */
-#if defined(CONFIG_SEC_KLEOS_PROJECT) | defined(CONFIG_SEC_HEAT_PROJECT) \
-	| defined(CONFIG_SEC_FORTUNA_PROJECT) | defined(CONFIG_SEC_A3_PROJECT)
-#define DVFS_TSP_STAGE		(DVFS_STAGE_NONE | DVFS_STAGE_SINGLE \
-				| DVFS_STAGE_DUAL)
+#if defined(CONFIG_SEC_GRANDMAX_PROJECT)
+#define DVFS_TSP_STAGE		(DVFS_STAGE_NONE | DVFS_STAGE_SINGLE | DVFS_STAGE_DUAL)
 #endif
 
 /* Do not modify */

@@ -346,17 +346,6 @@ static char *log_dict(const struct log *msg)
 	return (char *)msg + sizeof(struct log) + msg->text_len;
 }
 
-#ifdef CONFIG_SEC_DEBUG_SUBSYS
-void sec_debug_subsys_set_kloginfo(unsigned int *idx_paddr,
-	unsigned int *log_paddr, unsigned int *size)
-{
-	*idx_paddr = (unsigned int)&sec_log_end -
-		CONFIG_PAGE_OFFSET + CONFIG_PHYS_OFFSET;
-	*log_paddr = (unsigned int)sec_log_save_base;
-	*size = (unsigned int)sec_log_save_size;
-}
-#endif
-
 /* get record by index; idx must point to valid msg */
 static struct log *log_from_idx(u32 idx, bool logbuf)
 {
@@ -467,7 +456,6 @@ static bool printk_process = 1;
 static bool printk_process;
 #endif
 #endif
-module_param_named(process, printk_process, bool, S_IRUGO | S_IWUSR);
 
 /* insert record into the buffer, discard old ones, update heads */
 static void log_store(int facility, int level,
@@ -528,6 +516,7 @@ static void log_store(int facility, int level,
 	memset(log_dict(msg) + dict_len, 0, pad_len);
 	msg->len = sizeof(struct log) + text_len + dict_len + pad_len;
 
+#ifdef CONFIG_SEC_DEBUG
 	if (printk_process) {
 		strlcpy(msg->process, current->comm, sizeof(msg->process));
 		msg->pid = task_pid_nr(current);
@@ -535,7 +524,6 @@ static void log_store(int facility, int level,
 		msg->in_interrupt = in_interrupt() ? 1 : 0;
 	}
 
-#ifdef CONFIG_SEC_DEBUG
 	/* Save the log here,using "msg".*/
 	sec_log_add(msg);
 #endif
@@ -1109,6 +1097,7 @@ static size_t print_time(u64 ts, char *buf)
 		       (unsigned long)ts, rem_nsec / 1000);
 }
 
+#ifdef CONFIG_SEC_DEBUG
 static size_t print_process(const struct log *msg, char *buf)
 {
 	if (!printk_process)
@@ -1123,6 +1112,7 @@ static size_t print_process(const struct log *msg, char *buf)
 					msg->process,
 					msg->pid);
 }
+#endif
 
 static size_t print_prefix(const struct log *msg, bool syslog, char *buf)
 {
@@ -1144,7 +1134,9 @@ static size_t print_prefix(const struct log *msg, bool syslog, char *buf)
 	}
 
 	len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
+#ifdef CONFIG_SEC_DEBUG
 	len += print_process(msg, buf ? buf + len : NULL);
+#endif
 	return len;
 }
 
@@ -1845,8 +1837,10 @@ static size_t cont_print_text(char *text, size_t size)
 
 	if (cont.cons == 0 && (console_prev & LOG_NEWLINE)) {
 		textlen += print_time(cont.ts_nsec, text);
+#ifdef CONFIG_SEC_DEBUG
 		*(text+textlen) = ' ';
 		textlen += print_process(NULL, NULL);
+#endif
 		size -= textlen;
 	}
 
@@ -2068,8 +2062,6 @@ static void sec_log_add_on_bootup(void)
 	}
 }
 
-/* This is temporarily disabled until we get support from Bootloader */
-#if 0 
 #ifdef CONFIG_SEC_DEBUG_SUBSYS
 void sec_debug_subsys_set_kloginfo(unsigned int *first_idx_paddr,
 	unsigned int *next_idx_paddr, unsigned int *log_paddr,
@@ -2080,7 +2072,6 @@ void sec_debug_subsys_set_kloginfo(unsigned int *first_idx_paddr,
 	*log_paddr = (unsigned int)__pa(log_buf);
 	*size = __LOG_BUF_LEN;
 }
-#endif
 #endif
 
 #ifdef CONFIG_SEC_LOG_LAST_KMSG

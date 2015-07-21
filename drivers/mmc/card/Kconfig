@@ -97,7 +97,7 @@ config MMC_BKOPS_NODE_GID
 	default 0
 	help
 	  Owner group ID of BKOPS sysfs node. 
-	  Default is 0. Do not touch the value if unsure. 
+	  Default is 0. Do not touch the value if unsure.
 
 config MMC_BLOCK_TEST
 	tristate "MMC block test"

@@ -126,6 +126,7 @@ static void set_sensor_attr(struct device *dev,
 			pr_err("[SENSOR CORE] create_file attributes %d\n", i);
 	}
 }
+
 struct device *sensors_classdev_register(char *sensors_name)
 {
 	struct device *dev;
@@ -145,6 +146,7 @@ EXPORT_SYMBOL_GPL(sensors_classdev_register);
 * sensors_classdev_unregister - unregisters a object of sensor device.
 *
 */
+
 void sensors_classdev_unregister(struct device *dev)
 {
 	device_unregister(dev);

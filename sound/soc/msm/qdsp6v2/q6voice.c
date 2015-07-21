@@ -68,7 +68,7 @@ void voc_set_loopback_enable(int mode)
 	pr_info("%s : prev_mode = %d, mode = %d\n",
 		__func__, loopback_prev_mode, mode);	
 }
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
 
 static int voice_send_enable_vocproc_cmd(struct voice_data *v);
 static int voice_send_netid_timing_cmd(struct voice_data *v);
@@ -105,11 +105,9 @@ static int32_t qdsp_cvp_callback(struct apr_client_data *data, void *priv);
 
 static int voice_send_set_pp_enable_cmd(struct voice_data *v,
 					uint32_t module_id, int enable);
-
 #ifdef CONFIG_SAMSUNG_AUDIO
 static int send_packet_loopback_cmd(struct voice_data *v, bool mode);
-#endif
-					
+#endif /* CONFIG_SAMSUNG_AUDIO */
 static int is_cal_memory_allocated(void);
 static int is_voip_memory_allocated(void);
 static int voice_alloc_cal_mem_map_table(void);
@@ -1936,7 +1934,7 @@ static void voc_get_tx_rx_topology(struct voice_data *v,
 	uint32_t tx_id = 0;
 	uint32_t rx_id = 0;
 
-	if (v->lch_mode == VOICE_LCH_START) {
+	if (v->lch_mode == VOICE_LCH_START || v->disable_topology) {
 		pr_debug("%s: Setting TX and RX topology to NONE for LCH\n",
 			 __func__);
 
@@ -2827,7 +2825,8 @@ static int send_packet_loopback_cmd(struct voice_data *v, bool mode)
 fail:
 	return -EINVAL;
 }
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
+
 
 static int voice_mem_map_cal_block(struct voice_data *v)
 {
@@ -3567,6 +3566,9 @@ static void voc_update_session_params(struct voice_data *v)
 {
 	/* reset LCH mode */
 	v->lch_mode = 0;
+
+	/* clear disable topology setting */
+	v->disable_topology = false;
 
 	/* clear mute setting */
 	v->dev_rx.dev_mute =  common.default_mute_val;
@@ -4690,6 +4692,26 @@ fail:
 	return ret;
 }
 
+int voc_disable_topology(uint32_t session_id, uint32_t disable)
+{
+	struct voice_data *v = voice_get_session(session_id);
+	int ret = 0;
+
+	if (v == NULL) {
+		pr_err("%s: invalid session_id 0x%x\n", __func__, session_id);
+
+		return -EINVAL;
+	}
+
+	mutex_lock(&v->lock);
+
+	v->disable_topology = disable;
+
+	mutex_unlock(&v->lock);
+
+	return ret;
+}
+
 static int voice_set_packet_exchange_mode_and_config(uint32_t session_id,
 						 uint32_t mode)
 {
@@ -5040,7 +5062,7 @@ int voc_end_voice_call(uint32_t session_id)
 			}
 			loopback_prev_mode = 0;
 		}
-#endif		
+#endif /* CONFIG_SAMSUNG_AUDIO */
 		pr_debug("%s: VOC_STATE: %d\n", __func__, v->voc_state);
 
 		ret = voice_destroy_vocproc(v);
@@ -5392,8 +5414,8 @@ int voc_start_voice_call(uint32_t session_id)
 			} else {
 				pr_info("%s : send packet loopback enable cmd success\n", __func__);
 			}
-		}		
-#endif
+		}
+#endif /* CONFIG_SAMSUNG_AUDIO */
 		v->voc_state = VOC_RUN;
 	} else {
 		pr_err("%s: Error: Start voice called in state %d\n",
@@ -5430,9 +5452,9 @@ exit:
 }
 
 void voc_register_mvs_cb(ul_cb_fn ul_cb,
-			dl_cb_fn dl_cb,
-			voip_ssr_cb ssr_cb,
-			void *private_data)
+			   dl_cb_fn dl_cb,
+			   voip_ssr_cb ssr_cb,
+			   void *private_data)
 {
 	common.mvs_info.ul_cb = ul_cb;
 	common.mvs_info.dl_cb = dl_cb;
@@ -5579,7 +5601,7 @@ int voice_sec_set_dha_data(uint32_t session_id, short mode,
 
 }
 EXPORT_SYMBOL(voice_sec_set_dha_data);
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
 
 static int32_t qdsp_mvm_callback(struct apr_client_data *data, void *priv)
 {
@@ -5847,7 +5869,7 @@ static int32_t qdsp_cvs_callback(struct apr_client_data *data, void *priv)
 					v->cvs_state = CMD_STATUS_SUCCESS;
 					wake_up(&v->cvs_wait);
 				}
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
 				break;
 			case VOICE_CMD_GET_PARAM:
 				pr_debug("%s: VOICE_CMD_GET_PARAM\n",
@@ -6112,7 +6134,8 @@ static int32_t qdsp_cvp_callback(struct apr_client_data *data, void *priv)
 					v->cvp_state = CMD_STATUS_SUCCESS;
 					wake_up(&v->cvp_wait);
 				}
-#endif				
+#endif /* CONFIG_SAMSUNG_AUDIO */
+
 				break;
 			case VOICE_CMD_GET_PARAM:
 				pr_debug("%s: VOICE_CMD_GET_PARAM\n",
@@ -6135,7 +6158,7 @@ static int32_t qdsp_cvp_callback(struct apr_client_data *data, void *priv)
 				v->cvp_state = CMD_STATUS_SUCCESS;
 				wake_up(&v->cvp_wait);
 				break;
-#endif				
+#endif /* CONFIG_SAMSUNG_AUDIO */
 			default:
 				pr_debug("%s: not match cmd = 0x%x\n",
 					__func__, ptr[0]);
@@ -6690,6 +6713,7 @@ static int __init voice_init(void)
 		common.voice[i].sidetone_gain = 0x512;
 		common.voice[i].dtmf_rx_detect_en = 0;
 		common.voice[i].lch_mode = 0;
+		common.voice[i].disable_topology = false;
 
 		common.voice[i].voc_state = VOC_INIT;
 

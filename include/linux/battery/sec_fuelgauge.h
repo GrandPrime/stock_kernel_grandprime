@@ -33,6 +33,8 @@
 #include <linux/battery/fuelgauge/max77823_fuelgauge.h>
 #elif defined(CONFIG_FUELGAUGE_RT5033)
 #include <linux/battery/fuelgauge/rt5033_fuelgauge.h>
+#elif defined(CONFIG_FUELGAUGE_STC3117)
+#include <linux/battery/fuelgauge/stc3117_fuelgauge.h>
 #else
 struct sec_fg_info {
 	bool dummy;

@@ -394,13 +394,7 @@ config SAMSUNG_JACK
 
 	 To samsung jack is reviewed and supported in all the
 	 samsung devices.
-config EARJACK_ADC_SYSFS
-	bool "EarJack & BTN adc sysfs"
-	depends on SAMSUNG_JACK
-	default n
-	help
-	This is sysfs for sec_jack driver jack type and
-	btn type adc values.
+
 config TIMA_LOG
 	tristate "Support for dumping TIMA log"
 	default y
@@ -569,21 +563,6 @@ config USBID_STANDARD_VER_01
 	help
 	  This option enables USBID STANDARD.
 
-config  MUIC_SM5502_DESKDOCK_SUPPORT_DISABLE
-	bool "Disable Deskdock"
-	depends on SM5502_MUIC
-	default n
-	help
-	  This option disable DESKDOCK Functionality.
-
-config MUIC_SM5502_SUPPORT_LANHUB_TA
-	bool "SM5502 Muic Lanhub TA support"
-	depends on SM5502_MUIC && !SEC_FACTORY
-	default n
-	help
-	 This option enable the LANHUB + TA Support for the SM5502 MUIC
-	 Disabling the option for the FACTORY Binaries due to delay issue
-	 in the Factory Test PGM.If unsure, say N.
 
 config SM5504_MUIC
 	bool "SILICON MITUS MUIC"
@@ -592,45 +571,44 @@ config SM5504_MUIC
 	  This option enables SILICON MITUS MUIC.
 
 config MUIC_SUPPORT_RUSTPROOF
-        bool "MUIC Disable UART"
-        depends on !SEC_FACTORY
-        default n
-        help
-         This option will disable the UART to prevent the rusting of the
-         IF Connector in the case of Kmini Devices.
+	bool "MUIC Disable UART"
+	depends on !SEC_FACTORY
+	default n
+	help
+	 This option will disable the UART to prevent the rusting
 
 config MUIC_SUPPORT_RUSTPROOF_INBATT
-        bool "MUIC Disable UART IN SUSPEND"
-        depends on !SEC_FACTORY
-        default n
-        help
-         This option will muic path open in the suspend
+	bool "MUIC Disable UART IN SUSPEND"
+	depends on !SEC_FACTORY
+	default n
+	help
+	 This option will muic path open in the suspend
 	 this is for only in-battery model
 
-config MUIC_SM5504_SUPPORT_LANHUB_TA
-	bool "SM5504 Muic Lanhub TA support"
-	depends on SM5504_MUIC && !SEC_FACTORY
+config MUIC_SUPPORT_CHARGING_CABLE
+	bool "MUIC CHARGING CABLE SUPPORT"
 	default n
 	help
-	 This option enable the LANHUB + TA Support for the SM5504 MUIC
+	 This option will enable the Charging (Power sharing) Cable
+
+config MUIC_SUPPORT_DESKDOCK
+	bool "MUIC DESK DOCK SUPPORT"
+	default n
+	help
+	 This option will enble the deskdock
+
+config MUIC_SM5502_SUPPORT_LANHUB_TA
+	bool "SM5502 Muic Lanhub TA support"
+	depends on SM5502_MUIC && !SEC_FACTORY
+	default n
+	help
+	 This option enable the LANHUB + TA Support for the SM5502 MUIC
 	 Disabling the option for the FACTORY Binaries due to delay issue
-	 in the Factory Test PGM.If unsure, say N.
+	 in the Factory Test PGM.
+	  This option enables support for bitstream configuration (programming
+	  or loading) of the Lattice ECP3 FPGA family via SPI.
 
-
-config RT8973_MUIC
-	bool "SILICON MITUS MUIC"
-	default n
-	help
-	  This option enables SILICON MITUS MUIC.
-	  
-config USB_SWITCH_RT8973
-	  tristate "MUIC RT8973"
-	  depends on I2C
-	  help
-	  The RT8973 is a USB port accessory detector and switch.
-	  The RT8973 is fully controlled using I2C and enables USB data,
-	  stereo and mono audio, video, microphone and UART data to use
-	  a common connector port.
+	  If unsure, say N.
 
 config SRAM
 	bool "Generic on-chip SRAM driver"
@@ -707,9 +685,16 @@ config CHECK_SIMSLOT_COUNT
 config CHECK_SIMSLOT_COUNT_GPIO
 	int "Number simslot count gpio"
 	depends on CHECK_SIMSLOT_COUNT
+	default 0
 	help
 	  Provides Number of SS/DS detect GPIO value.
 
+config CHECK_SIMSLOT_COUNT_DT
+	bool "Define number of simslot count gpio at DeviceTree file"
+	depends on CHECK_SIMSLOT_COUNT
+	default n
+	help
+	  Say 'y' if you want to define gpio number at DeviceTree file instead of defconfig file.
 
 config BCM2079X_NFC_I2C
 	tristate "BCM2079X NFC driver for I2C interface"
@@ -816,6 +801,14 @@ config SEC_NFC_USE_8916_BBCLK2
 	  Use PM8916 RF_CLK2 clock to NFC external clock (RF clock).
 	  This option should be enabled if you use PMIC(8916) RF_CLK2 for NFC
 	  external clock.
+
+config SEC_NFC_CLK_ALWAYS_ENABLE
+	bool "Make NFC clock always enabled when NFC is on"
+	depends on SEC_NFC
+	default n
+	help
+	  Make NFC clock always enabled when NFC is on because of
+	  GPS performance issue.
 
 config TI_DRV2667
 	tristate "TI's DRV2667 haptic controller support"

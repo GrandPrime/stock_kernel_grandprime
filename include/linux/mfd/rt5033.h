@@ -39,7 +39,7 @@
 
 #include <linux/battery/sec_charging_common.h>
 
-#define RT5033_DRV_VER "1.2.1_S"
+#define RT5033_DRV_VER "1.2.2_S"
 
 #ifdef CONFIG_RT5033_SADDR
 #define RT5033FG_SLAVE_ADDR_MSB (0x40)
@@ -132,6 +132,7 @@ struct rt5033_mfd_chip {
 	rt5033_mfd_platform_data_t *pdata;
 	int irq_base;
 	struct mutex io_lock;
+	struct mutex regulator_lock;
 	struct mutex irq_lock;
 	struct mutex suspend_flag_lock;
 	struct wake_lock irq_wake_lock;
@@ -167,6 +168,8 @@ extern int rt5033_assign_bits(struct i2c_client *i2c, int reg_addr, unsigned cha
 		unsigned char data);
 extern int rt5033_set_bits(struct i2c_client *i2c, int reg_addr, unsigned char mask);
 extern int rt5033_clr_bits(struct i2c_client *i2c, int reg_addr, unsigned char mask);
+extern void rt5033_lock_regulator(struct i2c_client *i2c);
+extern void rt5033_unlock_regulator(struct i2c_client *i2c);
 
 typedef enum {
         RT5033_PREV_STATUS = 0,

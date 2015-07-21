@@ -53,8 +53,6 @@ CFLAGS_msm_vibrator.o += -Idrivers/staging/android
 
 obj-$(CONFIG_SM5502_MUIC) += sec-switch.o
 obj-$(CONFIG_SM5504_MUIC) += sec-switch.o
-obj-$(CONFIG_RT8973_MUIC) += sec-switch.o
-
 obj-$(CONFIG_MSM_LPM_TEST) += test-lpm.o
 obj-$(CONFIG_MSM_TZ_LOG) += tz_log.o
 obj-$(CONFIG_MSM_BUSPM_DEV) += msm-buspm-dev.o
@@ -82,11 +80,10 @@ obj-$(CONFIG_MEMORY_HOLE_CARVEOUT) +=  msm_mem_hole.o
 obj-$(CONFIG_MSM_SMCMOD) += smcmod.o
 
 obj-$(CONFIG_ARCH_MSM8974) += msm_mpmctr.o
-obj-$(CONFIG_MSM_DEVFREQ_CPUBW) += devfreq_cpubw.o
 
 obj-$(CONFIG_ARCH_RANDOM) += early_random.o
 obj-$(CONFIG_PERFMAP) += perfmap.o
-obj-$(CONFIG_SEC_DEBUG) += sec_debug.o sec_getlog.o sec_gaf.o
+obj-$(CONFIG_SEC_DEBUG) += sec_debug.o sec_gaf.o sec_getlog.o
 obj-$(CONFIG_SEC_DEBUG_DOUBLE_FREE) += sec_debug-dfd.o
 
 obj-$(CONFIG_SEC_BSP) += sec_bsp.o

@@ -657,11 +657,6 @@ int mdss_dsi_cmdlist_put(struct mdss_dsi_ctrl_pdata *ctrl,
 	struct dcs_cmd_list *clist;
 	int ret = -EINVAL;
 
-	if (no_panel) {
-		pr_err("%s: LCD not connected!\n",__func__);
-		return 0;
-	}
-
 	mutex_lock(&ctrl->cmd_mutex);
 	clist = &ctrl->cmdlist;
 	req = &clist->list[clist->put];
@@ -678,6 +673,7 @@ int mdss_dsi_cmdlist_put(struct mdss_dsi_ctrl_pdata *ctrl,
 		clist->tot--;
 	}
 	mutex_unlock(&ctrl->cmd_mutex);
+
 	pr_debug("%s: tot=%d put=%d get=%d\n", __func__,
 		clist->tot, clist->put, clist->get);
 

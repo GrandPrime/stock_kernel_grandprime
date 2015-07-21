@@ -23,6 +23,10 @@
 #include <linux/rcupdate.h>
 #include <linux/workqueue.h>
 
+#ifdef CONFIG_SEC_FILE_LEAK_DEBUG
+extern void	sec_debug_EMFILE_error_proc(unsigned long files_addr);
+#endif
+
 int sysctl_nr_open __read_mostly = 1024*1024;
 int sysctl_nr_open_min = BITS_PER_LONG;
 int sysctl_nr_open_max = 1024 * 1024; /* raised later */
@@ -157,6 +161,9 @@ static int expand_fdtable(struct files_struct *files, int nr)
 	 * caller and alloc_fdtable().  Cheaper to catch it here...
 	 */
 	if (unlikely(new_fdt->max_fds <= nr)) {
+#ifdef CONFIG_SEC_FILE_LEAK_DEBUG
+		sec_debug_EMFILE_error_proc((unsigned long)files);
+#endif
 		__free_fdtable(new_fdt);
 		return -EMFILE;
 	}
@@ -197,9 +204,12 @@ static int expand_files(struct files_struct *files, int nr)
 		return 0;
 
 	/* Can we expand? */
-	if (nr >= sysctl_nr_open)
+	if (nr >= sysctl_nr_open){
+#ifdef CONFIG_SEC_FILE_LEAK_DEBUG
+		sec_debug_EMFILE_error_proc((unsigned long)files);
+#endif
 		return -EMFILE;
-
+	}
 	/* All good, so we try */
 	return expand_fdtable(files, nr);
 }
@@ -286,6 +296,9 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 
 		/* beyond sysctl_nr_open; nothing to do */
 		if (unlikely(new_fdt->max_fds < open_files)) {
+#ifdef CONFIG_SEC_FILE_LEAK_DEBUG
+			sec_debug_EMFILE_error_proc((unsigned long)oldf);
+#endif
 			__free_fdtable(new_fdt);
 			*errorp = -EMFILE;
 			goto out_release;
@@ -480,9 +493,12 @@ repeat:
 	 * will limit the total number of files that can be opened.
 	 */
 	error = -EMFILE;
-	if (fd >= end)
+	if (fd >= end) {
+#ifdef CONFIG_SEC_FILE_LEAK_DEBUG
+		sec_debug_EMFILE_error_proc((unsigned long)files);
+#endif
 		goto out;
-
+	}
 	error = expand_files(files, fd);
 	if (error < 0)
 		goto out;
@@ -855,8 +871,12 @@ SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 	if (unlikely(oldfd == newfd))
 		return -EINVAL;
 
-	if (newfd >= rlimit(RLIMIT_NOFILE))
+	if (newfd >= rlimit(RLIMIT_NOFILE)) {
+#ifdef CONFIG_SEC_FILE_LEAK_DEBUG
+		sec_debug_EMFILE_error_proc((unsigned long)files);
+#endif
 		return -EBADF;
+	}
 
 	spin_lock(&files->file_lock);
 	err = expand_files(files, newfd);

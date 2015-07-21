@@ -116,18 +116,25 @@ struct sec_battery_info {
 	unsigned int check_adc_count;
 	unsigned int check_adc_value;
 
+	/* health change check*/
+	bool health_change;
 	/* time check */
 	unsigned long charging_start_time;
 	unsigned long charging_passed_time;
 	unsigned long charging_next_time;
 	unsigned long charging_fullcharged_time;
 
+	/* chg temperature check */
+	bool chg_limit;
+
 	/* temperature check */
 	int temperature;	/* battery temperature */
 	int temper_amb;		/* target temperature */
+	int chg_temp;		/* charger temperature */
 
 	int temp_adc;
 	int temp_ambient_adc;
+	int chg_temp_adc;
 
 	int temp_highlimit_threshold;
 	int temp_highlimit_recovery;
@@ -170,9 +177,27 @@ struct sec_battery_info {
 	bool store_mode;
 	bool slate_mode;
 
+	/* MTBF test for CMCC */
+	bool is_hc_usb;
+
 	int siop_level;
 	int stability_test;
 	int eng_not_full_status;
+
+#if defined(CONFIG_BATTERY_SWELLING)
+	int swelling_temp_high_threshold;
+	int swelling_temp_high_recovery;
+	int swelling_temp_low_threshold;
+	int swelling_temp_low_recovery;
+	int swelling_recharge_voltage;
+	int swelling_block_time;
+
+	bool swelling_mode;
+	bool swelling_block;
+	unsigned long swelling_block_start;
+	unsigned long swelling_block_passed;
+	int swelling_full_check_cnt;
+#endif
 };
 
 ssize_t sec_bat_show_attrs(struct device *dev,
@@ -224,6 +249,8 @@ enum {
 	BATT_TEMP_ADC,
 	BATT_TEMP_AVER,
 	BATT_TEMP_ADC_AVER,
+	BATT_CHG_TEMP,
+	BATT_CHG_TEMP_ADC,
 	BATT_VF_ADC,
 	BATT_SLATE_MODE,
 
@@ -240,6 +267,7 @@ enum {
 	WC_STATUS,
 	WC_ENABLE,
 	HV_CHARGER_STATUS,
+	HV_CHARGER_SET,
 	FACTORY_MODE,
 	STORE_MODE,
 	UPDATE,
@@ -264,6 +292,7 @@ enum {
 	BATT_EVENT_GPS,
 	BATT_EVENT,
 	BATT_TEMP_TABLE,
+	BATT_HIGH_CURRENT_USB,
 #if defined(CONFIG_SAMSUNG_BATTERY_ENG_TEST)
 	BATT_TEST_CHARGE_CURRENT,
 #endif
@@ -278,7 +307,7 @@ extern void cable_initial_check(struct sec_battery_info *battery);
 extern bool sec_bat_check_jig_status(void);
 extern void adc_exit(struct sec_battery_info *battery);
 extern int sec_bat_check_cable_callback(struct sec_battery_info *battery);
-extern void sec_bat_check_cable_result_callback(int cable_type);
+extern void sec_bat_check_cable_result_callback(struct device *dev, int cable_type);
 extern bool sec_bat_check_callback(struct sec_battery_info *battery);
 #endif
 

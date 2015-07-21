@@ -89,11 +89,6 @@ void pm_autosleep_unlock(void)
 	mutex_unlock(&autosleep_lock);
 }
 
-#ifdef CONFIG_ADAPTIVE_KSM
-extern void AKSM_suspend(void);
-extern void AKSM_resume(void);
-#endif
-
 int pm_autosleep_set_state(suspend_state_t state)
 {
 #ifdef CONFIG_SEC_GPIO_DVS
@@ -131,14 +126,8 @@ int pm_autosleep_set_state(suspend_state_t state)
 
 	if (state > PM_SUSPEND_ON) {
 		pm_wakep_autosleep_enabled(true);
-#ifdef CONFIG_ADAPTIVE_KSM
-		AKSM_suspend();
-#endif
 		queue_up_suspend_work();
 	} else {
-#ifdef CONFIG_ADAPTIVE_KSM
-		AKSM_resume();
-#endif
 		pm_wakep_autosleep_enabled(false);
 	}
 

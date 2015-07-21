@@ -29,9 +29,9 @@
 #include <linux/dma-mapping.h>
 #include <trace/events/kmem.h>
 
-static gfp_t high_order_gfp_flags = (GFP_HIGHUSER |
-					__GFP_NOWARN | __GFP_NORETRY |
-					__GFP_NO_KSWAPD) & ~__GFP_WAIT;
+static gfp_t high_order_gfp_flags = (GFP_HIGHUSER | __GFP_NOWARN |
+				     __GFP_NO_KSWAPD |
+				     __GFP_NORETRY) & ~__GFP_WAIT;
 static gfp_t low_order_gfp_flags  = (GFP_HIGHUSER | __GFP_NOWARN);
 
 #ifndef CONFIG_ALLOC_BUFFERS_IN_4K_CHUNKS
@@ -138,7 +138,6 @@ static struct page_info *alloc_largest_available(struct ion_system_heap *heap,
 	}
 	return NULL;
 }
-
 static unsigned int process_info(struct page_info *info,
 				 struct scatterlist *sg,
 				 struct scatterlist *sg_sync,
@@ -167,7 +166,6 @@ static unsigned int process_info(struct page_info *info,
 	return i;
 }
 
- 
 static int ion_system_heap_allocate(struct ion_heap *heap,
 				     struct ion_buffer *buffer,
 				     unsigned long size, unsigned long align,
@@ -265,7 +263,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		} else {
 			BUG();
 		}
-
 		sg = sg_next(sg);
 
 	} while (sg);
@@ -285,7 +282,6 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		sg_free_table(&table_sync);
 	ion_heap_free_pages_mem(&data);
 	return 0;
-
 err_free_sg2:
 	/* We failed to zero buffers. Bypass pool */
 	buffer->flags |= ION_FLAG_FREED_FROM_SHRINKER;

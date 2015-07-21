@@ -32,6 +32,8 @@ choice
 		bool "Marvell"
 	config MTV_BROADCOM
 		bool "Broadcom"
+	config MTV_SPREADTRUM
+		bool "Spreadtrum"
 endchoice
 
 choice

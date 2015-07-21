@@ -20,8 +20,8 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
-#ifndef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 
+#ifndef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 #include "usb_gadget_xport.h"
 #endif
 #include "u_serial.h"
@@ -474,7 +474,7 @@ static int acm_setup(struct usb_function *f, const struct usb_ctrlrequest *ctrl)
 		if (w_length != sizeof(struct usb_cdc_line_coding))
 #else
 		if (w_length != sizeof(struct usb_cdc_line_coding)
-			|| w_index != acm->ctrl_id)
+				|| w_index != acm->ctrl_id)
 #endif
 			goto invalid;
 
@@ -922,7 +922,7 @@ static struct usb_function *acm_alloc_func(struct usb_function_instance *fi)
 	//acm->port.func.name = kasprintf(GFP_KERNEL, "acm%u", opts->port_num + 1);
 	acm->port.func.name = "acm";
 #endif
-	
+
 	acm->port.func.strings = acm_strings;
 	/* descriptors are per-instance copies */
 	acm->port.func.bind = acm_bind;

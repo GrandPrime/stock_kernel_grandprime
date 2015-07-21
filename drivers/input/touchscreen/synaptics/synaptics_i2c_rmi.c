@@ -256,7 +256,7 @@ static int synaptics_parse_dt(struct device *dev,
 
 	/* vdd, irq gpio info */
 	dt_data->external_ldo = of_get_named_gpio(np, "synaptics,external_ldo", 0);
-	dt_data->external_ldo_1p8 = of_get_named_gpio(np, "synaptics,external_ldo_1p8", 0);	
+	dt_data->external_ldo2 = of_get_named_gpio(np, "synaptics,external_ldo2", 0);
 	dt_data->scl_gpio = of_get_named_gpio(np, "synaptics,scl-gpio", 0);
 	dt_data->sda_gpio = of_get_named_gpio(np, "synaptics,sda-gpio", 0);
 	dt_data->irq_gpio = of_get_named_gpio(np, "synaptics,irq-gpio", 0);
@@ -286,7 +286,8 @@ static int synaptics_parse_dt(struct device *dev,
 			}
 			dev_info(dev, "%s: supply%d: %s\n", __func__, i, dt_data->name_of_supply[i]);
 		}
-	}
+	} else
+		dt_data->num_of_supply = 0;
 
 	/* extra config value
 	 * @config[0] : Can set pmic regulator voltage.
@@ -342,8 +343,8 @@ static int synaptics_parse_dt(struct device *dev,
 	if (dt_data->extra_config[2] > 0)
 		pr_err("%s: OCTA ID = %d\n", __func__, gpio_get_value(dt_data->extra_config[2]));
 
-	pr_err("%s: power= %d, power1.8=%d, tsp_int= %d, X= %d, Y= %d, project= %s, config[%d][%d][%d][%d], tablet = %d reset= %d\n",
-		__func__, dt_data->external_ldo, dt_data->external_ldo_1p8, dt_data->irq_gpio,
+	pr_err("%s: power= %d, tsp_int= %d, X= %d, Y= %d, project= %s, config[%d][%d][%d][%d], tablet = %d reset= %d\n",
+		__func__, dt_data->external_ldo, dt_data->irq_gpio,
 			dt_data->coords[0], dt_data->coords[1], dt_data->project,
 			dt_data->extra_config[0], dt_data->extra_config[1], dt_data->extra_config[2],
 			dt_data->extra_config[3], dt_data->tablet, dt_data->reset_gpio);
@@ -358,11 +359,71 @@ static int synaptics_parse_dt(struct device *dev,
 }
 #endif
 
+static int synaptics_pinctrl_init(struct synaptics_rmi4_data *rmi4_data)
+{
+	int retval;
+
+	/* Get pinctrl if target uses pinctrl */
+	rmi4_data->ts_pinctrl = devm_pinctrl_get(&rmi4_data->i2c_client->dev);
+	if (IS_ERR_OR_NULL(rmi4_data->ts_pinctrl)) {
+		dev_err(&rmi4_data->i2c_client->dev,
+			"Target does not use pinctrl\n");
+		retval = PTR_ERR(rmi4_data->ts_pinctrl);
+		rmi4_data->ts_pinctrl = NULL;
+		return retval;
+	}
+
+	rmi4_data->gpio_state_active
+		= pinctrl_lookup_state(rmi4_data->ts_pinctrl, "pmx_ts_active");
+	if (IS_ERR_OR_NULL(rmi4_data->gpio_state_active)) {
+		dev_err(&rmi4_data->i2c_client->dev,
+			"Can not get ts default pinstate\n");
+		retval = PTR_ERR(rmi4_data->gpio_state_active);
+		rmi4_data->ts_pinctrl = NULL;
+		return retval;
+	}
+
+	rmi4_data->gpio_state_suspend
+		= pinctrl_lookup_state(rmi4_data->ts_pinctrl, "pmx_ts_suspend");
+	if (IS_ERR_OR_NULL(rmi4_data->gpio_state_suspend)) {
+		dev_err(&rmi4_data->i2c_client->dev,
+			"Can not get ts sleep pinstate\n");
+		retval = PTR_ERR(rmi4_data->gpio_state_suspend);
+		rmi4_data->ts_pinctrl = NULL;
+		return retval;
+	}
+
+	return 0;
+}
+
+static int synpatics_pinctrl_select(struct synaptics_rmi4_data *rmi4_data,
+						bool on)
+{
+	struct pinctrl_state *pins_state;
+	int ret;
+
+	pins_state = on ? rmi4_data->gpio_state_active
+		: rmi4_data->gpio_state_suspend;
+	if (!IS_ERR_OR_NULL(pins_state)) {
+		ret = pinctrl_select_state(rmi4_data->ts_pinctrl, pins_state);
+		if (ret) {
+			dev_err(&rmi4_data->i2c_client->dev,
+				"can not set %s pins\n",
+				on ? "pmx_ts_active" : "pmx_ts_suspend");
+			return ret;
+		}
+	} else
+		dev_err(&rmi4_data->i2c_client->dev,
+			"not a valid '%s' pinstate\n",
+				on ? "pmx_ts_active" : "pmx_ts_suspend");
+
+	return 0;
+}
+
 static void synaptics_request_gpio(struct synaptics_rmi4_data *rmi4_data)
 {
 	int ret;
 
-	pr_info("[TSP] %s called \n", __func__);
 	ret = gpio_request(rmi4_data->dt_data->irq_gpio, "synaptics,irq_gpio");
 	if (ret) {
 		pr_err("%s: unable to request irq_gpio [%d]\n",
@@ -379,14 +440,14 @@ static void synaptics_request_gpio(struct synaptics_rmi4_data *rmi4_data)
 		}
 	}
 
-	if (rmi4_data->dt_data->external_ldo_1p8 > 0) {
-		ret = gpio_request(rmi4_data->dt_data->external_ldo_1p8, "synaptics,external_ldo_1p8");
+	if (rmi4_data->dt_data->external_ldo2 > 0) {
+		ret = gpio_request(rmi4_data->dt_data->external_ldo2, "synaptics,external_ldo2");
 		if (ret) {
-			pr_err("%s: unable to request external_ldo_1p8 [%d]\n",
-					__func__, rmi4_data->dt_data->external_ldo_1p8);
+			pr_err("%s: unable to request external_ldo [%d]\n",
+					__func__, rmi4_data->dt_data->external_ldo2);
 			return;
 		}
-	}	
+	}
 
 	if (rmi4_data->dt_data->tkey_led_en > 0) {
 		ret = gpio_request(rmi4_data->dt_data->tkey_led_en, "synaptics,tkey_led_vdd_on");
@@ -405,8 +466,6 @@ static void synaptics_request_gpio(struct synaptics_rmi4_data *rmi4_data)
 			return;
 		}
 	}
-//	gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->scl_gpio, 3, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
-//	gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->sda_gpio, 3, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
 
 	if (rmi4_data->dt_data->id_gpio > 0) {
 		ret = gpio_request(rmi4_data->dt_data->id_gpio, "synaptics,id-gpio");
@@ -416,6 +475,8 @@ static void synaptics_request_gpio(struct synaptics_rmi4_data *rmi4_data)
 			return;
 		}
 	}
+
+	synaptics_pinctrl_init(rmi4_data);
 }
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -613,6 +674,47 @@ static ssize_t synaptics_rmi4_global_store(struct device *dev,
 }
 
 #ifdef GLOVE_MODE
+#ifdef ENABLE_F12_OBJTYPE
+static int synaptics_rmi4_f12_obj_type_enable(struct synaptics_rmi4_data *rmi4_data)
+{
+	int retval = 0;
+
+	retval = synaptics_rmi4_i2c_write(rmi4_data,
+			rmi4_data->f12_ctrl23_addr,
+			&rmi4_data->obj_type_enable,
+			sizeof(rmi4_data->obj_type_enable));
+	if (retval < 0)
+		dev_err(&rmi4_data->i2c_client->dev, "%s: write fail[%d]\n",
+			__func__, retval);
+
+	return retval;
+}
+#endif
+
+int synaptics_rmi4_glove_mode_enables(struct synaptics_rmi4_data *rmi4_data)
+{
+	int retval = 0;
+
+	if (rmi4_data->touch_stopped)
+		goto out;
+
+	retval = synaptics_rmi4_f12_set_feature(rmi4_data);
+	if (retval < 0) {
+		dev_err(&rmi4_data->i2c_client->dev,
+			"%s: f12 set_feature write fail[%d]\n", __func__, retval);
+	}
+	
+#ifdef ENABLE_F12_OBJTYPE
+	retval = synaptics_rmi4_f12_obj_type_enable(rmi4_data);
+	if (retval < 0) {
+		dev_err(&rmi4_data->i2c_client->dev,
+			"%s: f12 obj_type write fail[%d]\n", __func__, retval);
+	}
+#endif
+out:
+	return retval;
+}
+
 static ssize_t synaptics_rmi4_glove_mode_enable_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -648,7 +750,7 @@ static ssize_t synaptics_rmi4_glove_mode_enable_store(struct device *dev,
 	if (input)
 		rmi4_data->feature_enable |= GLOVE_MODE_EN;
 
-	retval = synaptics_rmi4_f12_set_feature(rmi4_data);
+	retval = synaptics_rmi4_glove_mode_enables(rmi4_data);
 	if (retval < 0) {
 		dev_err(dev,
 				"%s: Failed to set glove mode enable, error = %d\n",
@@ -1733,7 +1835,7 @@ static int synaptics_rmi4_f12_abs_report(struct synaptics_rmi4_data *rmi4_data,
 
 	}
 
-		/* Clear BTN_TOUCH when All touch are released  */
+	/* Clear BTN_TOUCH when All touch are released  */
 	if (touch_count == 0) {
 		input_report_key(rmi4_data->input_dev,
 				BTN_TOUCH, 0);
@@ -2391,7 +2493,7 @@ int synaptics_rmi4_irq_enable(struct synaptics_rmi4_data *rmi4_data,
 				DRIVER_NAME, rmi4_data);
 		else
 			retval = request_threaded_irq(rmi4_data->irq, NULL,
-				synaptics_rmi4_irq, TSP_IRQ_TYPE_LEVEL, 
+				synaptics_rmi4_irq, TSP_IRQ_TYPE_EDGE, 
 				DRIVER_NAME, rmi4_data);
 
 		if (retval < 0) {
@@ -2773,6 +2875,11 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 	rmi4_data->f12_ctrl26_addr = fhandler->full_addr.ctrl_base + ctrl_26_offset;
 	rmi4_data->f12_ctrl28_addr = fhandler->full_addr.ctrl_base + ctrl_28_offset;
 
+#ifdef ENABLE_F12_OBJTYPE
+	rmi4_data->f12_ctrl23_addr = fhandler->full_addr.ctrl_base + ctrl_23_offset;
+	rmi4_data->obj_type_enable = OBJ_TYPE_FINGER | OBJ_TYPE_UNCLASSIFIED;
+#endif
+
 	if (rmi4_data->has_glove_mode) {
 		retval = synaptics_rmi4_i2c_read(rmi4_data,
 				rmi4_data->f12_ctrl26_addr,
@@ -2783,7 +2890,7 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 					__func__, __LINE__, retval);
 			return retval;
 		}
-
+	
 		retval = synaptics_rmi4_f12_set_feature(rmi4_data);
 		if (retval < 0) {
 			dev_err(&rmi4_data->i2c_client->dev, "%s: f12_set_feature fail[%d]\n",
@@ -2798,6 +2905,16 @@ static int synaptics_rmi4_f12_init(struct synaptics_rmi4_data *rmi4_data,
 				__func__, retval);
 		return retval;
 	}
+
+#ifdef ENABLE_F12_OBJTYPE
+	retval = synaptics_rmi4_f12_obj_type_enable(rmi4_data);
+	if (retval < 0) {
+		dev_err(&rmi4_data->i2c_client->dev,
+				"%s, Failed to set object. [%d]\n",
+			__func__, retval);
+		return retval;
+	}
+#endif
 
 	retval = synaptics_rmi4_i2c_read(rmi4_data,
 			fhandler->full_addr.ctrl_base + ctrl_8_offset,
@@ -3920,7 +4037,7 @@ flash_prog_mode:
 /* below code is only S5000 IC temporary code. will be removed..*/
 	if (rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5000)
 		rmi4_data->ic_revision_of_ic = 0xB0;
-
+#if !defined(CONFIG_SEC_HESTIA_PROJECT)
 	if (rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5100) {
 		if ((strncmp(rmi->product_id_string + 6, "A1", 2) == 0) ||
 			(strncmp(rmi->product_id_string + 6, "a1", 2) == 0)) {
@@ -3944,7 +4061,7 @@ flash_prog_mode:
 			rmi4_data->ic_revision_of_ic = SYNAPTICS_IC_REVISION_NONE;
 		}
 	}
-
+#endif
 	retval = synaptics_rmi4_i2c_read(rmi4_data,
 			0x31, f01_package_id,
 			sizeof(f01_package_id));
@@ -4156,7 +4273,7 @@ static void synaptics_rmi4_set_input_data(struct synaptics_rmi4_data *rmi4_data)
 #endif
 
 	input_mt_init_slots(rmi4_data->input_dev,
-			rmi4_data->num_of_fingers, 0);
+			rmi4_data->num_of_fingers, INPUT_MT_DIRECT);
 
 	f1a = NULL;
 	if (!list_empty(&rmi->support_fn_list)) {
@@ -4338,7 +4455,21 @@ static int synaptics_rmi4_reinit_device(struct synaptics_rmi4_data *rmi4_data)
 	if (!list_empty(&rmi->support_fn_list)) {
 		list_for_each_entry(fhandler, &rmi->support_fn_list, link) {
 			if (fhandler->fn_number == SYNAPTICS_RMI4_F12) {
-				synaptics_rmi4_f12_set_feature(rmi4_data);
+#ifdef GLOVE_MODE
+				retval = synaptics_rmi4_glove_mode_enables(rmi4_data);				
+				if (retval < 0) {
+					dev_err(&rmi4_data->i2c_client->dev,
+							"%s: Failed to glove mode enable, error = %d\n",
+							__func__, retval);
+					goto exit;
+				}
+#else
+				retval = synaptics_rmi4_f12_set_feature(rmi4_data);
+				if (retval < 0) {
+					dev_err(&rmi4_data->i2c_client->dev,
+						"%s: f12 set_feature write fail[%d]\n", __func__, retval);
+				}
+#endif
 				retval = synaptics_rmi4_f12_set_report(rmi4_data);
 				if (retval < 0) {
 					dev_err(&rmi4_data->i2c_client->dev,
@@ -4763,12 +4894,12 @@ void synaptics_power_ctrl(struct synaptics_rmi4_data *rmi4_data, bool enable)
 				enable ? "enabled" : "disabled", (retval < 0) ? "NG" : "OK");
 	}
 
-	if (rmi4_data->dt_data->external_ldo_1p8 > 0) {
-		retval = gpio_direction_output(rmi4_data->dt_data->external_ldo_1p8, enable);
+	if (rmi4_data->dt_data->external_ldo2 > 0) {
+		retval = gpio_direction_output(rmi4_data->dt_data->external_ldo2, enable);
 		dev_info(dev, "%s: sensor_en[1.8V][%d] is %s[%s]\n",
-				__func__, rmi4_data->dt_data->external_ldo_1p8,
+				__func__, rmi4_data->dt_data->external_ldo2,
 				enable ? "enabled" : "disabled", (retval < 0) ? "NG" : "OK");
-	}	
+	}
 
 	if (enable) {
 		/* Enable regulators according to the order */
@@ -4787,14 +4918,6 @@ void synaptics_power_ctrl(struct synaptics_rmi4_data *rmi4_data, bool enable)
 					__func__, rmi4_data->supplies[i].supply);
 			}
 		}
-
-#if !defined(CONFIG_SEC_GPEN_PROJECT) && !defined(CONFIG_SEC_CHAGALL_PROJECT) && !defined(CONFIG_SEC_HESTIA_PROJECT)
-		retval = qpnp_pin_config(rmi4_data->dt_data->irq_gpio,
-				&synaptics_int_set[SYNAPTICS_PM_GPIO_STATE_WAKE]);
-		if (retval < 0)
-			dev_info(dev, "%s: wakeup int config return: %d\n", __func__, retval);
-#endif
-
 	} else {
 		/* Disable regulator */
 		for (i = 0; i < rmi4_data->dt_data->num_of_supply; i++) {
@@ -4812,13 +4935,6 @@ void synaptics_power_ctrl(struct synaptics_rmi4_data *rmi4_data, bool enable)
 					rmi4_data->supplies[i].supply);
 			}
 		}
-
-#if !defined(CONFIG_SEC_GPEN_PROJECT) && !defined(CONFIG_SEC_CHAGALL_PROJECT) && !defined(CONFIG_SEC_HESTIA_PROJECT)
-		retval = qpnp_pin_config(rmi4_data->dt_data->irq_gpio,
-				&synaptics_int_set[SYNAPTICS_PM_GPIO_STATE_SLEEP]);
-		if (retval < 0)
-			dev_info(dev, "%s: sleep int config return: %d\n", __func__, retval);
-#endif
 	}
 
 	if (rmi4_data->dt_data->reset_gpio > 0) {
@@ -4826,15 +4942,6 @@ void synaptics_power_ctrl(struct synaptics_rmi4_data *rmi4_data, bool enable)
 		dev_info(dev, "%s: reset_gpio[%d] is %s[%s]\n",
 				__func__, rmi4_data->dt_data->reset_gpio,
 				enable ? "enabled" : "disabled", (retval < 0) ? "NG" : "OK");
-	}
-
-	if (rmi4_data->dt_data->id_gpio > 0) {
-		retval = gpio_request(rmi4_data->dt_data->id_gpio, "synaptics,id-gpio");
-		if (retval) {
-			pr_err("%s: unable to request id_gpio [%d]\n",
-					__func__, rmi4_data->dt_data->id_gpio);
-			return;
-		}
 	}
 
 	return;
@@ -4858,13 +4965,12 @@ err:
 					enable ? "enabled" : "disabled", (retval < 0) ? "NG" : "OK");
 		}
 
-		if (rmi4_data->dt_data->external_ldo_1p8> 0) {
-			retval = gpio_direction_output(rmi4_data->dt_data->external_ldo_1p8, enable);
+		if (rmi4_data->dt_data->external_ldo2 > 0) {
+			retval = gpio_direction_output(rmi4_data->dt_data->external_ldo2, enable);
 			dev_err(dev, "%s: sensor_en[1.8V][%d] is %s[%s]\n",
-					__func__, rmi4_data->dt_data->external_ldo_1p8,
+					__func__, rmi4_data->dt_data->external_ldo2,
 					enable ? "enabled" : "disabled", (retval < 0) ? "NG" : "OK");
 		}
-		
 	} else {
 		enable = 1;
 		for (i = 0; i < rmi4_data->dt_data->num_of_supply; i++) {
@@ -4883,13 +4989,12 @@ err:
 					enable ? "enabled" : "disabled", (retval < 0) ? "NG" : "OK");
 		}
 
-		if (rmi4_data->dt_data->external_ldo_1p8> 0) {
-			retval = gpio_direction_output(rmi4_data->dt_data->external_ldo_1p8, enable);
+		if (rmi4_data->dt_data->external_ldo2 > 0) {
+			retval = gpio_direction_output(rmi4_data->dt_data->external_ldo2, enable);
 			dev_err(dev, "%s: sensor_en[1.8V][%d] is %s[%s]\n",
-					__func__, rmi4_data->dt_data->external_ldo_1p8,
+					__func__, rmi4_data->dt_data->external_ldo2,
 					enable ? "enabled" : "disabled", (retval < 0) ? "NG" : "OK");
 		}
-		
 	}
 }
 
@@ -4956,6 +5061,8 @@ static void synaptics_get_firmware_name(struct synaptics_rmi4_data *rmi4_data)
 	} else if (rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5707) {
 		if (strncmp(rmi4_data->dt_data->project, "Klimt", 5) == 0)
 			rmi4_data->firmware_name = FW_IMAGE_NAME_S5707_KLIMT;
+		else if (strncmp(rmi4_data->dt_data->project, "RUBENS", 6) == 0)
+			rmi4_data->firmware_name = FW_IMAGE_NAME_S5707_RUBENS;
 		else 
 			rmi4_data->firmware_name = FW_IMAGE_NAME_S5707;
 	} else if (rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5708) {
@@ -5102,10 +5209,10 @@ static int synaptics_rmi4_probe(struct i2c_client *client,
 	rmi = &(rmi4_data->rmi4_mod_info);
 
 	rmi4_data->dt_data = dt_data;
+	rmi4_data->i2c_client = client;
 	synaptics_request_gpio(rmi4_data);
 
 	client->irq = gpio_to_irq(rmi4_data->dt_data->irq_gpio);
-	rmi4_data->i2c_client = client;
 	rmi4_data->current_page = MASK_8BIT;
 
 	rmi4_data->touch_stopped = false;
@@ -5213,14 +5320,12 @@ err_tsp_reboot:
 	}
 
 	synaptics_get_firmware_name(rmi4_data);
-
 	retval = synaptics_rmi4_fw_update_on_probe(rmi4_data);
 	if (retval < 0) {
 		dev_err(&client->dev, "%s: Failed to firmware update\n",
 				__func__);
 		goto err_fw_update;
 	}
-
 #if defined(CONFIG_LEDS_CLASS) && defined(TOUCHKEY_ENABLE)
 	rmi4_data->leds.name = TOUCHKEY_BACKLIGHT;
 	rmi4_data->leds.brightness = LED_FULL;
@@ -5631,8 +5736,7 @@ static int synaptics_rmi4_input_open(struct input_dev *dev)
 
 	dev_info(&rmi4_data->i2c_client->dev, "%s %s\n", __func__, rmi4_data->use_deepsleep ? "wakeup" : "");
 
-//	gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->scl_gpio, 3, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
-//	gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->sda_gpio, 3, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
+	synpatics_pinctrl_select(rmi4_data, 1);
 	if (rmi4_data->use_deepsleep) {
 		synaptics_rmi4_sensor_wake(rmi4_data);
 	} else {
@@ -5653,14 +5757,15 @@ static void synaptics_rmi4_input_close(struct input_dev *dev)
 
 	if (rmi4_data->use_deepsleep) {
 		synaptics_rmi4_sensor_sleep(rmi4_data);
-//		gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->scl_gpio, 3, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
-//		gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->sda_gpio, 3, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
+	//	gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->scl_gpio, 3, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
+	//	gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->sda_gpio, 3, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
 
 	} else {
 		synaptics_rmi4_stop_device(rmi4_data);
-//		gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->scl_gpio, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), 1);
-//		gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->sda_gpio, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), 1);
+	//	gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->scl_gpio, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), 1);
+	//	gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->sda_gpio, 0, GPIO_CFG_INPUT, GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA), 1);
 	}
+	synpatics_pinctrl_select(rmi4_data, 0);
 }
 #endif
 
@@ -5845,9 +5950,8 @@ static struct i2c_driver synaptics_rmi4_driver = {
  * This function registers the driver to the I2C subsystem.
  *
  */
-static int synaptics_rmi4_init(void)
+static int __init synaptics_rmi4_init(void)
 {
-	pr_err("%s: \n", __func__);
 #ifdef CONFIG_SAMSUNG_LPM_MODE
 	if (poweroff_charging) {
 		pr_notice("%s : LPM Charging Mode!!\n", __func__);

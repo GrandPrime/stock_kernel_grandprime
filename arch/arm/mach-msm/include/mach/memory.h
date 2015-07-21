@@ -55,9 +55,3 @@ extern char *__compat_exports_end[];
 #endif
 
 #define CONSISTENT_DMA_SIZE	(SZ_1M * 14)
-
-#ifndef __ASSEMBLY__
-#ifdef CONFIG_TIMA_RKP
-void invalidate_caches(unsigned long, unsigned long, unsigned long);
-#endif
-#endif

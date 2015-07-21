@@ -23,7 +23,7 @@
 #include <linux/input.h>
 #include <linux/log2.h>
 #include <linux/qpnp/power-on.h>
-#ifdef CONFIG_SEC_DEBUG
+#if defined(CONFIG_SEC_DEBUG)
 #include <mach/sec_debug.h>
 #endif
 
@@ -72,7 +72,6 @@
 #define QPNP_PON_S3_SRC(base)			(base + 0x74)
 #define QPNP_PON_S3_DBC_CTL(base)		(base + 0x75)
 #define QPNP_PON_TRIGGER_EN(base)		(base + 0x80)
-#define QPNP_PON_UNLOCK_S3(base)		(base + 0xD0)
 
 #define QPNP_PON_WARM_RESET_TFT			BIT(4)
 
@@ -574,7 +573,7 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 		pon->powerkey_state = 0;
 	}
 
-#if defined(CONFIG_SEC_PM)
+#if defined(CONFIG_QPNP_RESIN)
 	/* RESIN is used for VOL DOWN key, it should report the keycode for kernel panic */
 	if((cfg->key_code == 114) && (pon_rt_sts & pon_rt_bit)){
 		pon->resin_state = 1;
@@ -861,7 +860,6 @@ qpnp_config_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 		dev_err(&pon->spmi->dev, "Unable to configure S2 timer\n");
 		return rc;
 	}
-#ifdef CONFIG_ARCH_MSM8916
 #ifdef CONFIG_SEC_DEBUG
 	/* Configure reset type:
 	 * Debug level MID/HIGH: WARM Reset
@@ -872,7 +870,6 @@ qpnp_config_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 	} else {
 		cfg->s2_type = 8;
 	}
-#endif
 #endif
 	rc = qpnp_pon_masked_write(pon, cfg->s2_cntl_addr,
 				QPNP_PON_S2_CNTL_TYPE_MASK, (u8)cfg->s2_type);
@@ -1614,14 +1611,6 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 		/* 0 is a special value to indicate instant s3 reset */
 		if (s3_debounce != 0)
 			s3_debounce = ilog2(s3_debounce);
-		/*S3 source is a locked register,we should write 0xA5 to address 0x8D0 to unlock it*/
-		rc = qpnp_pon_masked_write(pon, QPNP_PON_UNLOCK_S3(pon->base),
-				0xFF, 0xA5);
-		if (rc) {
-			dev_err(&spmi->dev, "Unable to unlock S3 debounce register\n");
-			return rc;
-		}
-
 		rc = qpnp_pon_masked_write(pon, QPNP_PON_S3_DBC_CTL(pon->base),
 				QPNP_PON_S3_DBC_DELAY_MASK, s3_debounce);
 		if (rc) {

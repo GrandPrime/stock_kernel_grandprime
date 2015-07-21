@@ -75,10 +75,12 @@
 #define PROX_READ_NUM		40
 
  /* proximity sensor threshold */
-#define DEFUALT_HI_THD		0x0022
-#define DEFUALT_LOW_THD		0x001E
+#define DEFAULT_HI_THD		0x0022
+#define DEFAULT_LOW_THD		0x001E
 #define CANCEL_HI_THD		0x0022
 #define CANCEL_LOW_THD		0x001E
+
+#define DEFAULT_TRIM		0x0000
 
  /*lightsnesor log time 6SEC 200mec X 30*/
 #define LIGHT_LOG_TIME		30
@@ -108,11 +110,11 @@ enum {
 };
 
 static u16 ps_reg_init_setting[PS_REG_NUM][2] = {
-	{REG_PS_CONF1, 0x0320},	/* REG_PS_CONF1 */
+	{REG_PS_CONF1, 0x0324},	/* REG_PS_CONF1 */
 	{REG_PS_CONF3, 0x4200},	/* REG_PS_CONF3 */
-	{REG_PS_THD_LOW, DEFUALT_LOW_THD},	/* REG_PS_THD_LOW */
-	{REG_PS_THD_HIGH, DEFUALT_HI_THD},	/* REG_PS_THD_HIGH */
-	{REG_PS_CANC, 0x0000},	/* REG_PS_CANC */
+	{REG_PS_THD_LOW, DEFAULT_LOW_THD},	/* REG_PS_THD_LOW */
+	{REG_PS_THD_HIGH, DEFAULT_HI_THD},	/* REG_PS_THD_HIGH */
+	{REG_PS_CANC, DEFAULT_TRIM},	/* REG_PS_CANC */
 };
 
 /* driver data */
@@ -317,7 +319,7 @@ static int proximity_open_cancelation(struct cm36686_data *data)
 	}
 
 	/*If there is an offset cal data. */
-	if (ps_reg_init_setting[PS_CANCEL][CMD] != 0) {
+	if (ps_reg_init_setting[PS_CANCEL][CMD] != data->pdata->trim) {
 		ps_reg_init_setting[PS_THD_HIGH][CMD] =
 			data->pdata->cancel_hi_thd ?
 			data->pdata->cancel_hi_thd :
@@ -350,24 +352,25 @@ static int proximity_store_cancelation(struct device *dev, bool do_calib)
 
 	if (do_calib) {
 		mutex_lock(&cm36686->read_lock);
-		cm36686_i2c_read_word(cm36686,
-			REG_PS_DATA, &ps_data);
-		ps_reg_init_setting[PS_CANCEL][CMD] = ps_data;
+		cm36686_i2c_read_word(cm36686, REG_PS_DATA, &ps_data);
 		mutex_unlock(&cm36686->read_lock);
 
 		if (ps_data < cm36686->pdata->cal_skip) {
-			ps_reg_init_setting[PS_CANCEL][CMD] = 0;
+			ps_reg_init_setting[PS_CANCEL][CMD] =
+				cm36686->pdata->trim;
 			pr_info("%s:crosstalk <= %d\n", __func__,
 				cm36686->pdata->cal_skip);
 			cm36686->uProxCalResult = 2;
 			err = 1;
-		} else if (ps_data < cm36686->pdata->cal_fail) {
-  			ps_reg_init_setting[PS_CANCEL][CMD] = ps_data;
+		} else if (ps_data <= cm36686->pdata->cal_fail) {
+			ps_reg_init_setting[PS_CANCEL][CMD] =
+				ps_data + cm36686->pdata->trim;
 			pr_info("%s:crosstalk_offset = %u", __func__, ps_data);
 			cm36686->uProxCalResult = 1;
 			err = 0;
 		} else {
-			ps_reg_init_setting[PS_CANCEL][CMD] = 0;
+			ps_reg_init_setting[PS_CANCEL][CMD] =
+				cm36686->pdata->trim;
 			pr_info("%s:crosstalk > %d\n", __func__,
 				cm36686->pdata->cal_fail);
 			cm36686->uProxCalResult = 0;
@@ -387,22 +390,22 @@ static int proximity_store_cancelation(struct device *dev, bool do_calib)
 			ps_reg_init_setting[PS_THD_HIGH][CMD] =
 				cm36686->pdata->default_hi_thd ?
 				cm36686->pdata->default_hi_thd :
-				DEFUALT_HI_THD;
+				DEFAULT_HI_THD;
 			ps_reg_init_setting[PS_THD_LOW][CMD] =
 				cm36686->pdata->default_low_thd ?
 				cm36686->pdata->default_low_thd :
-				DEFUALT_LOW_THD;
+				DEFAULT_LOW_THD;
 		}
 	} else { /* reset */
-		ps_reg_init_setting[PS_CANCEL][CMD] = 0;
+		ps_reg_init_setting[PS_CANCEL][CMD] = cm36686->pdata->trim;
 		ps_reg_init_setting[PS_THD_HIGH][CMD] =
 			cm36686->pdata->default_hi_thd ?
 			cm36686->pdata->default_hi_thd :
-			DEFUALT_HI_THD;
+			DEFAULT_HI_THD;
 		ps_reg_init_setting[PS_THD_LOW][CMD] =
 			cm36686->pdata->default_low_thd ?
 			cm36686->pdata->default_low_thd :
-			DEFUALT_LOW_THD;
+			DEFAULT_LOW_THD;
 	}
 
 	err = cm36686_i2c_write_word(cm36686, REG_PS_CANC,
@@ -484,10 +487,20 @@ static ssize_t proximity_cancel_store(struct device *dev,
 static ssize_t proximity_cancel_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
+	struct cm36686_data *cm36686 = dev_get_drvdata(dev);
 	return snprintf(buf, PAGE_SIZE, "%u,%u,%u\n",
-		ps_reg_init_setting[PS_CANCEL][CMD],
+		ps_reg_init_setting[PS_CANCEL][CMD] - cm36686->pdata->trim,
 		ps_reg_init_setting[PS_THD_HIGH][CMD],
 		ps_reg_init_setting[PS_THD_LOW][CMD]);
+}
+
+static ssize_t proximity_trim_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct cm36686_data *cm36686 = dev_get_drvdata(dev);
+
+	pr_info("%s, %u\n", __func__, cm36686->pdata->trim);
+	return snprintf(buf, PAGE_SIZE, "%u\n", cm36686->pdata->trim);
 }
 
 static ssize_t proximity_cancel_pass_show(struct device *dev,
@@ -594,10 +607,12 @@ static ssize_t proximity_enable_store(struct device *dev,
 				ps_reg_init_setting[i][CMD]);
 		}
 		/*send  the far for input update*/
-		input_report_abs(cm36686->proximity_input_dev, ABS_DISTANCE,val);
+		input_report_abs(cm36686->proximity_input_dev,
+			ABS_DISTANCE, val);
 		val = gpio_get_value(cm36686->pdata->irq);
 		/* 0 is close, 1 is far */
-		input_report_abs(cm36686->proximity_input_dev, ABS_DISTANCE,val);
+		input_report_abs(cm36686->proximity_input_dev,
+			ABS_DISTANCE, val);
 		input_sync(cm36686->proximity_input_dev);
 
 		enable_irq(cm36686->irq);
@@ -853,6 +868,7 @@ static ssize_t proximity_thresh_low_store(struct device *dev,
 #ifdef CM36686_CANCELATION
 static DEVICE_ATTR(prox_cal, S_IRUGO | S_IWUSR | S_IWGRP,
 	proximity_cancel_show, proximity_cancel_store);
+static DEVICE_ATTR(prox_trim, S_IRUGO, proximity_trim_show, NULL);
 static DEVICE_ATTR(prox_offset_pass, S_IRUGO, proximity_cancel_pass_show, NULL);
 #endif
 static DEVICE_ATTR(prox_avg, S_IRUGO | S_IWUSR | S_IWGRP,
@@ -869,6 +885,7 @@ static struct device_attribute *prox_sensor_attrs[] = {
 	&dev_attr_prox_sensor_vendor,
 	&dev_attr_prox_sensor_name,
 	&dev_attr_prox_cal,
+	&dev_attr_prox_trim,
 	&dev_attr_prox_offset_pass,
 	&dev_attr_prox_avg,
 	&dev_attr_state,
@@ -1158,14 +1175,14 @@ static int cm36686_parse_dt(struct device *dev,
 		&pdata->default_hi_thd);
 	if (ret < 0) {
 		pr_err("%s - Cannot set default_hi_thd\n", __func__);
-		pdata->default_hi_thd = DEFUALT_HI_THD;
+		pdata->default_hi_thd = DEFAULT_HI_THD;
 	}
 
 	ret = of_property_read_u32(np, "cm36686,default_low_thd",
 		&pdata->default_low_thd);
 	if (ret < 0) {
 		pr_err("%s - Cannot set default_low_thd\n", __func__);
-		pdata->default_low_thd = DEFUALT_LOW_THD;
+		pdata->default_low_thd = DEFAULT_LOW_THD;
 	}
 
 	ret = of_property_read_u32(np, "cm36686,cancel_hi_thd",
@@ -1182,8 +1199,16 @@ static int cm36686_parse_dt(struct device *dev,
 		pdata->cancel_low_thd = CANCEL_LOW_THD;
 	}
 
-	ps_reg_init_setting[2][CMD] = pdata->default_low_thd;
-	ps_reg_init_setting[3][CMD] = pdata->default_hi_thd;
+	ret = of_property_read_u32(np, "cm36686,trim",
+		&pdata->trim);
+	if (ret < 0) {
+		pr_err("%s - Cannot set trim\n", __func__);
+		pdata->trim = DEFAULT_TRIM;
+	}
+
+	ps_reg_init_setting[PS_THD_LOW][CMD] = pdata->default_low_thd;
+	ps_reg_init_setting[PS_THD_HIGH][CMD] = pdata->default_hi_thd;
+	ps_reg_init_setting[PS_CANCEL][CMD] = pdata->trim;
 
 	return 0;
 }
@@ -1207,44 +1232,38 @@ static int prox_regulator_onoff(struct device *dev, bool onoff)
 		pr_err("%s: cannot get vdd\n", __func__);
 		ret = -ENOMEM;
 		goto err_vdd;
-	} else if (!regulator_get_voltage(vdd)) {
-		ret = regulator_set_voltage(vdd, 2850000, 2850000);
 	}
+	if (onoff) {
+		ret = regulator_enable(vdd);
+		if (ret)
+			pr_err("%s: Failed to enable vdd.\n", __func__);
+	} else {
+		ret = regulator_disable(vdd);
+		if (ret)
+			pr_err("%s: Failed to enable vdd.\n", __func__);
+	}
+	devm_regulator_put(vdd);
+err_vdd:
 
 	vio = devm_regulator_get(dev, "cm36686,vio");
 	if (IS_ERR(vio)) {
 		pr_err("%s: cannot get vio\n", __func__);
 		ret = -ENOMEM;
 		goto err_vio;
-	} else if (!regulator_get_voltage(vio)) {
-		ret = regulator_set_voltage(vio, 1800000, 1800000);
 	}
 
 	if (onoff) {
-		ret = regulator_enable(vdd);
-		if (ret) {
-			pr_err("%s: Failed to enable vdd.\n", __func__);
-		}
 		ret = regulator_enable(vio);
-		if (ret) {
+		if (ret)
 			pr_err("%s: Failed to enable vio.\n", __func__);
-		}
 	} else {
-		ret = regulator_disable(vdd);
-		if (ret) {
-			pr_err("%s: Failed to enable vdd.\n", __func__);
-		}
 		ret = regulator_disable(vio);
-		if (ret) {
+		if (ret)
 			pr_err("%s: Failed to enable vio.\n", __func__);
-		}
 	}
-	msleep(20);
-
 	devm_regulator_put(vio);
 err_vio:
-	devm_regulator_put(vdd);
-err_vdd:
+	msleep(20);
 	return ret;
 }
 

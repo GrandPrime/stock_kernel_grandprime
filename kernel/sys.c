@@ -42,7 +42,9 @@
 #include <linux/syscore_ops.h>
 #include <linux/version.h>
 #include <linux/ctype.h>
-
+#ifdef CONFIG_RESTART_REASON_SEC_PARAM
+#include <mach/sec_debug.h>
+#endif
 #include <linux/compat.h>
 #include <linux/syscalls.h>
 #include <linux/kprobes.h>
@@ -55,9 +57,6 @@
 #include <linux/cred.h>
 
 #include <linux/kmsg_dump.h>
-#ifdef CONFIG_SEC_DEBUG
-#include <mach/sec_debug.h>
-#endif
 /* Move somewhere else to avoid recompiling? */
 #include <generated/utsrelease.h>
 
@@ -446,6 +445,9 @@ static void migrate_to_reboot_cpu(void)
  */
 void kernel_restart(char *cmd)
 {
+#ifdef CONFIG_RESTART_REASON_SEC_PARAM
+	sec_param_restart_reason(cmd);
+#endif
 	kernel_restart_prepare(cmd);
 	migrate_to_reboot_cpu();
 	syscore_shutdown();

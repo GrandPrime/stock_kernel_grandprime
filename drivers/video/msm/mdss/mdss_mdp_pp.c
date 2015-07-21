@@ -23,21 +23,6 @@
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
 
-#ifdef CONFIG_FB_MSM_CAMERA_CSC
-struct mdp_csc_cfg mdp_csc_convert_wideband = {
-	0,
-	{
-		0x0200, 0x0000, 0x02CD,
-		0x0200, 0xFF4F, 0xFE91,
-		0x0200, 0x038B, 0x0000,
-	},
-	{ 0x0, 0xFF80, 0xFF80,},
-	{ 0x0, 0x0, 0x0,},
-	{ 0x0, 0xFF, 0x0, 0xFF, 0x0, 0xFF,},
-	{ 0x0, 0xFF, 0x0, 0xFF, 0x0, 0xFF,},
-};
-#endif
-
 struct mdp_csc_cfg mdp_csc_convert[MDSS_MDP_MAX_CSC] = {
 	[MDSS_MDP_CSC_RGB2RGB] = {
 		0,
@@ -548,21 +533,7 @@ int mdss_mdp_csc_setup(u32 block, u32 blk_idx, u32 tbl_idx, u32 csc_type)
 	pr_debug("csc type=%d blk=%d idx=%d tbl=%d\n", csc_type,
 		 block, blk_idx, tbl_idx);
 
-#ifdef CONFIG_FB_MSM_CAMERA_CSC
-	if (csc_type == MDSS_MDP_CSC_YUV2RGB && !csc_update)
-	{
-		data = &mdp_csc_convert_wideband;
-		pr_info("will do mdp_csc_convert (wide band)\n");
-	}
-	else
-	{
-		data = &mdp_csc_convert[csc_type];
-		pr_info("will do mdp_csc_convert(narrow band)\n");
-	}
-#else
 	data = &mdp_csc_convert[csc_type];
-#endif
-
 	return mdss_mdp_csc_setup_data(block, blk_idx, tbl_idx, data);
 }
 
@@ -855,10 +826,6 @@ static int pp_vig_pipe_setup(struct mdss_mdp_pipe *pipe, u32 *op)
 	u32 current_opmode;
 	u32 csc_reset;
 	u32 dcm_state = DCM_UNINIT;
-#ifdef CONFIG_FB_MSM_CAMERA_CSC
-	u32 mixer_num = 0;
-	static u8 pre_csc_value[2] = {0xFF, 0xFF};
-#endif
 
 	pr_debug("pnum=%x\n", pipe->num);
 
@@ -889,26 +856,10 @@ static int pp_vig_pipe_setup(struct mdss_mdp_pipe *pipe, u32 *op)
 		 * TODO: Needs to be part of dirty bit logic: if there is a
 		 * previously configured pipe need to re-configure CSC matrix
 		 */
-#ifdef CONFIG_FB_MSM_CAMERA_CSC
-			mixer_num = pipe->mixer_left->ctl->num;
-			if(pipe->play_cnt == 0) {
-				pr_info("1: play_cnt(%d), num(%d), ndx(%d), pre_csc_value0(%d), pre_csc_value1(%d), csc_update(%d), mixer_num(%d)\n",
-						pipe->play_cnt, pipe->num, pipe->ndx,pre_csc_value[0], pre_csc_value[1], csc_update, mixer_num);
-				mdss_mdp_csc_setup(MDSS_MDP_BLOCK_SSPP, pipe->num, 1,
-										   MDSS_MDP_CSC_YUV2RGB);
-				pre_csc_value[mixer_num] = csc_update;
-			} else if ((pre_csc_value[mixer_num] != csc_update) && (csc_update != 2)) {
-				pr_info("2: play_cnt(%d), num(%d), ndx(%d), pre_csc_value0(%d), pre_csc_value1(%d), csc_update(%d), mixer_num(%d)\n",
-						pipe->play_cnt, pipe->num, pipe->ndx,pre_csc_value[0], pre_csc_value[1], csc_update, mixer_num);	
-				mdss_mdp_csc_setup(MDSS_MDP_BLOCK_SSPP, pipe->num, 1,
-										   MDSS_MDP_CSC_YUV2RGB);
-				pre_csc_value[mixer_num] = csc_update;
-			}			
-#else
-			if ((pipe->play_cnt == 0))
-				mdss_mdp_csc_setup(MDSS_MDP_BLOCK_SSPP, pipe->num, 1,
-										   MDSS_MDP_CSC_YUV2RGB);
-#endif
+		if (pipe->play_cnt == 0) {
+			mdss_mdp_csc_setup(MDSS_MDP_BLOCK_SSPP, pipe->num, 1,
+					   MDSS_MDP_CSC_YUV2RGB);
+		}
 	}
 
 	/* Update CSC state only if tuning mode is enable */

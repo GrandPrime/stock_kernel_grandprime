@@ -21,9 +21,9 @@ static sec_bat_adc_table_data_t temp_table[] = {
 	{34629, 200},
 	{35684, 150},
 	{36739, 100},
-	{37688, 50},
-	{39224, 0},
-	{39635, -50},
+	{37810, 50},
+	{38760, 0},
+	{39858, -50},
 	{40461, -100},
 	{41124, -150},
 	{41510, -200},
@@ -56,6 +56,20 @@ static sec_bat_adc_table_data_t temp_table[] = {
 };
 #endif
 
+#if defined (CONFIG_MACH_FORTUNA_AIO)
+#define TEMP_HIGH_THRESHOLD_EVENT  600
+#define TEMP_HIGH_RECOVERY_EVENT   460
+#define TEMP_LOW_THRESHOLD_EVENT   (-50)
+#define TEMP_LOW_RECOVERY_EVENT    0
+#define TEMP_HIGH_THRESHOLD_NORMAL 530
+#define TEMP_HIGH_RECOVERY_NORMAL  470
+#define TEMP_LOW_THRESHOLD_NORMAL  (-50)
+#define TEMP_LOW_RECOVERY_NORMAL   0
+#define TEMP_HIGH_THRESHOLD_LPM    510
+#define TEMP_HIGH_RECOVERY_LPM     495
+#define TEMP_LOW_THRESHOLD_LPM     (-10)
+#define TEMP_LOW_RECOVERY_LPM      (-5)
+#else
 #define TEMP_HIGH_THRESHOLD_EVENT  600
 #define TEMP_HIGH_RECOVERY_EVENT   460
 #define TEMP_LOW_THRESHOLD_EVENT   (-50)
@@ -68,3 +82,4 @@ static sec_bat_adc_table_data_t temp_table[] = {
 #define TEMP_HIGH_RECOVERY_LPM     460
 #define TEMP_LOW_THRESHOLD_LPM     (-50)
 #define TEMP_LOW_RECOVERY_LPM      0
+#endif

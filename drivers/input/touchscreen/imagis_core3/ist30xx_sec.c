@@ -396,8 +396,10 @@ static void get_fw_ver_ic(void *dev_data)
 
 	set_default_result(sec);
 
+		mutex_lock(&ist30xx_mutex);
 	if (data->status.power == 1)
 		ver = ist30xxb_get_fw_ver(ts_data);
+		mutex_unlock(&ist30xx_mutex);
 
 	snprintf(buf, sizeof(buf), "IM00%04x", ver & 0xFFFF);
 
@@ -423,7 +425,17 @@ static void get_config_ver(void *dev_data)
 
 	set_default_result(sec);
 
+#if defined(CONFIG_MACH_ROSSA_CTC)
+	snprintf(buff, sizeof(buff), "%s", "SM-G3609_IM_1016");
+#elif defined (CONFIG_MACH_ROSSA_SPR)
+	snprintf(buff, sizeof(buff), "%s", "SM-G360P_IM_1016");
+#elif defined (CONFIG_MACH_ROSSA_VZW)
+	snprintf(buff, sizeof(buff), "%s", "SM-G360V_IM_1016");
+#elif defined (CONFIG_MACH_ROSSA_TFN)
+	snprintf(buff, sizeof(buff), "%s", "SM-S820L_IM_1016");
+#else
 	snprintf(buff, sizeof(buff), "%s_%s", TSP_CHIP_VENDOR, TSP_CHIP_NAME);
+#endif
 
 	set_cmd_result(sec, buff, strnlen(buff, sizeof(buff)));
 	sec->cmd_state = CMD_STATE_OK;
@@ -535,12 +547,15 @@ void run_raw_read(void *dev_data)
 
 	set_default_result(sec);
 
+	mutex_lock(&ist30xx_mutex);
 	ret = ist30xx_read_touch_node(flag, &tsp->node);
 	if (ret) {
+		mutex_unlock(&ist30xx_mutex);
 		sec->cmd_state = CMD_STATE_FAIL;
 		tsp_warn("%s(), tsp node read fail!\n", __func__);
 		return;
 	}
+	mutex_unlock(&ist30xx_mutex);
 	ist30xx_parse_touch_node(flag, &tsp->node);
 
 	ret = parse_tsp_node(flag, &tsp->node, node_value);
@@ -630,6 +645,7 @@ void run_cm_test(void *dev_data)
 	mutex_lock(&ist30xx_mutex);
 	ret = ist30xx_cmcs_test(ts_cmcs_bin, ts_cmcs_bin_size);
     if (unlikely(ret)) {
+        mutex_unlock(&ist30xx_mutex);
         sec->cmd_state = CMD_STATE_FAIL;
 		tsp_warn("%s(), tsp cmcs test fail!\n", __func__);
 		return;
@@ -859,13 +875,13 @@ static ssize_t back_sensitivity_show(struct device *dev, struct device_attribute
 /* sysfs: /sys/class/sec/sec_touchkey/touchkey_threshold */
 static ssize_t touchkey_threshold_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	int val = TKEY_THRESHOLD;
+	int val;
 	u32 *cfg_buf;
 
 	ist30xx_get_update_info(ts_data, ts_data->fw.buf, ts_data->fw.buf_size);
 	cfg_buf = (u32 *)&ts_data->fw.buf[ts_data->tags.cfg_addr];
 
-	val = (int)(cfg_buf[0x30 / IST30XX_DATA_LEN] & 0xFFFF);
+	val = (int)((cfg_buf[0x30 / IST30XX_DATA_LEN]>>16) & 0xFFFF);
 
 	tsp_info("%s(), %d\n", __func__, val);
 
@@ -925,12 +941,13 @@ struct tsp_cmd tsp_cmds[] = {
 	{ TSP_CMD("get_chip_id",		get_chip_id),	  },
 	{ TSP_CMD("get_x_num",			get_x_num),	  	  },
 	{ TSP_CMD("get_y_num",			get_y_num),	  	  },
-	{ TSP_CMD("run_reference_read", run_cm_test),	  },
-	{ TSP_CMD("run_raw_read",	 	run_raw_read),	  },
-	{ TSP_CMD("get_reference",	 	get_raw_value),	  },
-	{ TSP_CMD("get_raw_value",	 	get_raw_value),	  },
-    { TSP_CMD("run_cm_test",     	run_cm_test),     },
-    { TSP_CMD("get_cm_value",       get_cm_value),    },    
+	{ TSP_CMD("run_reference_read", run_raw_read),	  },
+	{ TSP_CMD("run_raw_read",	 run_raw_read),	  },
+	{ TSP_CMD("get_reference",	 get_raw_value),	  },
+	{ TSP_CMD("get_raw_value",	 get_raw_value),	  },
+    { TSP_CMD("run_cm_test",    	run_cm_test),     },
+    { TSP_CMD("get_cm_value",       get_cm_value),    },
+    { TSP_CMD("get_module_vendor",  not_support_cmd), },
 	{ TSP_CMD("not_support_cmd", 	not_support_cmd), },
 };
 

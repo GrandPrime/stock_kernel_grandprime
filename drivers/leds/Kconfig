@@ -17,12 +17,17 @@ menuconfig NEW_LEDS
 if NEW_LEDS
 
 config LEDS_CLASS
-	bool "LED Class Support"
+	tristate "LED Class Support"
 	help
 	  This option enables the led sysfs class in /sys/class/leds.  You'll
 	  need this to do anything useful with LEDs.  If unsure, say N.
 
 comment "LED drivers"
+config FLED_SM5701
+	tristate "SiliconMitus SM5701 flash LED driver"
+	depends on MFD_SM5701
+	help
+	  A driver for SiliconMitus SM5701 flash LED
 
 config LEDS_88PM860X
 	tristate "LED Support for Marvell 88PM860x PMIC"
@@ -181,12 +186,6 @@ config LEDS_GPIO
 	  defined as platform devices and/or OpenFirmware platform devices.
 	  The code to use these bindings can be selected below.
 
-config LEDS_SEC_BACKLIGHT
-	tristate "common LCD Backlight driver for SEC"
-	depends on LEDS_CLASS
-	help
-	  This option enables support for the LCD backlight on SEC device.
-
 config LEDS_LP3944
 	tristate "LED Support for N.S. LP3944 (Fun Light) I2C chip"
 	depends on LEDS_CLASS
@@ -311,6 +310,15 @@ config LEDS_MSM_GPIO_FLASH
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called leds-gpio-flash.
+
+config LEDS_KTD2026
+        tristate "LED driver for KTD2026 LED"
+        depends on I2C
+        help
+          This option enables support for RGB LED driver
+          accessed via the I2C bus.
+          KTD2026 is a fully programmable, constant current
+          three channel LED driver with flexible control interface
 
 config LEDS_WM831X_STATUS
 	tristate "LED support for status LEDs on WM831x PMICs"

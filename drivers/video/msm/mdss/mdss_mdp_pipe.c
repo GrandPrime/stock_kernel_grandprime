@@ -19,10 +19,10 @@
 #include <linux/mutex.h>
 
 #include "mdss_mdp.h"
+#include "mdss_mdp_trace.h"
 
 #define SMP_MB_SIZE		(mdss_res->smp_mb_size)
 #define SMP_MB_CNT		(mdss_res->smp_mb_cnt)
-#define SMP_ENTRIES_PER_MB	(SMP_MB_SIZE / 16)
 #define SMP_MB_ENTRY_SIZE	16
 #define MAX_BPP 4
 
@@ -42,6 +42,10 @@ static int mdss_mdp_smp_mmb_set(int client_id, unsigned long *smp);
 static void mdss_mdp_smp_mmb_free(unsigned long *smp, bool write);
 static struct mdss_mdp_pipe *mdss_mdp_pipe_search_by_client_id(
 	struct mdss_data_type *mdata, int client_id);
+static int mdss_mdp_calc_stride(struct mdss_mdp_pipe *pipe,
+	struct mdss_mdp_plane_sizes *ps);
+static u32 mdss_mdp_calc_per_plane_num_blks(u32 ystride,
+	struct mdss_mdp_pipe *pipe);
 
 static inline void mdss_mdp_pipe_write(struct mdss_mdp_pipe *pipe,
 				       u32 reg, u32 val)
@@ -52,6 +56,28 @@ static inline void mdss_mdp_pipe_write(struct mdss_mdp_pipe *pipe,
 static inline u32 mdss_mdp_pipe_read(struct mdss_mdp_pipe *pipe, u32 reg)
 {
 	return readl_relaxed(pipe->base + reg);
+}
+
+int mdss_mdp_pipe_panic_signal_ctrl(struct mdss_mdp_pipe *pipe, bool enable)
+{
+	uint32_t panic_robust_ctrl;
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
+
+	if (!mdata->has_panic_ctrl)
+		goto end;
+
+	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
+	panic_robust_ctrl = readl_relaxed(mdata->mdp_base +
+			MMSS_MDP_PANIC_ROBUST_CTRL);
+	if (enable)
+		panic_robust_ctrl |= BIT(pipe->panic_ctrl_ndx);
+	else
+		panic_robust_ctrl &= ~BIT(pipe->panic_ctrl_ndx);
+	writel_relaxed(panic_robust_ctrl,
+				mdata->mdp_base + MMSS_MDP_PANIC_ROBUST_CTRL);
+	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
+end:
+	return 0;
 }
 
 static u32 mdss_mdp_smp_mmb_reserve(struct mdss_mdp_pipe_smp_map *smp_map,
@@ -139,6 +165,30 @@ static void mdss_mdp_smp_mmb_free(unsigned long *smp, bool write)
 	}
 }
 
+u32 mdss_mdp_smp_calc_num_blocks(struct mdss_mdp_pipe *pipe)
+{
+	struct mdss_mdp_plane_sizes ps;
+	int rc = 0;
+	int i, num_blks = 0;
+
+	rc = mdss_mdp_calc_stride(pipe, &ps);
+	if (rc) {
+		pr_err("wrong stride calc\n");
+		return 0;
+	}
+
+	for (i = 0; i < ps.num_planes; i++) {
+		num_blks += mdss_mdp_calc_per_plane_num_blks(ps.ystride[i],
+			pipe);
+		pr_debug("SMP for BW %d mmb for pnum=%d plane=%d\n",
+			num_blks, pipe->num, i);
+	}
+
+	pr_debug("SMP blks %d mb_cnt for pnum=%d\n",
+		num_blks, pipe->num);
+	return num_blks;
+}
+
 /**
  * @mdss_mdp_smp_get_size - get allocated smp size for a pipe
  * @pipe: pointer to a pipe
@@ -161,31 +211,71 @@ u32 mdss_mdp_smp_get_size(struct mdss_mdp_pipe *pipe)
 
 static void mdss_mdp_smp_set_wm_levels(struct mdss_mdp_pipe *pipe, int mb_cnt)
 {
-	u32 fetch_size, val, wm[3];
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
+	u32 useable_space, latency_bytes, val, wm[3];
+	struct mdss_mdp_mixer *mixer = pipe->mixer_left;
 
-	fetch_size = mb_cnt * SMP_MB_SIZE;
+	useable_space = mb_cnt * SMP_MB_SIZE;
 
 	/*
-	 * when doing hflip, one line is reserved to be consumed down the
-	 * pipeline. This line will always be marked as full even if it doesn't
-	 * have any data. In order to generate proper priority levels ignore
-	 * this region while setting up watermark levels
+	 * For 1.3.x version, when source format is macrotile then useable
+	 * space within total allocated SMP space is limited to src_w *
+	 * bpp * nlines. Unlike linear format, any extra space left over is
+	 * not filled.
+	 *
+	 * All other versions, in case of linear we calculate the latency
+	 * bytes as the bytes to be used for the latency buffer lines, so the
+	 * transactions when filling the full SMPs have the lowest priority.
 	 */
-	if (pipe->flags & MDP_FLIP_LR) {
+
+	latency_bytes = mdss_mdp_calc_latency_buf_bytes(pipe->src_fmt->is_yuv,
+		pipe->bwc_mode, pipe->src_fmt->tile, pipe->src.w,
+		pipe->src_fmt->bpp,
+		false, useable_space);
+
+	if ((pipe->flags & MDP_FLIP_LR) && !pipe->src_fmt->tile) {
+		/*
+		 * when doing hflip, one line is reserved to be consumed down
+		 * the pipeline. This line will always be marked as full even
+		 * if it doesn't have any data. In order to generate proper
+		 * priority levels ignore this region while setting up
+		 * watermark levels
+		 */
 		u8 bpp = pipe->src_fmt->is_yuv ? 1 :
 			pipe->src_fmt->bpp;
-		fetch_size -= (pipe->src.w * bpp);
+		latency_bytes -= (pipe->src.w * bpp);
 	}
 
-	/* 1/4 of SMP pool that is being fetched */
-	val = (fetch_size / SMP_MB_ENTRY_SIZE) >> 2;
+	if (IS_MDSS_MAJOR_MINOR_SAME(mdata->mdp_rev, MDSS_MDP_HW_REV_103) &&
+		(pipe->src_fmt->tile)) {
+		val = latency_bytes / SMP_MB_ENTRY_SIZE;
 
-	wm[0] = val;
-	wm[1] = wm[0] + val;
-	wm[2] = wm[1] + val;
+		wm[0] = (val * 5) / 8;
+		wm[1] = (val * 6) / 8;
+		wm[2] = (val * 7) / 8;
+	} else if (mixer->rotator_mode ||
+		(mixer->ctl->intf_num == MDSS_MDP_NO_INTF)) {
+		/* any non real time pipe */
+		wm[0]  = 0xffff;
+		wm[1]  = 0xffff;
+		wm[2]  = 0xffff;
+	} else {
+		/*
+		 *  1/3 of the latency buffer bytes from the
+		 *  SMP pool that is being fetched
+		 */
+		val = (latency_bytes / SMP_MB_ENTRY_SIZE) / 3;
 
-	pr_debug("pnum=%d fetch_size=%u watermarks %u,%u,%u\n", pipe->num,
-			fetch_size, wm[0], wm[1], wm[2]);
+		wm[0] = val;
+		wm[1] = wm[0] + val;
+		wm[2] = wm[1] + val;
+	}
+
+	trace_mdp_perf_set_wm_levels(pipe->num, useable_space, latency_bytes,
+		wm[0], wm[1], wm[2], mb_cnt, SMP_MB_SIZE);
+
+	pr_debug("pnum=%d useable_space=%u watermarks %u,%u,%u\n", pipe->num,
+			useable_space, wm[0], wm[1], wm[2]);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_REQPRIO_FIFO_WM_0, wm[0]);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_REQPRIO_FIFO_WM_1, wm[1]);
 	mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_SSPP_REQPRIO_FIFO_WM_2, wm[2]);
@@ -213,21 +303,19 @@ void mdss_mdp_smp_unreserve(struct mdss_mdp_pipe *pipe)
 	mutex_unlock(&mdss_mdp_smp_lock);
 }
 
-int mdss_mdp_smp_reserve(struct mdss_mdp_pipe *pipe)
+static int mdss_mdp_calc_stride(struct mdss_mdp_pipe *pipe,
+	struct mdss_mdp_plane_sizes *ps)
 {
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
-	u32 num_blks = 0, reserved = 0;
-	struct mdss_mdp_plane_sizes ps;
-	int i;
-	int rc = 0, rot_mode = 0, wb_mixer = 0;
-	u32 nlines, format, seg_w;
 	u16 width;
+	int rc = 0;
+	u32 format, seg_w = 0;
 
 	width = pipe->src.w >> pipe->horz_deci;
 
 	if (pipe->bwc_mode) {
 		rc = mdss_mdp_get_rau_strides(pipe->src.w, pipe->src.h,
-			pipe->src_fmt, &ps);
+			pipe->src_fmt, ps);
 		if (rc)
 			return rc;
 		/*
@@ -238,23 +326,23 @@ int mdss_mdp_smp_reserve(struct mdss_mdp_pipe *pipe)
 		 */
 		seg_w = DIV_ROUND_UP(pipe->src.w, 16);
 		if (pipe->src_fmt->fetch_planes == MDSS_MDP_PLANE_INTERLEAVED) {
-			ps.ystride[0] = ALIGN(seg_w, 32) * 16 * ps.rau_h[0] *
+			ps->ystride[0] = ALIGN(seg_w, 32) * 16 * ps->rau_h[0] *
 					pipe->src_fmt->bpp;
-			ps.ystride[1] = 0;
+			ps->ystride[1] = 0;
 		} else {
 			u32 bwc_width = ALIGN(seg_w, 64) * 16;
-			ps.ystride[0] = bwc_width * ps.rau_h[0];
-			ps.ystride[1] = bwc_width * ps.rau_h[1];
+			ps->ystride[0] = bwc_width * ps->rau_h[0];
+			ps->ystride[1] = bwc_width * ps->rau_h[1];
 			/*
 			 * Since chroma for H1V2 is not subsampled it needs
 			 * to be accounted for with bpp factor
 			 */
 			if (pipe->src_fmt->chroma_sample ==
 				MDSS_MDP_CHROMA_H1V2)
-				ps.ystride[1] *= 2;
+				ps->ystride[1] *= 2;
 		}
 		pr_debug("BWC SMP strides ystride0=%x ystride1=%x\n",
-			ps.ystride[0], ps.ystride[1]);
+			ps->ystride[0], ps->ystride[1]);
 	} else {
 		format = pipe->src_fmt->format;
 		/*
@@ -274,14 +362,12 @@ int mdss_mdp_smp_reserve(struct mdss_mdp_pipe *pipe)
 			}
 		}
 		rc = mdss_mdp_get_plane_sizes(format, width, pipe->src.h,
-			&ps, 0, 0);
+			ps, 0, 0);
 		if (rc)
 			return rc;
 
-		if (pipe->mixer_left && pipe->mixer_left->rotator_mode) {
-			rot_mode = 1;
-		} else if (pipe->mixer_left && (ps.num_planes == 1)) {
-			ps.ystride[0] = MAX_BPP *
+		if (pipe->mixer_left && (ps->num_planes == 1)) {
+			ps->ystride[0] = MAX_BPP *
 				max(pipe->mixer_left->width, width);
 		} else if (mdata->has_decimation) {
 			/*
@@ -292,19 +378,62 @@ int mdss_mdp_smp_reserve(struct mdss_mdp_pipe *pipe)
 			switch (pipe->src_fmt->chroma_sample) {
 			case MDSS_MDP_CHROMA_H2V1:
 			case MDSS_MDP_CHROMA_420:
-				ps.ystride[1] <<= 1;
+				ps->ystride[1] <<= 1;
 				break;
 			}
 		}
 	}
 
-	if (pipe->src_fmt->tile)
-		nlines = 8;
-	else
-		nlines = pipe->bwc_mode ? 1 : 2;
+	return rc;
+}
 
-	if (pipe->mixer_left->type == MDSS_MDP_MIXER_TYPE_WRITEBACK)
-		wb_mixer = 1;
+static u32 mdss_mdp_calc_per_plane_num_blks(u32 ystride,
+	struct mdss_mdp_pipe *pipe)
+{
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
+	u32 num_blks = 0;
+	u32 nlines = 0;
+
+	if (pipe->mixer_left && (pipe->mixer_left->rotator_mode ||
+		(pipe->mixer_left->type == MDSS_MDP_MIXER_TYPE_WRITEBACK))) {
+		if (pipe->src_fmt->tile)
+			num_blks = 4;
+		else
+			num_blks = 1;
+	} else {
+		if (pipe->src_fmt->tile)
+			nlines = 8;
+		else
+			nlines = pipe->bwc_mode ? 1 : 2;
+
+		num_blks = DIV_ROUND_UP(ystride * nlines,
+				SMP_MB_SIZE);
+
+		if (mdata->mdp_rev == MDSS_MDP_HW_REV_100)
+			num_blks = roundup_pow_of_two(num_blks);
+
+		if (mdata->smp_mb_per_pipe &&
+			(num_blks > mdata->smp_mb_per_pipe) &&
+			!(pipe->flags & MDP_FLIP_LR))
+			num_blks = mdata->smp_mb_per_pipe;
+	}
+
+	pr_debug("mtype:%d tile:%d bwc:%d ystride%d pipeblks:%d blks:%d\n",
+		pipe->mixer_left->type, pipe->src_fmt->tile, pipe->bwc_mode,
+		ystride, mdata->smp_mb_per_pipe, num_blks);
+
+	return num_blks;
+}
+
+int mdss_mdp_smp_reserve(struct mdss_mdp_pipe *pipe)
+{
+	u32 num_blks = 0, reserved = 0;
+	struct mdss_mdp_plane_sizes ps;
+	int i, rc = 0;
+
+	rc = mdss_mdp_calc_stride(pipe, &ps);
+	if (rc)
+		return rc;
 
 	mutex_lock(&mdss_mdp_smp_lock);
 	for (i = (MAX_PLANES - 1); i >= ps.num_planes; i--) {
@@ -317,21 +446,8 @@ int mdss_mdp_smp_reserve(struct mdss_mdp_pipe *pipe)
 	}
 
 	for (i = 0; i < ps.num_planes; i++) {
-		if (rot_mode || wb_mixer) {
-			num_blks = 1;
-		} else {
-			num_blks = DIV_ROUND_UP(ps.ystride[i] * nlines,
-					SMP_MB_SIZE);
-
-			if (mdata->mdp_rev == MDSS_MDP_HW_REV_100)
-				num_blks = roundup_pow_of_two(num_blks);
-
-			if (mdata->smp_mb_per_pipe &&
-				(num_blks > mdata->smp_mb_per_pipe) &&
-				!(pipe->flags & MDP_FLIP_LR))
-				num_blks = mdata->smp_mb_per_pipe;
-		}
-
+		num_blks = mdss_mdp_calc_per_plane_num_blks(ps.ystride[i],
+			pipe);
 		pr_debug("reserving %d mmb for pnum=%d plane=%d\n",
 				num_blks, pipe->num, i);
 		reserved = mdss_mdp_smp_mmb_reserve(&pipe->smp_map[i],
@@ -531,6 +647,47 @@ static void mdss_mdp_qos_vbif_remapper_setup(struct mdss_data_type *mdata,
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 }
 
+/**
+ * mdss_mdp_fixed_qos_arbiter_setup - Program the RT/NRT registers based on
+ *              real or non real time clients
+ * @mdata:      Pointer to the global mdss data structure.
+ * @pipe:       Pointer to source pipe struct to get xin id's.
+ * @is_realtime:        To determine if pipe's client is real or
+ *                      non real time.
+ */
+static void mdss_mdp_fixed_qos_arbiter_setup(struct mdss_data_type *mdata,
+		struct mdss_mdp_pipe *pipe, bool is_realtime)
+{
+	u32 mask, reg_val;
+
+	if (!mdata->has_fixed_qos_arbiter_enabled)
+		return;
+
+	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
+	mutex_lock(&mdata->reg_lock);
+	reg_val = readl_relaxed(mdata->vbif_base + MDSS_VBIF_FIXED_SORT_EN);
+	mask = 0x1 << pipe->xin_id;
+	reg_val |= mask;
+
+	/* Enable the fixed sort for the client */
+	writel_relaxed(reg_val, mdata->vbif_base + MDSS_VBIF_FIXED_SORT_EN);
+	reg_val = readl_relaxed(mdata->vbif_base + MDSS_VBIF_FIXED_SORT_SEL0);
+	mask = 0x1 << (pipe->xin_id * 2);
+	if (is_realtime) {
+		reg_val &= ~mask;
+		pr_debug("Real time traffic on pipe type=%x  pnum=%d\n",
+				pipe->type, pipe->num);
+	} else {
+		reg_val |= mask;
+		pr_debug("Non real time traffic on pipe type=%x  pnum=%d\n",
+				pipe->type, pipe->num);
+	}
+	/* Set the fixed_sort regs as per RT/NRT client */
+	writel_relaxed(reg_val, mdata->vbif_base + MDSS_VBIF_FIXED_SORT_SEL0);
+	mutex_unlock(&mdata->reg_lock);
+	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
+}
+
 static struct mdss_mdp_pipe *mdss_mdp_pipe_init(struct mdss_mdp_mixer *mixer,
 	u32 type, u32 off, struct mdss_mdp_pipe *left_blend_pipe)
 {
@@ -594,6 +751,9 @@ static struct mdss_mdp_pipe *mdss_mdp_pipe_init(struct mdss_mdp_mixer *mixer,
 		return NULL;
 	}
 
+	if (pipe && mdss_mdp_panic_signal_supported(mdata, pipe))
+		mdss_mdp_pipe_panic_signal_ctrl(pipe, false);
+
 	if (pipe && mdss_mdp_pipe_is_sw_reset_available(mdata)) {
 		force_off_mask =
 			BIT(pipe->clk_ctrl.bit_off + CLK_FORCE_OFF_OFFSET);
@@ -618,6 +778,7 @@ static struct mdss_mdp_pipe *mdss_mdp_pipe_init(struct mdss_mdp_mixer *mixer,
 		is_realtime = !((mixer->ctl->intf_num == MDSS_MDP_NO_INTF)
 				|| mixer->rotator_mode);
 		mdss_mdp_qos_vbif_remapper_setup(mdata, pipe, is_realtime);
+		mdss_mdp_fixed_qos_arbiter_setup(mdata, pipe, is_realtime);
 	} else if (pipe_share) {
 		/*
 		 * when there is no dedicated wfd blk, DMA pipe can be
@@ -739,20 +900,24 @@ struct mdss_mdp_pipe *mdss_mdp_pipe_search(struct mdss_data_type *mdata,
 static void mdss_mdp_pipe_free(struct kref *kref)
 {
 	struct mdss_mdp_pipe *pipe;
+	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
 
 	pipe = container_of(kref, struct mdss_mdp_pipe, kref);
 
 	pr_debug("ndx=%x pnum=%d\n", pipe->ndx, pipe->num);
 
+	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
+	if (pipe && mdss_mdp_panic_signal_supported(mdata, pipe))
+		mdss_mdp_pipe_panic_signal_ctrl(pipe, false);
+
 	if (pipe->play_cnt) {
-		mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_ON, false);
 		mdss_mdp_pipe_fetch_halt(pipe);
 		mdss_mdp_pipe_sspp_term(pipe);
 		mdss_mdp_smp_free(pipe);
-		mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 	} else {
 		mdss_mdp_smp_unreserve(pipe);
 	}
+	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF, false);
 
 	pipe->flags = 0;
 	pipe->is_right_blend = false;
@@ -1377,6 +1542,9 @@ int mdss_mdp_pipe_queue_data(struct mdss_mdp_pipe *pipe,
 		if (pipe->type == MDSS_MDP_PIPE_TYPE_VIG)
 			mdss_mdp_pipe_write(pipe, MDSS_MDP_REG_VIG_OP_MODE,
 			opmode);
+
+		if (mdss_mdp_panic_signal_supported(mdata, pipe))
+			mdss_mdp_pipe_panic_signal_ctrl(pipe, true);
 	}
 
 	if ((pipe->flags & MDP_VPU_PIPE) && (src_data == NULL ||

@@ -15,14 +15,6 @@
 extern struct dma_map_ops arm_dma_ops;
 extern struct dma_map_ops arm_coherent_dma_ops;
 
-#if defined(CONFIG_DEBUG_CMA_TRACE)
-extern struct mutex allocation_lock;
-extern unsigned long dma_requested_allocation;
-extern unsigned long dma_actual_allocation;
-extern unsigned long dma_last_actual_allocation;
-extern unsigned long dma_peak_allocation;
-#endif
-
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
 	if (dev && dev->archdata.dma_ops)
@@ -181,33 +173,6 @@ static inline void *dma_alloc_attrs(struct device *dev, size_t size,
 
 	cpu_addr = ops->alloc(dev, size, dma_handle, flag, attrs);
 	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
-#if defined(CONFIG_DEBUG_CMA_TRACE)
-	if(!dev || !dev->cma_area) {
-		mutex_lock(&allocation_lock);
-		pr_info("dma_alloc_coherent:size %u bytes requested for dev %s function %pS\n",
-		size, (dev)? dev_name(dev) : "NULL", __builtin_return_address(0));
-		if (size <= SZ_4K) {
-			dma_actual_allocation += SZ_4K;
-			pr_info("dma_alloc_coherent: actual allocation = %d\n",SZ_4K);
-		} else {
-			dma_actual_allocation += roundup_pow_of_two(size);
-			pr_info("dma_alloc_coherent: actual allocation = %lu\n", roundup_pow_of_two(size));
-		}
-		dma_requested_allocation += size;
-
-		if (dma_actual_allocation > dma_last_actual_allocation) {
-			dma_peak_allocation = dma_actual_allocation;
-			dma_last_actual_allocation = dma_actual_allocation;
-		}
-
-		pr_info("Total req alloc = %lu Total act alloc = %lu\n",
-			dma_requested_allocation, dma_actual_allocation);
-		pr_info("Total peak alloc = %lu alloc virt address=%p phy addr%p\n",
-			dma_peak_allocation, cpu_addr, dma_handle);
-		mutex_unlock(&allocation_lock);
-		BUG_ON(!cpu_addr);
-	}
-#endif
 	return cpu_addr;
 }
 
@@ -237,28 +202,6 @@ static inline void dma_free_attrs(struct device *dev, size_t size,
 	struct dma_map_ops *ops = get_dma_ops(dev);
 	BUG_ON(!ops);
 
-#if defined(CONFIG_DEBUG_CMA_TRACE)
-	if(!dev || !dev->cma_area) {
-		mutex_lock(&allocation_lock);
-		pr_info("dma_free_coherent:size %u bytes freed for dev %s function %pS\n",
-		size, (dev)? dev_name(dev) : "NULL", __builtin_return_address(0));
-		if (size <= SZ_4K) {
-			dma_actual_allocation -= SZ_4K;
-			pr_info("if:dma_free_coherent: actual freed = %d\n",SZ_4K);
-		} else {
-			dma_actual_allocation -= roundup_pow_of_two(size);
-			pr_info("else:dma_free_coherent: Total actual freed = %lu\n",
-			roundup_pow_of_two(size));
-		}
-		dma_requested_allocation -= size;
-		pr_info("dma_free_coherent: Total requested allocation after freed = %lu\n",
-		dma_requested_allocation);
-
-		pr_info("dma_free_coherent: Total actual allocation after freed = %lu\n",
-		dma_actual_allocation);
-		mutex_unlock(&allocation_lock);
-	}
-#endif
 	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
 	ops->free(dev, size, cpu_addr, dma_handle, attrs);
 }

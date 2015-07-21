@@ -15,7 +15,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
-
 #ifndef _SENSORS_CORE_H_
 #define _SENSORS_CORE_H_
 
@@ -23,6 +22,7 @@
 
 int sensors_create_symlink(struct kobject *, const char *);
 void sensors_remove_symlink(struct kobject *, const char *);
+
 int sensors_register(struct device *, void *,
 	struct device_attribute *[], char *);
 void sensors_unregister(struct device *, struct device_attribute *[]);

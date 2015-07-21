@@ -88,39 +88,6 @@ config TOUCHSCREEN_AD7879_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7879-spi.
 
-config TOUCHSCREEN_ATMEL_MXTS
-	tristate "Atmel mXTS I2C Touchscreen"
-	depends on I2C
-	help
-	  Say Y here if you have Atmel mXT S series I2C touchscreen,
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mxts.
-config TOUCHSCREEN_MXTS
-	tristate "Atmel MaxTouch S"
-	depends on I2C
-	default n
-	help
-	  Say Y here to enable support for the Atmel  MaxTouch S
-	  controller.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mxts.
-config TOUCHSCREEN_MXT336S
-	tristate "Atmel MaxTouch 336S"
-	depends on I2C
-	default n
-	help
-	  Say Y here to enable support for the Atmel MaxTouch 336 touch
-	  controller.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mxt336S.
 config TOUCHSCREEN_ATMEL_MXT
 	tristate "Atmel mXT I2C Touchscreen"
 	depends on I2C
@@ -416,22 +383,6 @@ config TOUCHSCREEN_MMS114
 	  To compile this driver as a module, choose M here: the
 	  module will be called mms114.
 
-config TOUCHSCREEN_MMS300
-	tristate "MELFAS MMS300 touchscreen"
-	depends on I2C
-	help
-	  Say Y here if you have the MELFAS MMS300 touchscreen controller
-	  chip in your system.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mms300 series.
-
-config SEC_DVFS
-	bool "DVFS Touch booster support"
-	default n
-
 config TOUCHSCREEN_MTOUCH
 	tristate "MicroTouch serial touchscreens"
 	select SERIO
@@ -555,12 +506,6 @@ config TOUCHSCREEN_TNETV107X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tnetv107x-ts.
-
-config TOUCHSCREEN_SYNAPTICS_I2C_RMI
-	tristate "Synaptics i2c touchscreen"
-	depends on I2C
-	help
-	  This enables support for Synaptics RMI over I2C based touchscreens.
 
 config TOUCHSCREEN_SYNAPTICS_RMI4_I2C
 	tristate "Synaptics i2c touchscreen(ClearPad 3000)"
@@ -992,6 +937,17 @@ config TOUCHSCREEN_FT5X06
          To compile this driver as a module, choose M here: the
          module will be called ft5x06_ts.
 
+config TOUCHSCREEN_MSTAR21XX
+       tristate "mstar touchscreens"
+       depends on I2C
+       help
+         Say Y here if you have a mstar touchscreen.
+
+         If unsure, say N.
+
+         To compile this driver as a module, choose M here: the
+         module will be called msg21xx_ts.
+
 config TOUCHSCREEN_GEN_VKEYS
        tristate "Touchscreen Virtual Keys Driver"
        help
@@ -1047,10 +1003,10 @@ config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
 
 config SECURE_TOUCH
 	bool "Secure Touch"
-	depends on TOUCHSCREEN_ATMEL_MXT
+	depends on (TOUCHSCREEN_ATMEL_MXT || TOUCHSCREEN_SYNAPTICS_I2C_RMI4 || \
+	  TOUCHSCREEN_SYNAPTICS_DSX_I2C_v21)
 	help
-	  Say Y here to enable Secure Touch support in the Atmel MXT
-	  driver.
+	  Say Y here to enable Secure Touch in supported drivers.
 
 	  If unsure, say N.
 
@@ -1065,10 +1021,11 @@ config TOUCHSCREEN_GT9XX
           If unsure, say N.
 
 source "drivers/input/touchscreen/gt9xx/Kconfig"
-source "drivers/input/touchscreen/imagis/Kconfig"
+source "drivers/input/touchscreen/synaptics/Kconfig"
 source "drivers/input/touchscreen/imagis_core3/Kconfig"
-source "drivers/input/touchscreen/imagis_ist30xxb/Kconfig"
-source "drivers/input/touchscreen/melfas_mms136/Kconfig"
-source "drivers/input/touchscreen/cyttsp4/Kconfig"
+source "drivers/input/touchscreen/stm_fts/Kconfig"
+source "drivers/input/touchscreen/imagis_o1/Kconfig"
 source "drivers/input/touchscreen/zinitix/Kconfig"
 endif
+
+source "drivers/input/touchscreen/zinitix_j1/Kconfig"

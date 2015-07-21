@@ -17,6 +17,7 @@ enum {
     RT5033_BSTLOWVI_IRQ,
     RT5033_BSTOLI_IRQ,
     RT5033_BSTVMIDOVP_IRQ,
+    RT5033_OVPR_IRQ,
     RT5033_VF_L_IRQ,
     RT5033_LEDCS2_SHORT_IRQ,
     RT5033_LEDCS1_SHORT_IRQ,
@@ -45,6 +46,7 @@ enum {
 #define RT5033_BSTOLI_IRQ_NAME "bst_over_load"
 #define RT5033_BSTVMIDOVP_IRQ_NAME "bst_vmid_ovp"
 
+#define RT5033_OVPR_IRQ_NAME "ovp_release"
 #define RT5033_VF_L_IRQ_NAME "led_vf_l"
 #define RT5033_LEDCS2_SHORT_IRQ_NAME "led_cs2_short"
 #define RT5033_LEDCS1_SHORT_IRQ_NAME "led_cs1_short"

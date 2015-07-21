@@ -252,7 +252,7 @@ static int msm_comm_vote_bus(struct msm_vidc_core *core)
 			inst->fmts[OUTPUT_PORT]->fourcc :
 			inst->fmts[CAPTURE_PORT]->fourcc;
 
-		vote_data[i].session = VIDC_BUS_VOTE_DATA_SESSION_VAL(
+		vote_data[i].session = VIDC_VOTE_DATA_SESSION_VAL(
 				get_hal_codec_type(codec),
 				get_hal_domain(inst->session_type));
 		vote_data[i].load = msm_comm_get_inst_load(inst,
@@ -1085,7 +1085,6 @@ static void handle_ebd(enum command_response cmd, void *data)
 		if (vb->v4l2_planes[0].m.userptr !=
 			response->input_done.packet_buffer)
 			dprintk(VIDC_INFO, "Unexpected buffer address\n");
-		vb->v4l2_buf.flags = 0;
 		empty_buf_done = (struct vidc_hal_ebd *)&response->input_done;
 		if (empty_buf_done) {
 			if (empty_buf_done->status == VIDC_ERR_NOT_SUPPORTED) {
@@ -1300,6 +1299,10 @@ static void handle_fbd(enum command_response cmd, void *data)
 		vb->v4l2_planes[0].reserved[3] = fill_buf_done->start_y_coord;
 		vb->v4l2_planes[0].reserved[4] = fill_buf_done->frame_width;
 		vb->v4l2_planes[0].reserved[5] = fill_buf_done->frame_height;
+		vb->v4l2_planes[0].reserved[6] =
+			inst->prop.width[CAPTURE_PORT];
+		vb->v4l2_planes[0].reserved[7] =
+			inst->prop.height[CAPTURE_PORT];
 		if (vb->v4l2_planes[0].data_offset > vb->v4l2_planes[0].length)
 			dprintk(VIDC_INFO,
 				"fbd:Overflow data_offset = %d; length = %d\n",
@@ -1508,8 +1511,10 @@ void handle_cmd_response(enum command_response cmd, void *data)
 static int msm_comm_scale_clocks(struct msm_vidc_core *core)
 {
 	int num_mbs_per_sec;
+	u32 codecs_enabled = 0;
 	int rc = 0;
 	struct hfi_device *hdev;
+	struct msm_vidc_inst *inst = NULL;
 
 	if (!core) {
 		dprintk(VIDC_ERR, "%s Invalid args: %p\n", __func__, core);
@@ -1523,14 +1528,29 @@ static int msm_comm_scale_clocks(struct msm_vidc_core *core)
 		return -EINVAL;
 	}
 
+	mutex_lock(&core->lock);
+	list_for_each_entry(inst, &core->instances, list) {
+		int codec = 0;
+
+		codec = inst->session_type == MSM_VIDC_DECODER ?
+			inst->fmts[OUTPUT_PORT]->fourcc :
+			inst->fmts[CAPTURE_PORT]->fourcc;
+
+		codecs_enabled |= VIDC_VOTE_DATA_SESSION_VAL(
+				get_hal_codec_type(codec),
+				get_hal_domain(inst->session_type));
+
+	}
+	mutex_unlock(&core->lock);
 	num_mbs_per_sec =
 		msm_comm_get_load(core, MSM_VIDC_ENCODER, LOAD_CALC_NO_QUIRKS) +
 		msm_comm_get_load(core, MSM_VIDC_DECODER, LOAD_CALC_NO_QUIRKS);
 
 
-	dprintk(VIDC_INFO, "num_mbs_per_sec = %d\n", num_mbs_per_sec);
+	dprintk(VIDC_INFO, "num_mbs_per_sec = %d codecs_enabled 0x%x\n",
+			num_mbs_per_sec, codecs_enabled);
 	rc = call_hfi_op(hdev, scale_clocks,
-		hdev->hfi_device_data, num_mbs_per_sec);
+		hdev->hfi_device_data, num_mbs_per_sec, codecs_enabled);
 	if (rc)
 		dprintk(VIDC_ERR, "Failed to set clock rate: %d\n", rc);
 	return rc;
@@ -1850,9 +1870,12 @@ static int msm_vidc_load_resources(int flipped_state,
 		dprintk(VIDC_ERR, "HW is overloaded, needed: %d max: %d\n",
 			num_mbs_per_sec, core->resources.max_load);
 		msm_vidc_print_running_insts(core);
+#if 0 /* Samsung skips the overloaded error return  */		
 		inst->state = MSM_VIDC_CORE_INVALID;
 		msm_comm_kill_session(inst);
 		return -EBUSY;
+#endif	
+
 	}
 
 	hdev = core->device;
@@ -3434,9 +3457,11 @@ static int msm_vidc_load_supported(struct msm_vidc_inst *inst)
 			mutex_lock(&inst->sync_lock);
 			msm_vidc_print_running_insts(inst->core);
 			mutex_unlock(&inst->sync_lock);
-#if 0 /* Samsung skips the overloaded error return  */			
+/* MMRND_AVRC. Start */
+#if 0 // Samsung skips the overloaded error return
 			return -EINVAL;
 #endif
+/* MMRND_AVRC. End */
 		}
 	}
 	return 0;

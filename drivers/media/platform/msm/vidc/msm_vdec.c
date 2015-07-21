@@ -21,7 +21,7 @@
 #define MSM_VDEC_DVC_NAME "msm_vdec_8974"
 #define MIN_NUM_OUTPUT_BUFFERS 4
 #define MAX_NUM_OUTPUT_BUFFERS VIDEO_MAX_FRAME
-#define DEFAULT_VIDEO_CONCEAL_COLOR_BLACK 0x8010 //0x8080 Qualcomm CR# 677859
+#define DEFAULT_VIDEO_CONCEAL_COLOR_BLACK 0x8010
 #define MB_SIZE_IN_PIXEL (16 * 16)
 
 #define TZ_DYNAMIC_BUFFER_FEATURE_ID 12
@@ -2152,11 +2152,11 @@ static struct v4l2_ctrl **get_super_cluster(struct msm_vidc_inst *inst,
 			NUM_CTRLS, GFP_KERNEL);
 
 	if (!size || !cluster || !inst)
-	{
-		if(cluster) 
-			kfree(cluster); // PREVENT Resouce leak fix
+    {
+        if(cluster)
+            kfree(cluster); // PREVENT Resource leak fix
 		return NULL;
-	}
+    }
 
 	for (c = 0; c < NUM_CTRLS; c++)
 		cluster[sz++] = inst->ctrls[c];

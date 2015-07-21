@@ -1229,7 +1229,6 @@ int kernel_sec_get_debug_level(void)
 }
 EXPORT_SYMBOL(kernel_sec_get_debug_level);
 
-
 #ifdef CONFIG_SEC_MONITOR_BATTERY_REMOVAL
 static unsigned normal_off = 0;
 static int __init power_normal_off(char *val)
@@ -1531,7 +1530,7 @@ static int sec_debug_panic_handler(struct notifier_block *nb,
 	emerg_pet_watchdog();//CTC-should be modify
 	sec_debug_set_upload_magic(0x776655ee);
 
-	len = strnlen(buf, 50);
+ 	len = strnlen(buf, 50);
 	if (!strncmp(buf, "User Fault", len))
 		sec_debug_set_upload_cause(UPLOAD_CAUSE_USER_FAULT);
 	else if (!strncmp(buf, "Crash Key", len))
@@ -1608,21 +1607,11 @@ EXPORT_SYMBOL(sec_debug_dump_stack);
 extern void dump_tsp_log(void);
 #endif
 
-#if defined(CONFIG_TOUCHSCREEN_IST30XX_CORE3) // debug for tsp ghost touch
-extern void tsp_start_read_rawdata(void);
-extern void tsp_stop_read_rawdata(void);
-#endif
-
 void sec_debug_check_crash_key(unsigned int code, int value)
 {
 	static enum { NONE, STEP1, STEP2, STEP3} state = NONE;
 #ifdef CONFIG_TOUCHSCREEN_MMS252
         static enum { NO, T1, T2, T3} state_tsp = NO;
-#endif
-
-#if defined(CONFIG_TOUCHSCREEN_IST30XX_CORE3)
-	static enum { S0, S1, S2, S3 } state_tsp = S0;
-	static bool isCatchRd = true;
 #endif
 
 	printk(KERN_ERR "%s code %d value %d state %d enable %d\n", __func__, code, value, state, enable);
@@ -1633,41 +1622,6 @@ void sec_debug_check_crash_key(unsigned int code, int value)
 		else
 			sec_debug_set_upload_cause(UPLOAD_CAUSE_INIT);
 	}
-	
-#if defined(CONFIG_TOUCHSCREEN_IST30XX_CORE3)
-	switch(state_tsp) {
-		case S0:
-			if(code == KEY_VOLUMEUP && value)
-				state_tsp = S1;
-			else
-				state_tsp = S0;
-			break;
-		case S1:
-			if (code == KEY_VOLUMEDOWN && value)
-				state_tsp = S2;
-			else
-				state_tsp = S0;
-			break;
-		case S2:
-			if (code == KEY_HOMEPAGE&& value)
-				state_tsp = S3;
-			else
-				state_tsp = S0;
-			break;
-		case S3:
-			if (code == KEY_HOMEPAGE && !value) {
-				if(isCatchRd){
-					isCatchRd = !isCatchRd;
-					tsp_start_read_rawdata();
-				} else {
-					isCatchRd = !isCatchRd;
-					tsp_stop_read_rawdata();
-				}
-			} else {
-				state_tsp = S0;
-			}
-	}
-#endif
 
 #ifdef CONFIG_TOUCHSCREEN_MMS252
 	if(code == KEY_VOLUMEUP && !value){
@@ -1981,7 +1935,8 @@ int sec_debug_subsys_init(void)
 	strlcpy(secdbg_krait->state, "Init", sizeof(secdbg_krait->state) + 1);
 	secdbg_krait->nr_cpus = CONFIG_NR_CPUS;
 
-	sec_debug_subsys_set_kloginfo(&secdbg_krait->log.idx_paddr,
+	sec_debug_subsys_set_kloginfo(&secdbg_krait->log.first_idx_paddr,
+		&secdbg_krait->log.next_idx_paddr,
 		&secdbg_krait->log.log_paddr, &secdbg_krait->log.size);
 
 	sec_debug_subsys_set_logger_info(&secdbg_krait->logger_log);
@@ -2867,6 +2822,80 @@ static int __init sec_debug_user_fault_init(void)
 	return 0;
 }
 device_initcall(sec_debug_user_fault_init);
+
+#ifdef CONFIG_RESTART_REASON_SEC_PARAM
+void sec_param_restart_reason(const char *cmd)
+{
+	unsigned long value;
+	unsigned int param_restart_reason;
+
+	if (cmd != NULL) {
+		printk(KERN_NOTICE " Reboot cmd=%s\n",cmd);
+		if (!strncmp(cmd, "bootloader", 10)) {
+			param_restart_reason = 0x77665500;
+		} else if (!strncmp(cmd, "recovery", 8)) {
+			param_restart_reason = 0x77665502;
+		} else if (!strcmp(cmd, "rtc")) {
+			param_restart_reason = 0x77665503;
+		} else if (!strncmp(cmd, "oem-", 4)) {
+			unsigned long code;
+			int ret;
+			ret = kstrtoul(cmd + 4, 16, &code);
+			if (!ret)
+				param_restart_reason = (0x6f656d00 | (code & 0xff));
+#ifdef CONFIG_SEC_DEBUG
+		} else if (!strncmp(cmd, "sec_debug_hw_reset", 18)) {
+			param_restart_reason = 0x776655ee;
+#endif
+        } else if (!strncmp(cmd, "download", 8)) {
+		    param_restart_reason = 0x12345671;
+		} else if (!strncmp(cmd, "nvbackup", 8)) {
+				param_restart_reason = 0x77665511;
+		} else if (!strncmp(cmd, "nvrestore", 9)) {
+				param_restart_reason = 0x77665512;
+		} else if (!strncmp(cmd, "nverase", 7)) {
+				param_restart_reason = 0x77665514;
+		} else if (!strncmp(cmd, "nvrecovery", 10)) {
+				param_restart_reason = 0x77665515;
+		} else if (!strncmp(cmd, "sud", 3)) {
+				param_restart_reason = (0xabcf0000 | (cmd[3] - '0'));
+		} else if (!strncmp(cmd, "debug", 5)
+						&& !kstrtoul(cmd + 5, 0, &value)) {
+				param_restart_reason =(0xabcd0000 | value);
+		} else if (!strncmp(cmd, "cpdebug", 7) /*  set cp debug level */
+						&& !kstrtoul(cmd + 7, 0, &value)) {
+				param_restart_reason = (0xfedc0000 | value);
+#if defined(CONFIG_MUIC_SUPPORT_RUSTPROOF)
+		} else if (!strncmp(cmd, "swsel", 5) /* set switch value */
+		&& !kstrtoul(cmd + 5, 0, &value)) {
+		param_restart_reason = (0xabce0000 | value);
+#endif
+		} else if (!strncmp(cmd, "edl", 3)) {
+			param_restart_reason = 0x0; // Hack. Fix it later
+		} else if (strlen(cmd) == 0) {
+		    printk(KERN_NOTICE "%s : value of cmd is NULL.\n", __func__);
+		        param_restart_reason = 0x12345678;
+#ifdef CONFIG_SEC_PERIPHERAL_SECURE_CHK
+		} else if (!strncmp(cmd, "peripheral_hw_reset", 19)) {
+			param_restart_reason = 0x77665507;
+#endif
+		} else {
+			param_restart_reason = 0x77665501;
+		}
+	}
+#ifdef CONFIG_SEC_DEBUG
+	else {
+		param_restart_reason = 0x0; // Hack. Fix it later
+	}
+#endif
+	printk(KERN_NOTICE "%s : param_restart_reason = 0x%x\n",
+			__func__,param_restart_reason);
+	/* In case of Hard reset IMEM contents are lost, hence writing param_restart_reason to param partition */
+	printk(KERN_NOTICE "%s: Write PARAM_RESTART_REASON 0x%x to param \n",__func__,param_restart_reason);
+	sec_set_param(param_index_restart_reason, &param_restart_reason);
+}
+EXPORT_SYMBOL(sec_param_restart_reason);
+#endif
 
 #ifdef CONFIG_USER_RESET_DEBUG
 static int set_reset_reason_proc_show(struct seq_file *m, void *v)

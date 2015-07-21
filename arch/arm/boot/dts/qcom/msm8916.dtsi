@@ -50,33 +50,45 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		CPU0: cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0>;
 			enable-method = "qcom,arm-cortex-acc";
 			qcom,acc = <&acc0>;
+			next-level-cache = <&L2_0>;
+			L2_0: l2-cache {
+			      compatible = "arm,arch-cache";
+			      cache-level = <2>;
+			      power-domain = <&l2ccc_0>;
+			};
 		};
-		cpu@1 {
+
+		CPU1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x1>;
 			enable-method = "qcom,arm-cortex-acc";
 			qcom,acc = <&acc1>;
+			next-level-cache = <&L2_0>;
 		};
-		cpu@2 {
+
+		CPU2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x2>;
 			enable-method = "qcom,arm-cortex-acc";
 			qcom,acc = <&acc2>;
+			next-level-cache = <&L2_0>;
 		};
-		cpu@3 {
+
+		CPU3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x3>;
 			enable-method = "qcom,arm-cortex-acc";
 			qcom,acc = <&acc3>;
+			next-level-cache = <&L2_0>;
 		};
 	};
 
@@ -100,6 +112,11 @@
 	#size-cells = <1>;
 	ranges = <0 0 0 0xffffffff>;
 	compatible = "simple-bus";
+
+	l2ccc_0: clock-controller@b011000 {
+		compatible = "qcom,8916-l2ccc";
+		reg = <0x0b011000 0x1000>;
+	};
 
 	acc0:clock-controller@b088000 {
 		compatible = "qcom,arm-cortex-acc";
@@ -265,8 +282,9 @@
 
 	qcom,clock-a7@0b011050 {
 		compatible = "qcom,clock-a53-8916";
-		reg = <0x0b011050 0x8>;
-		reg-names = "rcg-base";
+		reg = <0x0b011050 0x8>,
+		      <0x0005c004 0x8>;
+		reg-names = "rcg-base", "efuse1";
 		qcom,safe-freq = < 400000000 >;
 		cpu-vdd-supply = <&apc_vreg_corner>;
 		clocks = <&clock_gcc clk_gpll0_ao_clk_src>,
@@ -280,12 +298,25 @@
 			<  800000000 4>,
 			<  998400000 5>,
 			< 1094400000 6>,
-			< 1190400000 7>;
+			< 1152000000 7>,
+			< 1209600000 8>;
+
+		qcom,speed1-bin-v0 =
+			<          0 0>,
+			<  200000000 1>,
+			<  400000000 2>,
+			<  533333000 3>,
+			<  800000000 4>,
+			<  998400000 5>,
+			< 1094400000 6>,
+			< 1152000000 7>;
 	};
 
-	qcom,cpubw {
-		compatible = "qcom,cpubw";
-		qcom,cpu-mem-ports = <1 512>;
+	cpubw: qcom,cpubw {
+		compatible = "qcom,devbw";
+		governor = "cpufreq";
+		qcom,src-dst-ports = <1 512>;
+		qcom,active-only;
 		qcom,bw-tbl =
 			/*  73 9.60 MHz */
 			/* 381  50MHz */
@@ -294,23 +325,35 @@
 			< 3051 /* 400 MHz */>,
 			< 4066 /* 533 MHz */>;
 		qcom,ab-tbl =
-			<  191 >,
-			<  381 >,
-			<  763 >,
-			< 1017 >;
+			<  229 >,
+			<  458 >,
+			<  915 >,
+			< 1220 >;
+	};
+
+	devfreq-cpufreq {
+		cpubw-cpufreq {
+			target-dev = <&cpubw>;
+			cpu-to-dev-map =
+				 <  400000  762>,
+				 <  800000  1525>,
+				 < 1094400  3051>,
+				 < 1152000  4066>;
+		};
 	};
 
 	qcom,msm-cpufreq@0 {
 		reg = <0 4>;
 		compatible = "qcom,msm-cpufreq";
 		qcom,cpufreq-table =
-			 <  200000  762>,
-			 <  400000  762>,
-			 <  533330  1525>,
-			 <  800000  1525>,
-			 <  998400  1525>,
-			 < 1094400  3051>,
-			 < 1190400  4066>;
+			 <  200000 >,
+			 <  400000 >,
+			 <  533330 >,
+			 <  800000 >,
+			 <  998400 >,
+			 < 1094400 >,
+			 < 1152000 >,
+			 < 1209600 >;
 	};
 
 	qcom,sps {
@@ -421,20 +464,26 @@
 		qcom,msm-bus,num-paths = <1>;
 		qcom,msm-bus,vectors-KBps =
 				<87 512 0 0>,
-				<87 512 60000 960000>,
+				<87 512 80000 0>,
 				<87 512 6000  6000>;
 		clocks = <&clock_gcc clk_gcc_usb_hs_ahb_clk>,
 			 <&clock_gcc clk_gcc_usb_hs_system_clk>,
 			 <&clock_gcc clk_gcc_usb2a_phy_sleep_clk>,
+			 <&clock_rpm clk_bimc_usb_a_clk>,
+			 <&clock_rpm clk_snoc_usb_a_clk>,
+			 <&clock_rpm clk_pcnoc_usb_a_clk>,
 			 <&clock_rpm clk_xo_otg_clk>;
 		clock-names = "iface_clk", "core_clk", "sleep_clk",
+				"bimc_clk", "snoc_clk", "pcnoc_clk",
 				"xo";
+		qcom,bus-clk-rate = <400000000 200000000 100000000>;
 	};
 
 	android_usb: android_usb@086000c8 {
 		compatible = "qcom,android-usb";
 		reg = <0x086000c8 0xc8>;
-		qcom,android-usb-swfi-latency = <1>;
+		qcom,pm-qos-latency = <2 1001 12701>;
+		qcom,streaming-func = "mtp";
 		qcom,android-usb-uicc-nluns = /bits/ 8 <1>;
 	};
 
@@ -456,6 +505,12 @@
 		reg-names = "rfsa_mdm";
 	};
 
+	jtag_fuse: jtagfuse@5e01c {
+		compatible = "qcom,jtag-fuse";
+		reg = <0x5e01c 0x8>;
+		reg-names = "fuse-base";
+	};
+
 	jtag_mm0: jtagmm@85c000 {
 		compatible = "qcom,jtagv8-mm";
 		reg = <0x85c000 0x1000>,
@@ -465,6 +520,8 @@
 		clocks = <&clock_rpm clk_qdss_clk>,
 			 <&clock_rpm clk_qdss_a_clk>;
 		clock-names = "core_clk", "core_a_clk";
+
+		qcom,coresight-jtagmm-cpu = <&CPU0>;
 	};
 
 	jtag_mm1: jtagmm@85d000 {
@@ -476,6 +533,8 @@
 		clocks = <&clock_rpm clk_qdss_clk>,
 			 <&clock_rpm clk_qdss_a_clk>;
 		clock-names = "core_clk", "core_a_clk";
+
+		qcom,coresight-jtagmm-cpu = <&CPU1>;
 	};
 
 	jtag_mm2: jtagmm@85e000 {
@@ -487,6 +546,8 @@
 		clocks = <&clock_rpm clk_qdss_clk>,
 			 <&clock_rpm clk_qdss_a_clk>;
 		clock-names = "core_clk", "core_a_clk";
+
+		qcom,coresight-jtagmm-cpu = <&CPU2>;
 	};
 
 	jtag_mm3: jtagmm@85f000 {
@@ -498,6 +559,8 @@
 		clocks = <&clock_rpm clk_qdss_clk>,
 			 <&clock_rpm clk_qdss_a_clk>;
 		clock-names = "core_clk", "core_a_clk";
+
+		qcom,coresight-jtagmm-cpu = <&CPU3>;
 	};
 
 	sdhc_1: sdhci@07824000 {
@@ -657,7 +720,6 @@
 	qcom,wdt@b017000 {
 		compatible = "qcom,msm-watchdog";
 		reg = <0xb017000 0x1000>;
-		qcom,memblock-reserve = <0x0 0x4000>; /*reserved 16kb for WA for Secure Storage TZ app */
 		interrupts = <0 3 0>, <0 4 0>;
 		qcom,bark-time = <11000>;
 		qcom,pet-time = <10000>;
@@ -733,6 +795,7 @@
 		reg = <0x4044000 0x19000>;
 		interrupts = <0 29 1>;
 		qcom,rx-ring-size = <32>;
+		qcom,max-rx-mtu = <4096>;
 	};
 
 	qcom_tzlog: tz-log@8600720 {
@@ -1463,13 +1526,13 @@
 		qcom,core-limit-temp = <80>;
 		qcom,core-temp-hysteresis = <10>;
 		qcom,core-control-mask = <0xe>;
-		qcom,hotplug-temp = <110>;
-		qcom,hotplug-temp-hysteresis = <20>;
+		qcom,hotplug-temp = <82>;
+		qcom,hotplug-temp-hysteresis = <15>;
 		qcom,cpu-sensors = "tsens_tz_sensor5", "tsens_tz_sensor5",
 				"tsens_tz_sensor4", "tsens_tz_sensor4";
-		qcom,freq-mitigation-temp = <110>;
-		qcom,freq-mitigation-temp-hysteresis = <20>;
-		qcom,freq-mitigation-value = <960000>;
+		qcom,freq-mitigation-temp = <82>;
+		qcom,freq-mitigation-temp-hysteresis = <10>;
+		qcom,freq-mitigation-value = <400000>;
 		qcom,freq-mitigation-control-mask = <0x01>;
 		qcom,vdd-restriction-temp = <5>;
 		qcom,vdd-restriction-temp-hysteresis = <10>;
@@ -1494,6 +1557,12 @@
 
 	qcom,memshare {
 		compatible = "qcom,memshare";
+
+		qcom,client_1 {
+			compatible = "memshare,peripheral";
+			qcom,peripheral-size = <2097152>;
+			label = "modem";
+		};
 	};
 
 	qcom,mss@4080000 {
@@ -1531,6 +1600,7 @@
 		qcom,gpio-err-ready = <&smp2pgpio_ssr_smp2p_1_in 1 0>;
 		qcom,gpio-proxy-unvote = <&smp2pgpio_ssr_smp2p_1_in 2 0>;
 		qcom,gpio-stop-ack = <&smp2pgpio_ssr_smp2p_1_in 3 0>;
+		qcom,gpio-ramdump-disable = <&smp2pgpio_ssr_smp2p_1_in 15 0>;
 
 		/* GPIO output to mss */
 		qcom,gpio-force-stop = <&smp2pgpio_ssr_smp2p_1_out 0 0>;
@@ -1549,9 +1619,12 @@
 		qcom,clock-names = "core_clk", "iface_clk", "bus_clk";
 		qcom,clock-configs = <0x1 0x0 0x0>;
 		qcom,sw-power-collapse;
-		qcom,load-freq-tbl = <352800 228570000>,
-			<244800 160000000>,
-			<108000 100000000>;
+		qcom,load-freq-tbl = <352800 228570000 0xffffffff>,
+			<352800 228570000 0x55555555>,
+			<244800 160000000 0xffffffff>,
+			<244800 160000000 0x55555555>,
+			<108000 100000000 0xffffffff>,
+			<108000 100000000 0x55555555>;
 		qcom,hfi = "venus";
 		qcom,reg-presets = <0xE0020 0x05555556>,
 			<0xE0024 0x05555556>,
@@ -1582,25 +1655,29 @@
 		qcom,msm-bus-clients {
 			qcom,msm-bus-client@0 {
 				qcom,msm-bus,name = "venc-ddr";
-				qcom,msm-bus,num-cases = <4>;
+				qcom,msm-bus,num-cases = <6>;
 				qcom,msm-bus,num-paths = <1>;
 				qcom,msm-bus,vectors-KBps =
 					<63 512 0 0>,
-					<63 512 133600 674400>,
-					<63 512 400900 1079000>,
-					<63 512 908600 1537600>;
+					<63 512 133600 674400>, /* VGA 30 fps */
+					<63 512 400900 1079000>, /* VGA 60 fps */
+					<63 512 400900 1079000>, /* 720p 30 fps */
+					<63 512 908600 1537600>, /* 720p 60 fps */
+					<63 512 908600 1537600>; /* 1080p 30 fps */
 				qcom,bus-configs = <0x01000414>;
 			};
 
 			qcom,msm-bus-client@1 {
 				qcom,msm-bus,name = "vdec-ddr";
-				qcom,msm-bus,num-cases = <4>;
+				qcom,msm-bus,num-cases = <6>;
 				qcom,msm-bus,num-paths = <1>;
 				qcom,msm-bus,vectors-KBps =
 					<63 512 0 0>,
-					<63 512 99600 831900>,
-					<63 512 298900 831900>,
-					<63 512 677600 1331000>;
+					<63 512 99600 831900>, /* VGA 30 fps */
+					<63 512 298900 831900>, /* VGA 60 fps */
+					<63 512 298900 831900>, /* 720p 30 fps */
+					<63 512 677600 1331000>, /* 720p 60 fps */
+					<63 512 677600 1331000>; /* 1080p 30 fps */
 				qcom,bus-configs = <0x030fcfff>;
 			};
 		};
@@ -1666,7 +1743,7 @@
 };
 
 &gdsc_oxili_gx {
-	clock-names = "core_clk";
+	clock-names = "core_root_clk";
 	clocks = <&clock_gcc clk_gfx3d_clk_src>;
 	qcom,enable-root-clk;
 	status = "okay";
@@ -1751,7 +1828,7 @@
 		qcom,pre-div-channel-scaling = <0>;
 		qcom,calibration-type = "ratiometric";
 		qcom,scale-function = <1>;
-		qcom,hw-settle-time = <2>;
+		qcom,hw-settle-time = <0xb>;
 		qcom,fast-avg-setup = <0>;
 	};
 
@@ -1762,7 +1839,7 @@
 		qcom,pre-div-channel-scaling = <0>;
 		qcom,calibration-type = "ratiometric";
 		qcom,scale-function = <0>;
-		qcom,hw-settle-time = <2>;
+		qcom,hw-settle-time = <0xb>;
 		qcom,fast-avg-setup = <0>;
 	};
 
@@ -1809,8 +1886,8 @@
 		qcom,pre-div-channel-scaling = <0>;
 		qcom,calibration-type = "ratiometric";
 		qcom,scale-function = <1>;
-		qcom,hw-settle-time = <2>;
-		qcom,fast-avg-setup = <3>;
+		qcom,hw-settle-time = <0xb>;
+		qcom,fast-avg-setup = <2>;
 		qcom,btm-channel-number = <0x48>;
 	};
 
@@ -1821,8 +1898,8 @@
 		qcom,pre-div-channel-scaling = <1>;
 		qcom,calibration-type = "absolute";
 		qcom,scale-function = <0>;
-		qcom,hw-settle-time = <0>;
-		qcom,fast-avg-setup = <3>;
+		qcom,hw-settle-time = <0xb>;
+		qcom,fast-avg-setup = <2>;
 		qcom,btm-channel-number = <0x68>;
 	};
 };

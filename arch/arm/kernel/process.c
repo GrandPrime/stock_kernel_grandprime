@@ -352,16 +352,20 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 			 * memory-mapped peripherals. CMA
 			 * addresses may be locked down.
 			 */
-			is_cma = virt_addr_valid(p) ?
-				is_cma_pageblock(virt_to_page(p)) : 0;
+			if (virt_addr_valid(p) &&
+				pfn_valid(__pa(p) >> PAGE_SHIFT)) {
 
-			if (is_cma || is_vmalloc_addr(p) ||
-			    probe_kernel_address(p, data)) {
-				printk(" ********");
-			} else {
-				printk(" %08x", data);
+				is_cma = is_cma_pageblock(virt_to_page(p));
+				if (is_cma || probe_kernel_address(p, data)) {
+					printk(" ********");
+				} else {
+					printk(" %08x", data);
+				}
+				++p;
 			}
-			++p;
+			else {
+				printk(" ********");
+			}
 		}
 		printk("\n");
 	}

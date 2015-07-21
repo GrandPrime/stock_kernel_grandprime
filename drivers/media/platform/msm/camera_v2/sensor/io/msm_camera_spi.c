@@ -212,3 +212,195 @@ int32_t msm_camera_spi_query_id(struct msm_camera_i2c_client *client,
 		&client->spi_client->cmd_tbl.query_id, addr, data, num_byte,
 		NULL, NULL);
 }
+
+static int32_t msm_camera_spi_read_status_reg(
+		struct msm_camera_i2c_client *client, uint8_t *status)
+{
+	struct msm_camera_spi_inst *rs =
+		&client->spi_client->cmd_tbl.read_status;
+	if (rs->addr_len != 0) {
+		pr_err("%s: not implemented yet\n", __func__);
+		return -EINVAL;
+	}
+	return msm_camera_spi_tx_helper(client, rs, 0, status, 1, NULL, NULL);
+}
+
+static int32_t msm_camera_spi_device_busy(struct msm_camera_i2c_client *client,
+		uint8_t *busy)
+{
+	int rc;
+	uint8_t st = 0;
+	rc = msm_camera_spi_read_status_reg(client,  &st);
+	if (rc < 0) {
+		SPIDBG("%s: failed to read status reg\n", __func__);
+		return rc;
+	}
+	*busy = st & client->spi_client->busy_mask;
+	return 0;
+}
+
+static int32_t msm_camera_spi_wait(struct msm_camera_i2c_client *client,
+		struct msm_camera_spi_inst *inst)
+{
+	uint8_t busy;
+	int i, rc;
+	SPIDBG("%s: op 0x%x wait start\n", __func__, inst->opcode);
+	for (i = 0; i <= inst->delay_count; i++) {
+		rc = msm_camera_spi_device_busy(client, &busy);
+		if (rc < 0)
+			return rc;
+		if (!busy)
+			break;
+		else
+			msleep(inst->delay_intv);
+		SPIDBG("%s: op 0x%x wait\n", __func__, inst->opcode);
+	}
+	if (i > inst->delay_count) {
+		SPIDBG("%s: op %x timed out\n", __func__, inst->opcode);
+		return -ETIMEDOUT;
+	}
+	SPIDBG("%s: op %x finished\n", __func__, inst->opcode);
+	return 0;
+}
+
+static int32_t msm_camera_spi_write_enable(
+		struct msm_camera_i2c_client *client)
+{
+	struct msm_camera_spi_inst *we =
+		&client->spi_client->cmd_tbl.write_enable;
+	int rc;
+	if (we->addr_len != 0) {
+		pr_err("%s: not implemented yet\n", __func__);
+		return -EINVAL;
+	}
+	rc = msm_camera_spi_tx_helper(client, we, 0, NULL, 0, NULL, NULL);
+	if (rc < 0)
+		SPIDBG("%s: write enable failed\n", __func__);
+	return rc;
+}
+
+int32_t msm_camera_spi_erase(struct msm_camera_i2c_client *client,
+			     uint32_t addr, uint32_t size)
+{
+	struct msm_camera_spi_inst *se = &client->spi_client->cmd_tbl.erase;
+	int rc = 0;
+	uint32_t cur;
+	uint32_t end = addr + size;
+	uint32_t erase_size = client->spi_client->erase_size;
+	end = addr + size;
+	for (cur = rounddown(addr, erase_size); cur < end; cur += erase_size) {
+		SPIDBG("%s: erasing 0x%x\n", __func__, cur);
+		rc = msm_camera_spi_write_enable(client);
+		if (rc < 0)
+			return rc;
+		rc = msm_camera_spi_tx_helper(client, se, cur, NULL, 0,
+					      NULL, NULL);
+		if (rc < 0) {
+			SPIDBG("%s: erase failed\n", __func__);
+			return rc;
+		}
+		rc = msm_camera_spi_wait(client, se);
+		if (rc < 0) {
+			SPIDBG("%s: erase timedout\n", __func__);
+			return rc;
+		}
+	}
+	return rc;
+}
+/**
+  * msm_camera_spi_page_program() - core function to perform write
+  * @client:	need for obtaining SPI device
+  * @addr:	address to program on device
+  * @data:	data to write
+  * @len:	size of data
+  * @tx:	tx buffer, size >= header + len
+  *
+  * This function performs SPI write, and has no boundary check.  Writing range
+  * should not cross page boundary, or data will be corrupted.  Transaction is
+  * guaranteed to be finished when it returns.  This function should never be
+  * used outside msm_camera_spi_write_seq().
+  */
+static int32_t msm_camera_spi_page_program(struct msm_camera_i2c_client *client,
+		uint32_t addr, uint8_t *data, uint16_t len, uint8_t *tx)
+{
+	int rc;
+	struct msm_camera_spi_inst *pg =
+		&client->spi_client->cmd_tbl.page_program;
+	struct spi_device *spi = client->spi_client->spi_master;
+	uint8_t retries = client->spi_client->retries;
+	uint8_t header_len = sizeof(pg->opcode) + pg->addr_len + pg->dummy_len;
+	SPIDBG("%s: addr 0x%x, size 0x%x\n", __func__, addr, len);
+	rc = msm_camera_spi_write_enable(client);
+	if (rc < 0)
+		return rc;
+	memset(tx, 0, header_len);
+	tx[0] = pg->opcode;
+	msm_camera_set_addr(addr, pg->addr_len, client->addr_type, tx + 1);
+	memcpy(tx + header_len, data, len);
+	SPIDBG("%s: tx(%u): %02x %02x %02x %02x\n", __func__,
+	       len, tx[0], tx[1], tx[2], tx[3]);
+	while ((rc = spi_write(spi, tx, len + header_len)) && retries) {
+		rc = msm_camera_spi_wait(client, pg);
+		msleep(client->spi_client->retry_delay);
+		retries--;
+	}
+	if (rc < 0) {
+		SPIDBG("%s: failed %d\n", __func__, rc);
+		return rc;
+	}
+	rc = msm_camera_spi_wait(client, pg);
+	return rc;
+}
+int32_t msm_camera_spi_write_seq(struct msm_camera_i2c_client *client,
+	uint32_t addr, uint8_t *data, uint32_t num_byte)
+{
+	struct msm_camera_spi_inst *pg =
+		&client->spi_client->cmd_tbl.page_program;
+	const uint32_t page_size = client->spi_client->page_size;
+	uint8_t header_len = sizeof(pg->opcode) + pg->addr_len + pg->dummy_len;
+	uint16_t len;
+	uint32_t cur_len, end;
+	char *tx, *pdata = data;
+	int rc = -EINVAL;
+	if ((client->addr_type != MSM_CAMERA_I2C_BYTE_ADDR)
+	    && (client->addr_type != MSM_CAMERA_I2C_WORD_ADDR)
+	    && (client->addr_type != MSM_CAMERA_I2C_3B_ADDR))
+		return rc;
+    /* single page write */
+	if ((addr % page_size) + num_byte <= page_size) {
+		len = header_len + num_byte;
+		tx = kmalloc(len, GFP_KERNEL);
+		if (!tx)
+			goto NOMEM;
+		rc = msm_camera_spi_page_program(client, addr, data,
+						 num_byte, tx);
+		if (rc < 0)
+			goto ERROR;
+		goto OUT;
+	}
+	/* multi page write */
+	len = header_len + page_size;
+	tx = kmalloc(len, GFP_KERNEL);
+	if (!tx)
+		goto NOMEM;
+	while (num_byte) {
+		end = min(page_size, (addr % page_size) + num_byte);
+		cur_len = end - (addr % page_size);
+		rc = msm_camera_spi_page_program(client, addr, pdata,
+						 cur_len, tx);
+		if (rc < 0)
+			goto ERROR;
+		addr += cur_len;
+		pdata += cur_len;
+		num_byte -= cur_len;
+	}
+	goto OUT;
+NOMEM:
+	SPIDBG("%s: memory allocation failed\n", __func__);
+	return -ENOMEM;
+ERROR:
+	SPIDBG("%s: error write\n", __func__);
+OUT:
+	kfree(tx);
+	return rc;
+}

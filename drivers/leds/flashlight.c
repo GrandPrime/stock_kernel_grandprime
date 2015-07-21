@@ -275,9 +275,7 @@ struct flashlight_device *flashlight_device_register(const char *name,
 		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&flashlight_dev->ops_lock);
-#if defined(CONFIG_SEC_FORTUNA_PROJECT)
 	flashlight_dev->dev.class = flashlight_class;
-#endif
 	flashlight_dev->dev.parent = parent;
 	flashlight_dev->dev.release = flashlight_device_release;
 	dev_set_name(&flashlight_dev->dev, name);
@@ -478,27 +476,22 @@ int flashlight_strobe(struct flashlight_device *flashlight_dev)
 }
 EXPORT_SYMBOL(flashlight_strobe);
 
-#if defined(CONFIG_SEC_FORTUNA_PROJECT)
 static int flashlight_match_device_by_name(struct device *dev, const void *data)
 {
 	const char *name = data;
 	return strcmp(dev_name(dev), name) == 0;
 }
-#endif
 
 struct flashlight_device *find_flashlight_by_name(char *name)
 {
-	struct device *dev;
+	struct device *dev = NULL;
 	if (!name)
 		return (struct flashlight_device *)NULL;
-#if defined(CONFIG_SEC_FORTUNA_PROJECT)
+
 	dev = class_find_device(flashlight_class, NULL, name,
 	flashlight_match_device_by_name);
 
 	return dev ? to_flashlight_device(dev) : NULL;
-#else
-	return to_flashlight_device(dev);
-#endif
 }
 EXPORT_SYMBOL(find_flashlight_by_name);
 

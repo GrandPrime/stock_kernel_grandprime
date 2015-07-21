@@ -89,15 +89,15 @@ int32_t msm_led_flash_create_v4lsubdev(struct platform_device *pdev, void *data)
 
 	fctrl->led_irq_gpio1 = of_get_named_gpio(fctrl->pdev->dev.of_node, "qcom,led1-gpio", 0);
 	if (fctrl->led_irq_gpio1 < 0) {
-		pr_err("Fail get led1-gpio\n");
+        	pr_err("Fail : can't get led1-gpio\n");
 		return -EINVAL;
 	}
 
 	fctrl->led_irq_gpio2 = of_get_named_gpio(fctrl->pdev->dev.of_node, "qcom,led2-gpio", 0);
 	if (fctrl->led_irq_gpio2 < 0) {
-		pr_err("Fail get led2-gpio\n");
+		pr_err("Fail : can't get led2-gpio\n");
 		return -EINVAL;
-    }
+	}
 
 	msm_sd_register(&fctrl->msm_sd);
 

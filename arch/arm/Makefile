@@ -305,7 +305,11 @@ zinstall uinstall install: vmlinux
 
 dtbs: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts MACHINE=$(MACHINE) dtbs
-	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung MACHINE=$(MACHINE) dtbs
+ifeq ($(CONFIG_ARCH_MSM8939),y)
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8939 MACHINE=$(MACHINE) dtbs
+else
+	$(Q)$(MAKE) $(build)=$(boot)/dts/samsung/msm8916 MACHINE=$(MACHINE) dtbs
+endif
 
 zImage-dtb: vmlinux scripts dtbs
 	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@

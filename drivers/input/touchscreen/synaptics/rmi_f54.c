@@ -1161,6 +1161,7 @@ static void glove_mode(void);
 static void clear_cover_mode(void);
 static void get_glove_sensitivity(void);
 static void fast_glove_mode(void);
+int synaptics_rmi4_glove_mode_enables(struct synaptics_rmi4_data *rmi4_data);
 #endif
 #ifdef TOUCHKEY_ENABLE
 static void run_deltacap_read(void);
@@ -1190,7 +1191,7 @@ static void report_rate(void);
 static void debug_log(void);
 static void not_support_cmd(void);
 
-struct ft_cmd ft_cmds[] = {
+static struct ft_cmd ft_cmds[] = {
 	{FT_CMD("fw_update", fw_update),},
 	{FT_CMD("get_fw_ver_bin", get_fw_ver_bin),},
 	{FT_CMD("get_fw_ver_ic", get_fw_ver_ic),},
@@ -2435,8 +2436,13 @@ static bool synaptics_skip_firmware_update(struct synaptics_rmi4_data *rmi4_data
 	/* Read revision and firmware info from binary */
 	if ((rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5100) &&
 		(rmi4_data->ic_revision_of_ic >= SYNAPTICS_IC_REVISION_A2)) {
+#if !defined(CONFIG_SEC_HESTIA_PROJECT)
 		rmi4_data->ic_revision_of_bin = (int)fw_entry->data[IC_REVISION_BIN_OFFSET_S5100_A2];
 		rmi4_data->fw_version_of_bin = (int)fw_entry->data[FW_VERSION_BIN_OFFSET_S5100_A2];
+#else
+		rmi4_data->ic_revision_of_bin = (int)fw_entry->data[IC_REVISION_BIN_OFFSET_S5050];
+		rmi4_data->fw_version_of_bin = (int)fw_entry->data[FW_VERSION_BIN_OFFSET_S5050];
+#endif
 	} else if (rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5006) {
 		rmi4_data->ic_revision_of_bin = (int)fw_entry->data[IC_REVISION_BIN_OFFSET];
 		rmi4_data->fw_version_of_bin = (int)fw_entry->data[FW_VERSION_BIN_OFFSET];		
@@ -2589,8 +2595,13 @@ static int synaptics_load_fw_from_kernel(struct synaptics_rmi4_data *rmi4_data, 
 
 	if ((rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5100) &&
 		(rmi4_data->ic_revision_of_ic >= SYNAPTICS_IC_REVISION_A2)) {
+#if !defined(CONFIG_SEC_HESTIA_PROJECT)
 		rmi4_data->ic_revision_of_bin = (int)fw_entry->data[IC_REVISION_BIN_OFFSET_S5100_A2];
 		rmi4_data->fw_version_of_bin = (int)fw_entry->data[FW_VERSION_BIN_OFFSET_S5100_A2];
+#else
+		rmi4_data->ic_revision_of_bin = (int)fw_entry->data[IC_REVISION_BIN_OFFSET_S5050];
+		rmi4_data->fw_version_of_bin = (int)fw_entry->data[FW_VERSION_BIN_OFFSET_S5050];
+#endif
 	} else if (rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5006) {
 		rmi4_data->ic_revision_of_bin = (int)fw_entry->data[IC_REVISION_BIN_OFFSET];
 		rmi4_data->fw_version_of_bin = (int)fw_entry->data[FW_VERSION_BIN_OFFSET];
@@ -2664,11 +2675,19 @@ static int synaptics_load_fw_from_ums(struct synaptics_rmi4_data *rmi4_data)
 
 			if ((rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5100) &&
 				(rmi4_data->ic_revision_of_ic >= SYNAPTICS_IC_REVISION_A2)) {
+#if !defined(CONFIG_SEC_HESTIA_PROJECT)
 				ic_revision_of_bin = (int)fw_data[IC_REVISION_BIN_OFFSET_S5100_A2];
 				fw_version_of_bin = (int)fw_data[FW_VERSION_BIN_OFFSET_S5100_A2];
 				fw_release_date_of_bin =
 					(int)(fw_data[DATE_OF_FIRMWARE_BIN_OFFSET_S5100_A2] << 8
 							| fw_data[DATE_OF_FIRMWARE_BIN_OFFSET_S5100_A2 + 1]);
+#else
+				ic_revision_of_bin = (int)fw_data[IC_REVISION_BIN_OFFSET_S5050];
+				fw_version_of_bin = (int)fw_data[FW_VERSION_BIN_OFFSET_S5050];
+				fw_release_date_of_bin =
+					(int)(fw_data[DATE_OF_FIRMWARE_BIN_OFFSET_S5050] << 8
+							| fw_data[DATE_OF_FIRMWARE_BIN_OFFSET_S5050 + 1]);
+#endif
 			} else if (rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5006) {
 				ic_revision_of_bin = (int)fw_data[IC_REVISION_BIN_OFFSET];
 				fw_version_of_bin = (int)fw_data[FW_VERSION_BIN_OFFSET];
@@ -2833,9 +2852,15 @@ static void get_fac_fw_ver_bin(void)
 	} else {
 		if ((rmi4_data->ic_version == SYNAPTICS_PRODUCT_ID_S5100) &&
 			(rmi4_data->ic_revision_of_ic >= SYNAPTICS_IC_REVISION_A2))
+#if !defined(CONFIG_SEC_HESTIA_PROJECT)
 			snprintf(data->cmd_buff, CMD_RESULT_STR_LEN, "SY00%02X%02X",
 					(int)fw_entry->data[IC_REVISION_BIN_OFFSET_S5100_A2],
 					(int)fw_entry->data[FW_VERSION_BIN_OFFSET_S5100_A2]);
+#else
+			snprintf(data->cmd_buff, CMD_RESULT_STR_LEN, "SY00%02X%02X",
+					(int)fw_entry->data[IC_REVISION_BIN_OFFSET_S5050],
+					(int)fw_entry->data[FW_VERSION_BIN_OFFSET_S5050]);
+#endif
 		else if (rmi4_data->ic_version >= SYNAPTICS_PRODUCT_ID_S5006)
 			snprintf(data->cmd_buff, CMD_RESULT_STR_LEN, "SY00%02X%02X",
 					(int)fw_entry->data[IC_REVISION_BIN_OFFSET],
@@ -2976,8 +3001,6 @@ static void get_module_vendor(void)
 	}
 
 	if (rmi4_data->dt_data->id_gpio > 0) {
-//		gpio_tlmm_config(GPIO_CFG(rmi4_data->dt_data->id_gpio, 0,
-//				GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), 1);
 		val = gpio_get_value(rmi4_data->dt_data->id_gpio);
 		dev_info(&rmi4_data->i2c_client->dev,
 			"%s: TSP_ID: %d[%d]\n", __func__, rmi4_data->dt_data->id_gpio, val);
@@ -3840,12 +3863,18 @@ static void glove_mode(void)
 	} else {
 		int retval;
 
-		if (data->cmd_param[0])
+		if (data->cmd_param[0]){
 			rmi4_data->feature_enable |= GLOVE_MODE_EN;
-		else
+#ifdef ENABLE_F12_OBJTYPE
+			rmi4_data->obj_type_enable |= OBJ_TYPE_GLOVE;
+#endif
+		} else {
 			rmi4_data->feature_enable &= ~(GLOVE_MODE_EN);
-
-		retval = synaptics_rmi4_f12_set_feature(rmi4_data);
+#ifdef ENABLE_F12_OBJTYPE
+			rmi4_data->obj_type_enable &= ~(OBJ_TYPE_GLOVE);
+#endif
+		}
+		retval = synaptics_rmi4_glove_mode_enables(rmi4_data);
 		if (retval < 0) {
 			dev_err(&rmi4_data->i2c_client->dev,
 					"%s failed, retval = %d\n",
@@ -3885,13 +3914,19 @@ static void fast_glove_mode(void)
 
 		if (data->cmd_param[0]) {
 			rmi4_data->feature_enable |= FAST_DETECT_EN | GLOVE_MODE_EN;
+#ifdef ENABLE_F12_OBJTYPE
+			rmi4_data->obj_type_enable |= OBJ_TYPE_GLOVE;
+#endif
 			rmi4_data->fast_glove_state = true;
 		} else {
 			rmi4_data->feature_enable &= ~(FAST_DETECT_EN);
+#ifdef ENABLE_F12_OBJTYPE
+			rmi4_data->obj_type_enable &= ~(OBJ_TYPE_GLOVE);
+#endif
 			rmi4_data->fast_glove_state = false;
 		}
 
-		retval = synaptics_rmi4_f12_set_feature(rmi4_data);
+		retval = synaptics_rmi4_glove_mode_enables(rmi4_data);
 		if (retval < 0) {
 			dev_err(&rmi4_data->i2c_client->dev,
 					"%s failed, retval = %d\n",
@@ -6611,7 +6646,13 @@ pdt_done:
 		}
 
 		rmi4_data->created_sec_class = true;
-
+		retval = sysfs_create_link(&factory_data->fac_dev_ts->kobj,
+						&rmi4_data->input_dev->dev.kobj, "input");
+		if (retval < 0) {
+			dev_err(&rmi4_data->i2c_client->dev,
+				"%s: Failed to create input symbolic link\n",
+					__func__);
+		}
 		retval = sysfs_create_group(&factory_data->fac_dev_ts->kobj,
 				&cmd_attr_group);
 		if (retval < 0) {

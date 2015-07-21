@@ -79,7 +79,18 @@ static int msm_vfe32_init_hardware(struct vfe_device *vfe_dev)
 			goto fs_failed;
 		}
 	}
-
+	if (vfe_dev->num_clk <= 0) {
+		pr_err("%s: Invalid num of clock\n", __func__);
+		goto fs_failed;
+	} else {
+		vfe_dev->vfe_clk =
+			kzalloc(sizeof(struct clk *) * vfe_dev->num_clk,
+			GFP_KERNEL);
+		if (!vfe_dev->vfe_clk) {
+			pr_err("%s:%d No memory\n", __func__, __LINE__);
+			return -ENOMEM;
+		}
+	}
 	rc = msm_cam_clk_enable(&vfe_dev->pdev->dev, msm_vfe32_1_clk_info,
 		 vfe_dev->vfe_clk, ARRAY_SIZE(msm_vfe32_1_clk_info), 1);
 	if (rc < 0) {
@@ -121,9 +132,9 @@ vfe_remap_failed:
 				msm_vfe32_2_clk_info, vfe_dev->vfe_clk,
 				ARRAY_SIZE(msm_vfe32_2_clk_info), 0);
 clk_enable_failed:
-	if (vfe_dev->fs_vfe) {
+	if (vfe_dev->fs_vfe)
 		regulator_disable(vfe_dev->fs_vfe);
-	}
+	kfree(vfe_dev->vfe_clk);
 fs_failed:
 	msm_isp_deinit_bandwidth_mgr(ISP_VFE0 + vfe_dev->pdev->id);
 bus_scale_register_failed:
@@ -143,6 +154,7 @@ static void msm_vfe32_release_hardware(struct vfe_device *vfe_dev)
 		msm_cam_clk_enable(&vfe_dev->pdev->dev,
 				msm_vfe32_2_clk_info, vfe_dev->vfe_clk,
 				ARRAY_SIZE(msm_vfe32_2_clk_info), 0);
+	kfree(vfe_dev->vfe_clk);
 	regulator_disable(vfe_dev->fs_vfe);
 	msm_isp_deinit_bandwidth_mgr(ISP_VFE0 + vfe_dev->pdev->id);
 }
@@ -1103,15 +1115,6 @@ static void msm_vfe32_get_irq_mask(struct vfe_device *vfe_dev,
 	*irq1_mask = msm_camera_io_r(vfe_dev->vfe_base + 0x20);
 }
 
-static int msm_vfe32_get_reg_update(uint32_t irq0_status,
-	uint32_t irq1_status)
-{
-	int rc = 0;
-	if ((irq0_status & 0x20) || (irq1_status & 0x1C000000))
-		rc = 1;
-	return rc;
-}
-
 static void msm_vfe32_restore_irq_mask(struct vfe_device *vfe_dev)
 {
 	msm_camera_io_w(vfe_dev->error_info.overflow_recover_irq_mask0,
@@ -1288,7 +1291,6 @@ struct msm_vfe_hardware_info vfe32_hw_info = {
 			.get_halt_restart_mask =
 				msm_vfe32_get_halt_restart_mask,
 			.process_error_status = msm_vfe32_process_error_status,
-			.get_regupdate_status = msm_vfe32_get_reg_update,
 		},
 		.stats_ops = {
 			.get_stats_idx = msm_vfe32_get_stats_idx,

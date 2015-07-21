@@ -35,7 +35,6 @@
 #if defined(CONFIG_SEC_DEBUG)
 #include <mach/sec_debug.h>
 #endif
-#include <linux/pinctrl/consumer.h>
 #include <linux/syscore_ops.h>
 
 struct device *sec_key;
@@ -344,8 +343,7 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 	int state =
 		(__gpio_get_value(button->gpio) ? 1 : 0) ^ button->active_low;
 
-        printk(KERN_INFO "%s: %s key is %s\n",
-			__func__, button->desc, state ? "pressed" : "released");
+	pr_info("[KEY] code:%d, value:%d\n", button->code, !!state);
 
 #ifdef CONFIG_SEC_DEBUG
 	sec_debug_check_crash_key(button->code, state);
@@ -513,6 +511,9 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 		isr = gpio_keys_irq_isr;
 		irqflags = 0;
 	}
+
+	/*don't send dummy release event when system resumes*/
+	__set_bit(INPUT_PROP_NO_DUMMY_RELEASE, input->propbit);
 
 	input_set_capability(input, button->type ?: EV_KEY, button->code);
 

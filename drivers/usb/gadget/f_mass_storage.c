@@ -1527,7 +1527,7 @@ static int do_inquiry(struct fsg_common *common, struct fsg_buffhd *bh)
 	buf[5] = 0;		/* No special options */
 	buf[6] = 0;
 	buf[7] = 0;
-
+	
 #if defined(CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE)
 	strncpy(new_product_name, common->product_string, 16);
 	new_product_name[16] = '\0';
@@ -1759,7 +1759,6 @@ static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 		buf += 28;
 	 }
 #endif
-
 	/*
 	 * Check that a valid page was requested and the mode data length
 	 * isn't too long.

@@ -77,32 +77,29 @@ static int dsi_pll_enable_seq_8916(struct mdss_pll_resources *dsi_pll_res)
 {
 	int pll_locked = 0;
 
-	/*
-	 * DSI PLL software reset. Add HW recommended delays after toggling
-	 * the software reset bit off and back on.
-	 */
+	/* DSI PLL toggle lock detect setting */
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_LKDET_CFG2, 0x04);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_LKDET_CFG2, 0x05);
+
+	/* DSI PLL software reset */
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
 			DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x01);
-	ndelay(500);
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
 			DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x00);
 
-	/*
-	 * PLL power up sequence.
-	 * Add necessary delays recommended by hardware.
-	 */
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
 			DSI_PHY_PLL_UNIPHY_PLL_CAL_CFG1, 0x34);
-	ndelay(500);
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
 			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x01);
-	ndelay(500);
+	udelay(50);
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
 			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x05);
-	ndelay(500);
+	udelay(50);
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
 			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x0f);
-	ndelay(500);
+	udelay(50);
 
 	/* DSI PLL toggle lock detect setting */
 	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
@@ -285,7 +282,8 @@ int dsi_pll_clock_register_lpm(struct platform_device *pdev,
 	byte_mux_clk_ops = clk_ops_gen_mux;
 	byte_mux_clk_ops.prepare = dsi_pll_mux_prepare;
 
-	if (pll_res->target_id == MDSS_PLL_TARGET_8916) {
+	if (pll_res->target_id == MDSS_PLL_TARGET_8916 ||
+		pll_res->target_id == MDSS_PLL_TARGET_8939) {
 		rc = of_msm_clock_register(pdev->dev.of_node,
 			mdss_dsi_pllcc_8916, ARRAY_SIZE(mdss_dsi_pllcc_8916));
 		if (rc) {

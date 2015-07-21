@@ -56,10 +56,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/vmscan.h>
 
-#ifdef CONFIG_INCREASE_MAXIMUM_SWAPPINESS
-int max_swappiness = 200;
-#endif
-
 #ifdef CONFIG_RUNTIME_COMPCACHE
 struct rtcc_control {
 	int nr_anon;
@@ -1855,11 +1851,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	 * This scanning priority is essentially the inverse of IO cost.
 	 */
 	anon_prio = vmscan_swappiness(sc);
-#ifdef CONFIG_INCREASE_MAXIMUM_SWAPPINESS
-	file_prio = max_swappiness - anon_prio;
-#else
 	file_prio = 200 - anon_prio;
-#endif
 
 	/*
 	 * OK, so we have swap space and a fair amount of page cache
@@ -2706,7 +2698,11 @@ static bool pgdat_balanced(pg_data_t *pgdat, int order, int classzone_idx)
 	}
 
 	if (order)
+#ifdef CONFIG_TIGHT_PGDAT_BALANCE
+		return balanced_pages >= (managed_pages >> 1);
+#else
 		return balanced_pages >= (managed_pages >> 2);
+#endif
 	else
 		return true;
 }

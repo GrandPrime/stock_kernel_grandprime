@@ -26,6 +26,8 @@
 #include <linux/battery/charger/dummy_charger.h>
 #elif defined(CONFIG_CHARGER_MAX8903)
 #include <linux/battery/charger/max8903_charger.h>
+#elif defined(CONFIG_CHARGER_SM5701)
+#include <linux/battery/charger/sm5701_charger.h>
 #elif defined(CONFIG_CHARGER_SMB328)
 #include <linux/battery/charger/smb328_charger.h>
 #elif defined(CONFIG_CHARGER_SMB347)

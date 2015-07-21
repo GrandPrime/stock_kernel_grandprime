@@ -232,6 +232,7 @@ enum msm_i2c_power_state {
 #define I2C_MSM_TIMEOUT_SAFTY_COEF      (10)
 #define I2C_MSM_TIMEOUT_MIN_USEC        (500000)
 #define I2C_MSM_HS_ADDR                 (0x0f)
+#define I2C_QUP_MAX_BUS_RECOVERY_RETRY  (10)
 
 /* QUP v2 tags */
 #define QUP_TAG2_DATA_WRITE        (0x82ULL)
@@ -252,7 +253,7 @@ enum msm_spi_clk_path_vec_idx {
 	I2C_MSM_CLK_PATH_RESUME_VEC,
 };
 #define I2C_MSM_CLK_PATH_AVRG_BW(ctrl) (0)
-#define I2C_MSM_CLK_PATH_BRST_BW(ctrl) (ctrl->rsrcs.clk_freq_in * 8)
+#define I2C_MSM_CLK_PATH_BRST_BW(ctrl) (76800000)
 
 static char const * const i2c_msm_gpio_names[] = {"i2c_clk", "i2c_sda"};
 
@@ -621,6 +622,7 @@ enum i2c_msm_err_bit_field {
 	I2C_MSM_ERR_ARB_LOST = 1U << 1,
 	I2C_MSM_ERR_BUS_ERR  = 1U << 2,
 	I2C_MSM_ERR_TIMEOUT  = 1U << 3,
+	I2C_MSM_ERR_OVR_UNDR_RUN = 1U << 5,
 };
 
 /*

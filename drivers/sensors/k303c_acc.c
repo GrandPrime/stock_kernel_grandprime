@@ -170,9 +170,6 @@ struct k303c_acc_p {
 	int scl_gpio;
 	int time_count;
 
-	u8 odr;
-	u8 hr;
-
 	u8 axis_map_x;
 	u8 axis_map_y;
 	u8 axis_map_z;
@@ -200,8 +197,8 @@ struct k303c_acc_odr {
 const struct k303c_acc_odr k303c_acc_odr_table[] = {
 	{  2, ACC_ODR800},
 	{  3, ACC_ODR400},
-#ifndef OUTPUT_ALWAYS_ANTI_ALIASED
 	{  5, ACC_ODR200},
+#ifndef OUTPUT_ALWAYS_ANTI_ALIASED
 	{ 10, ACC_ODR100},
 	{ 20, ACC_ODR50},
 	{100, ACC_ODR10},
@@ -379,28 +376,45 @@ static int k303c_acc_set_odr(struct k303c_acc_p *data)
 	buf = ((mask & new_odr) | ((~mask) & temp));
 	ret += k303c_acc_i2c_write(data, CTRL1_REG, buf);
 
-	data->odr = new_odr;
-
 	pr_info("%s - change odr %d\n", __func__, i);
 	return ret;
 }
 
-static int k303c_acc_set_hr(struct k303c_acc_p *data, int set)
+static int k303c_acc_set_mode(struct k303c_acc_p *data, unsigned char mode)
 {
-	int ret;
-	u8 buf;
+	int ret = 0;
+	unsigned char buf, mask, temp;
+	static unsigned char acc_odr = 0;
 
-	pr_info("%s %d\n", __func__, set);
+	pr_info("%s - %u ra(%d)\n", __func__, mode, data->recog_flag);
 
-	if (set)
-		data->hr = CTRL1_HR_ENABLE;
-	else
-		data->hr = CTRL1_HR_DISABLE;
+	mutex_lock(&data->mode_mutex);
 
+	switch (mode) {
+	case K303C_MODE_NORMAL:
+		mask = K303C_ACC_ODR_MASK;
+		ret = k303c_acc_i2c_read(data, CTRL1_REG, &temp, 1);
+		buf = ((mask & acc_odr) | ((~mask) & temp));
+		buf |= 0x8f;
+		ret += k303c_acc_i2c_write(data, CTRL1_REG, buf);
+		break;
+	case K303C_MODE_SUSPEND:
+		if (data->recog_flag == ON)
+			break;
 
-	ret = k303c_acc_i2c_read(data, CTRL1_REG, &buf, 1);
-	buf = data->hr | ((~CTRL1_HR_MASK) & buf);
-	ret += k303c_acc_i2c_write(data, CTRL1_REG, buf);
+		mask = K303C_ACC_ODR_MASK;
+		ret = k303c_acc_i2c_read(data, CTRL1_REG, &temp, 1);
+		acc_odr = temp & mask;
+		buf = ((mask & ACC_PM_OFF) | ((~mask) & temp));
+		ret += k303c_acc_i2c_write(data, CTRL1_REG, buf);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&data->mode_mutex);
+	msleep(20);
 
 	return ret;
 }
@@ -428,44 +442,6 @@ static int k303c_acc_read_accel_xyz(struct k303c_acc_p *data,
 		   : (rawdata.v[data->axis_map_z]));
 
 exit:
-	return ret;
-}
-
-static int k303c_acc_set_mode(struct k303c_acc_p *data, unsigned char mode)
-{
-	int ret = 0;
-	unsigned char buf, mask, temp;
-
-	pr_info("%s - %u ra(%d)\n", __func__, mode, data->recog_flag);
-
-	mutex_lock(&data->mode_mutex);
-
-	switch (mode) {
-	case K303C_MODE_NORMAL:
-		mask = K303C_ACC_ODR_MASK;
-		ret = k303c_acc_i2c_read(data, CTRL1_REG, &temp, 1);
-		buf = ((mask & data->odr) | ((~mask) & temp));
-		buf |= 0x0f | data->hr;
-		ret += k303c_acc_i2c_write(data, CTRL1_REG, buf);
-		break;
-	case K303C_MODE_SUSPEND:
-		if (data->recog_flag == ON)
-			break;
-
-		mask = K303C_ACC_ODR_MASK;
-		ret = k303c_acc_i2c_read(data, CTRL1_REG, &temp, 1);
-		buf = ((mask & ACC_PM_OFF) | ((~mask) & temp));
-		ret += k303c_acc_i2c_write(data, CTRL1_REG, buf);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	mutex_unlock(&data->mode_mutex);
-
-	msleep(20);
-
 	return ret;
 }
 
@@ -545,18 +521,17 @@ static int k303c_acc_do_calibrate(struct k303c_acc_p *data, int enable)
 
 		if (atomic_read(&data->enable) == ON)
 			k303c_acc_set_enable(data, OFF);
-		else {
+		else
 			k303c_acc_set_mode(data, K303C_MODE_NORMAL);
-			msleep(150);
-			k303c_acc_read_accel_xyz(data, &acc);
-		}
+
+		msleep(300);
 
 		for (cnt = 0; cnt < CALIBRATION_DATA_AMOUNT; cnt++) {
-			msleep(20);
 			k303c_acc_read_accel_xyz(data, &acc);
 			sum[0] += acc.x;
 			sum[1] += acc.y;
 			sum[2] += acc.z;
+			msleep(20);
 		}
 
 		if (atomic_read(&data->enable) == ON)
@@ -758,39 +733,6 @@ static ssize_t k303c_acc_calibration_store(struct device *dev,
 
 	return size;
 }
-static ssize_t k303c_acc_lowpassfilter_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int ret;
-	struct k303c_acc_p *data = dev_get_drvdata(dev);
-
-	if (data->hr == CTRL1_HR_ENABLE)
-		ret = 1;
-	else
-		ret = 0;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
-}
-
-static ssize_t k303c_acc_lowpassfilter_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size)
-{
-	int ret;
-	int64_t dEnable;
-	struct k303c_acc_p *data = dev_get_drvdata(dev);
-
-	pr_info("%s\n", __func__);
-
-	ret = kstrtoll(buf, 10, &dEnable);
-	if (ret < 0)
-		pr_err("%s - kstrtoll failed\n", __func__);
-
-	ret = k303c_acc_set_hr(data, dEnable);
-	if (ret < 0)
-		pr_err("%s - k303c_acc_set_hr failed\n", __func__);
-
-	return size;
-}
 
 static ssize_t k303c_acc_raw_data_read(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -800,9 +742,6 @@ static ssize_t k303c_acc_raw_data_read(struct device *dev,
 
 	if (atomic_read(&data->enable) == OFF) {
 		k303c_acc_set_mode(data, K303C_MODE_NORMAL);
-		msleep(150);
-		k303c_acc_read_accel_xyz(data, &acc);
-		msleep(20);
 		k303c_acc_read_accel_xyz(data, &acc);
 		k303c_acc_set_mode(data, K303C_MODE_SUSPEND);
 
@@ -1022,8 +961,6 @@ static DEVICE_ATTR(name, S_IRUGO, k303c_acc_name_show, NULL);
 static DEVICE_ATTR(vendor, S_IRUGO, k303c_acc_vendor_show, NULL);
 static DEVICE_ATTR(calibration, S_IRUGO | S_IWUSR | S_IWGRP,
 	k303c_acc_calibration_show, k303c_acc_calibration_store);
-static DEVICE_ATTR(lowpassfilter, S_IRUGO | S_IWUSR | S_IWGRP,
-	k303c_acc_lowpassfilter_show, k303c_acc_lowpassfilter_store);
 static DEVICE_ATTR(raw_data, S_IRUGO, k303c_acc_raw_data_read, NULL);
 static DEVICE_ATTR(reactive_alert, S_IRUGO | S_IWUSR | S_IWGRP,
 	k303c_acc_reactive_alert_show, k303c_acc_reactive_alert_store);
@@ -1033,7 +970,6 @@ static struct device_attribute *sensor_attrs[] = {
 	&dev_attr_name,
 	&dev_attr_vendor,
 	&dev_attr_calibration,
-	&dev_attr_lowpassfilter,
 	&dev_attr_raw_data,
 	&dev_attr_reactive_alert,
 	&dev_attr_selftest,
@@ -1281,9 +1217,6 @@ static int k303c_acc_probe(struct i2c_client *client,
 		goto err_input_allocate_device;
 	}
 	data->input->name = MODULE_NAME;
-#if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_MACH_A33G_EUR_PROJECT)
-	data->input->name = "bma2x2";
-#endif
 	data->input->id.bustype = BUS_I2C;
 
 	input_set_capability(data->input, EV_REL, REL_X);
@@ -1297,11 +1230,7 @@ static int k303c_acc_probe(struct i2c_client *client,
 		goto err_input_register_device;
 	}
 
-#if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_MACH_A33G_EUR_PROJECT)
-	ret = 0;
-#else
 	ret = sensors_create_symlink(&data->input->dev.kobj, data->input->name);
-#endif
 	if (ret < 0) {
 		pr_err("%s failed sensors_create_symlink\n", __func__);
 		goto err_sensors_create_symlink;
@@ -1344,8 +1273,6 @@ static int k303c_acc_probe(struct i2c_client *client,
 	data->irq_state = 0;
 	data->recog_flag = OFF;
 
-	k303c_acc_set_odr(data);
-	k303c_acc_set_hr(data, 1);
 	k303c_acc_set_range(data, K303C_RANGE_2G);
 	k303c_acc_set_mode(data, K303C_MODE_SUSPEND);
 	k303c_acc_i2c_write(data, CTRL2_REG, 0x00);
@@ -1360,9 +1287,7 @@ err_create_workqueue:
 err_sensors_register:
 	sysfs_remove_group(&data->input->dev.kobj, &k303c_acc_attribute_group);
 err_sysfs_create_group:
-#if !(defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_MACH_A33G_EUR_PROJECT))
 	sensors_remove_symlink(&data->input->dev.kobj, data->input->name);
-#endif
 err_sensors_create_symlink:
 	input_unregister_device(data->input);
 err_input_register_device:

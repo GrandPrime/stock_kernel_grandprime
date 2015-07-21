@@ -1290,7 +1290,11 @@ int __sock_create(struct net *net, int family, int type, int protocol,
 	}
 
 	sock->type = type;
-
+#ifdef CONFIG_KNOX_VPN_UID_PID
+	sock->knox_uid = current->cred->uid;
+	sock->knox_pid = current->tgid;
+#endif /* CONFIG_KNOX_VPN_UID_PID */
+	
 #ifdef CONFIG_MODULES
 	/* Attempt to load a protocol module if the find failed.
 	 *

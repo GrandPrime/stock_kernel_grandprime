@@ -86,8 +86,8 @@ module_param(bam_mux_tx_q_size, uint, S_IRUGO | S_IWUSR);
 static unsigned int bam_mux_rx_q_size = BAM_MUX_RX_Q_SIZE;
 module_param(bam_mux_rx_q_size, uint, S_IRUGO | S_IWUSR);
 
-static unsigned int bam_mux_rx_req_size = BAM_MUX_RX_REQ_SIZE;
-module_param(bam_mux_rx_req_size, uint, S_IRUGO | S_IWUSR);
+static unsigned long bam_mux_rx_req_size = BAM_MUX_RX_REQ_SIZE;
+module_param(bam_mux_rx_req_size, ulong, S_IRUGO);
 
 static unsigned int dl_intr_threshold = DL_INTR_THRESHOLD;
 module_param(dl_intr_threshold, uint, S_IRUGO | S_IWUSR);
@@ -875,9 +875,9 @@ static int _gbam_start_io(struct gbam_port *port, bool in)
 	void		(*ep_complete)(struct usb_ep *, struct usb_request *);
 
 	if (in)
-		spinlock = &port->port_lock_ul;
-	else
 		spinlock = &port->port_lock_dl;
+	else
+		spinlock = &port->port_lock_ul;
 
 	spin_lock_irqsave(spinlock, flags);
 	if (!port->port_usb) {
@@ -896,9 +896,10 @@ static int _gbam_start_io(struct gbam_port *port, bool in)
 		queue_size = bam_mux_rx_q_size;
 		ep_complete = gbam_epout_complete;
 	}
-	spin_unlock_irqrestore(spinlock, flags);
+
 	ret = gbam_alloc_requests(ep, idle, queue_size, ep_complete,
-			GFP_KERNEL);
+			GFP_ATOMIC);
+	spin_unlock_irqrestore(spinlock, flags);
 	if (ret)
 		pr_err("%s: allocation failed\n", __func__);
 
@@ -929,12 +930,20 @@ static void gbam_start_io(struct gbam_port *port)
 
 static void gbam_notify(void *p, int event, unsigned long data)
 {
+	struct gbam_port	*port = p;
+	struct bam_ch_info *d = &port->data_ch;
+
 	switch (event) {
 	case BAM_DMUX_RECEIVE:
 		gbam_data_recv_cb(p, (struct sk_buff *)(data));
 		break;
 	case BAM_DMUX_WRITE_DONE:
 		gbam_data_write_done(p, (struct sk_buff *)(data));
+		break;
+	case BAM_DMUX_TRANSMIT_SIZE:
+		if (test_bit(BAM_CH_OPENED, &d->flags))
+			pr_warn("%s, BAM channel opened already", __func__);
+		bam_mux_rx_req_size = data;
 		break;
 	}
 }

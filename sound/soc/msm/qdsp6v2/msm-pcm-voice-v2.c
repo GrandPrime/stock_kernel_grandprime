@@ -482,7 +482,7 @@ static int msm_loopback_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[0] = voc_get_loopback_enable();
 	 return 0;
 }
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
 
 static const char const *tty_mode[] = {"OFF", "HCO", "VCO", "FULL"};
 static const struct soc_enum msm_tty_mode_enum[] = {
@@ -527,6 +527,28 @@ static int msm_voice_slowtalk_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int msm_voice_topology_disable_put(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	int ret = 0;
+	int disable = ucontrol->value.integer.value[0];
+	uint32_t session_id = ucontrol->value.integer.value[1];
+
+	if ((disable < 0) || (disable > 1)) {
+		pr_err(" %s Invalid arguments: %d\n", __func__, disable);
+
+		ret = -EINVAL;
+		goto done;
+	}
+	pr_debug("%s: disable = %d, session_id = %d\n", __func__, disable,
+		 session_id);
+
+	ret = voc_disable_topology(session_id, disable);
+
+done:
+	return ret;
+}
+
 #ifdef CONFIG_SAMSUNG_AUDIO
 static int msm_sec_dha_get(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
@@ -553,7 +575,7 @@ static int msm_sec_dha_put(struct snd_kcontrol *kcontrol,
 		dha_mode, dha_select, dha_param);
 	return ret;
 }
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
 
 static struct snd_kcontrol_new msm_voice_controls[] = {
 	SOC_SINGLE_MULTI_EXT("Voice Rx Device Mute", SND_SOC_NOPM, 0, VSID_MAX,
@@ -568,12 +590,15 @@ static struct snd_kcontrol_new msm_voice_controls[] = {
 				msm_voice_tty_mode_put),
 	SOC_SINGLE_MULTI_EXT("Slowtalk Enable", SND_SOC_NOPM, 0, VSID_MAX, 0, 2,
 				NULL, msm_voice_slowtalk_put),
+	SOC_SINGLE_MULTI_EXT("Voice Topology Disable", SND_SOC_NOPM, 0,
+			     VSID_MAX, 0, 2, NULL,
+			     msm_voice_topology_disable_put),
 #ifdef CONFIG_SAMSUNG_AUDIO				
 	SOC_SINGLE_MULTI_EXT("Sec Set DHA data", SND_SOC_NOPM, 0, 65535, 0, 14,
 				msm_sec_dha_get, msm_sec_dha_put),
 	SOC_SINGLE_EXT("Loopback Enable", SND_SOC_NOPM, 0, 1, 0,
 				msm_loopback_get, msm_loopback_put),
-#endif				
+#endif /* CONFIG_SAMSUNG_AUDIO */
 };
 
 static struct snd_pcm_ops msm_pcm_ops = {

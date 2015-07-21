@@ -9,9 +9,26 @@
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
-#include "sensors_core.h"
-#include <linux/alps_compass_io.h>
 #include <linux/input-polldev.h>
+
+#include "sensors_core.h"
+
+#define ALPSIO   0xAF
+
+#define ALPSIO_SET_MAGACTIVATE   _IOW(ALPSIO, 0, int)
+#define ALPSIO_SET_ACCACTIVATE   _IOW(ALPSIO, 1, int)
+#define ALPSIO_SET_DELAY         _IOW(ALPSIO, 2, int)
+#define ALPSIO_ACT_SELF_TEST_A   _IOR(ALPSIO, 3, int)
+#define ALPSIO_ACT_SELF_TEST_B   _IOR(ALPSIO, 4, int)
+#define ALPSIO_REOPT_VAL         _IOW(ALPSIO, 5, int)
+
+//extern int accsns_get_acceleration_data(int *xyz);
+extern int hscd_get_magnetic_field_data(int *xyz);
+extern void hscd_activate(int flgatm, int flg, int dtime);
+//extern void accsns_activate(int flgatm, int flg, int dtime);
+extern int hscd_self_test_A(void);
+extern int hscd_self_test_B(void);
+
 
 #define EVENT_TYPE_ACCEL_X          ABS_X
 #define EVENT_TYPE_ACCEL_Y          ABS_Y
@@ -169,14 +186,10 @@ static void alps_poll(struct input_polled_dev *dev)
 	}
 }
 
-#ifdef CONFIG_OF
 static struct of_device_id alps_match_table[] = {
 	{.compatible = "alps-input",},
 	{},
 };
-#else
-#define magnetic_match_table NULL
-#endif
 
 static int alps_probe(struct platform_device *dev)
 {

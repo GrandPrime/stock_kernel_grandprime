@@ -614,5 +614,27 @@ config REGULATOR_RT5033
 	help
 	 Say y here to support the regulators found on the Richtek RT5033 I/F PMIC.
 
+config REGULATOR_RT5746
+	bool "Richtek RT5746 regulator support"
+	depends on I2C
+	default n
+	help
+	  Say yes here to enable RT5746 regulator support.
+
+config RT5746_VSEL_ACTIVEHIGH
+	bool "Richtek RT5746 vsel option selection"
+	depends on REGULATOR_RT5746
+	default n
+	help
+	  Say yes if Vsel pin is high when Normal mode, otherwise,
+	  Vsel pin is low when normal mode.
+
+config REGULATOR_RT5746_DBGINFO
+	bool "Richtek RT5746 regulator detailed log support"
+	depends on REGULATOR_RT5746
+	default n
+	help
+	  Say yes here to enable RT5746 detailed log support.
+
 endif
 

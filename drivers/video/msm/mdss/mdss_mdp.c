@@ -379,7 +379,7 @@ static int mdss_mdp_bus_scale_register(struct mdss_data_type *mdata)
 		pr_debug("register bus_hdl=%x\n", mdata->bus_hdl);
 	}
 
-	return mdss_mdp_bus_scale_set_quota(AB_QUOTA, IB_QUOTA);
+	return mdss_bus_scale_set_quota(MDSS_HW_MDP, AB_QUOTA, 0, IB_QUOTA);
 }
 
 static void mdss_mdp_bus_scale_unregister(struct mdss_data_type *mdata)
@@ -390,16 +390,18 @@ static void mdss_mdp_bus_scale_unregister(struct mdss_data_type *mdata)
 		msm_bus_scale_unregister_client(mdata->bus_hdl);
 }
 
-int mdss_mdp_bus_scale_set_quota(u64 ab_quota, u64 ib_quota)
+int mdss_mdp_bus_scale_set_quota(u64 ab_quota_rt, u64 ab_quota_nrt,
+		u64 ib_quota)
 {
 	int new_uc_idx;
+	u64 ab_quota[2];
 
 	if (mdss_res->bus_hdl < 1) {
 		pr_err("invalid bus handle %d\n", mdss_res->bus_hdl);
 		return -EINVAL;
 	}
 
-	if ((ab_quota | ib_quota) == 0) {
+	if (((ab_quota_rt + ab_quota_nrt) || ib_quota) == 0) {
 		new_uc_idx = 0;
 	} else {
 		int i;
@@ -414,8 +416,15 @@ int mdss_mdp_bus_scale_set_quota(u64 ab_quota, u64 ib_quota)
 		}
 
 		size = SZ_64M / mdss_res->axi_port_cnt;
-
-		ab_quota = div_u64(ab_quota, mdss_res->axi_port_cnt);
+		if (mdss_res->has_fixed_qos_arbiter_enabled &&
+				mdss_res->axi_port_cnt > 1) {
+			ab_quota[0] = ab_quota_rt;
+			ab_quota[1] = ab_quota_nrt;
+		} else {
+			ab_quota[0] = div_u64(ab_quota_rt + ab_quota_nrt,
+					mdss_res->axi_port_cnt);
+			ab_quota[1] = ab_quota[0];
+		}
 
 		new_uc_idx = (mdss_res->curr_bw_uc_idx %
 			(bw_table->num_usecases - 1)) + 1;
@@ -425,14 +434,14 @@ int mdss_mdp_bus_scale_set_quota(u64 ab_quota, u64 ib_quota)
 				vectors[i];
 
 			/* avoid performing updates for small changes */
-			if ((ALIGN(ab_quota, size) == ALIGN(vect->ab, size)) &&
-			    (ALIGN(ib_quota, size) == ALIGN(vect->ib, size))) {
+			if ((ALIGN(ab_quota[i], size) == ALIGN(vect->ab, size))
+			&& (ALIGN(ib_quota, size) == ALIGN(vect->ib, size))) {
 				pr_debug("skip bus scaling, no changes\n");
 				return 0;
 			}
 
 			vect = &bw_table->usecase[new_uc_idx].vectors[i];
-			vect->ab = ab_quota;
+			vect->ab = ab_quota[i];
 			vect->ib = ib_quota;
 
 			pr_debug("uc_idx=%d path_idx=%d ab=%llu ib=%llu\n",
@@ -443,6 +452,32 @@ int mdss_mdp_bus_scale_set_quota(u64 ab_quota, u64 ib_quota)
 
 	return msm_bus_scale_client_update_request(mdss_res->bus_hdl,
 		new_uc_idx);
+}
+
+int mdss_bus_scale_set_quota(int client, u64 ab_quota_rt, u64 ab_quota_nrt,
+		u64 ib_quota)
+{
+	int rc = 0;
+	int i;
+	u64 total_ab_rt = 0, total_ab_nrt = 0;
+	u64 total_ib = 0;
+
+	mutex_lock(&bus_bw_lock);
+
+	mdss_res->ab_rt[client] = ab_quota_rt;
+	mdss_res->ab_nrt[client] = ab_quota_nrt;
+	mdss_res->ib[client] = ib_quota;
+	for (i = 0; i < MDSS_MAX_HW_BLK; i++) {
+		total_ab_rt += mdss_res->ab_rt[i];
+		total_ab_nrt += mdss_res->ab_nrt[i];
+		total_ib = max(total_ib, mdss_res->ib[i]);
+	}
+
+	rc = mdss_mdp_bus_scale_set_quota(total_ab_rt, total_ab_nrt, total_ib);
+
+	mutex_unlock(&bus_bw_lock);
+
+	return rc;
 }
 
 static inline u32 mdss_mdp_irq_mask(u32 intr_type, u32 intf_num)
@@ -865,7 +900,8 @@ static int mdss_mdp_irq_clk_setup(struct mdss_data_type *mdata)
 	/* vsync_clk is optional for non-smart panels */
 	mdss_mdp_irq_clk_register(mdata, "vsync_clk", MDSS_CLK_MDP_VSYNC);
 
-	mdss_mdp_set_clk_rate(MDP_CLK_DEFAULT_RATE);
+	/* Setting the default clock rate to the max supported.*/
+	mdss_mdp_set_clk_rate(mdata->max_mdp_clk_rate);
 	pr_debug("mdp clk rate=%ld\n", mdss_mdp_get_clk_rate(MDSS_CLK_MDP_SRC));
 
 	return 0;
@@ -1238,6 +1274,7 @@ static int mdss_mdp_get_pan_cfg(struct mdss_panel_cfg *pan_cfg)
 	if (!t) {
 		pr_err("pan_name=[%s] invalid\n", pan_name);
 		pan_cfg->pan_intf = MDSS_PANEL_INTF_INVALID;
+		return -EINVAL;
 	}
 
 	if (!strcmp(pan_name, "no_panel")) {
@@ -1364,6 +1401,8 @@ static ssize_t mdss_mdp_show_capabilities(struct device *dev,
 		SPRINT(" non_scalar_rgb");
 	if (mdata->has_src_split)
 		SPRINT(" src_split");
+	if (mdata->max_mixer_width)
+		SPRINT(" max_mixer_width");
 	SPRINT("\n");
 
 	return cnt;
@@ -1743,6 +1782,46 @@ static int  mdss_mdp_parse_dt_pipe_clk_ctrl(struct platform_device *pdev,
 	return rc;
 }
 
+static void mdss_mdp_parse_dt_pipe_panic_ctrl(struct platform_device *pdev,
+	char *prop_name, struct mdss_mdp_pipe *pipe_list, u32 npipes)
+{
+	int rc = 0;
+	int i, j;
+	size_t len;
+	const u32 *arr;
+	struct mdss_mdp_pipe *pipe = NULL;
+	struct mdss_data_type *mdata = platform_get_drvdata(pdev);
+
+	arr = of_get_property(pdev->dev.of_node, prop_name, (int *) &len);
+	if (arr) {
+		len /= sizeof(u32);
+		for (i = 0, j = 0; i < len; j++) {
+			if (j >= npipes) {
+				pr_err("invalid panic ctrl enries for prop: %s\n",
+					prop_name);
+				goto error;
+			}
+
+			pipe = &pipe_list[j];
+			pipe->panic_ctrl_ndx = be32_to_cpu(arr[i++]);
+		}
+		if (j != npipes) {
+			pr_err("%s: %d entries found. required %d\n",
+				prop_name, j, npipes);
+			rc = -EINVAL;
+			goto error;
+		}
+	} else {
+		pr_debug("panic ctrl enabled but property '%s' not found\n",
+								prop_name);
+		rc = -EINVAL;
+	}
+
+error:
+	if (rc)
+		mdata->has_panic_ctrl = false;
+}
+
 static int mdss_mdp_parse_dt_pipe(struct platform_device *pdev)
 {
 	u32 npipes, dma_off;
@@ -1971,6 +2050,20 @@ static int mdss_mdp_parse_dt_pipe(struct platform_device *pdev)
 			mdata->ndma_pipes);
 	}
 
+	mdata->has_panic_ctrl = of_property_read_bool(pdev->dev.of_node,
+		"qcom,mdss-has-panic-ctrl");
+	if (mdata->has_panic_ctrl) {
+		mdss_mdp_parse_dt_pipe_panic_ctrl(pdev,
+			"qcom,mdss-pipe-vig-panic-ctrl-offsets",
+				mdata->vig_pipes, mdata->nvig_pipes);
+		mdss_mdp_parse_dt_pipe_panic_ctrl(pdev,
+			"qcom,mdss-pipe-rgb-panic-ctrl-offsets",
+				mdata->rgb_pipes, mdata->nrgb_pipes);
+		mdss_mdp_parse_dt_pipe_panic_ctrl(pdev,
+			"qcom,mdss-pipe-dma-panic-ctrl-offsets",
+				mdata->dma_pipes, mdata->ndma_pipes);
+	}
+
 	goto parse_done;
 
 parse_fail:
@@ -2008,6 +2101,13 @@ static int mdss_mdp_parse_dt_mixer(struct platform_device *pdev)
 	npingpong = mdss_mdp_parse_dt_prop_len(pdev,
 				"qcom,mdss-pingpong-off");
 	nmixers = mdata->nmixers_intf + mdata->nmixers_wb;
+
+	rc = of_property_read_u32(pdev->dev.of_node,
+			"qcom,max-mixer-width", &mdata->max_mixer_width);
+	if (rc) {
+		pr_err("device tree err: failed to get max mixer width\n");
+		return -EINVAL;
+	}
 
 	if (mdata->nmixers_intf != ndspp) {
 		pr_err("device tree err: unequal no of dspp and intf mixers\n");
@@ -2415,6 +2515,9 @@ static int mdss_mdp_parse_dt_misc(struct platform_device *pdev)
 
 	mdata->has_src_split = of_property_read_bool(pdev->dev.of_node,
 		 "qcom,mdss-has-source-split");
+	mdata->has_fixed_qos_arbiter_enabled =
+			of_property_read_bool(pdev->dev.of_node,
+		 "qcom,mdss-has-fixed-qos-arbiter-enabled");
 	mdata->idle_pc_enabled = of_property_read_bool(pdev->dev.of_node,
 		 "qcom,mdss-idle-power-collapse-enabled");
 
@@ -2424,6 +2527,9 @@ static int mdss_mdp_parse_dt_misc(struct platform_device *pdev)
 		 "qcom,mdss-highest-bank-bit", &(mdata->highest_bank_bit));
 	if (rc)
 		pr_debug("Could not read optional property: highest bank bit\n");
+
+	mdata->has_dst_split = of_property_read_bool(pdev->dev.of_node,
+		 "qcom,mdss-has-dst-split");
 
 	/*
 	 * 2x factor on AB because bus driver will divide by 2

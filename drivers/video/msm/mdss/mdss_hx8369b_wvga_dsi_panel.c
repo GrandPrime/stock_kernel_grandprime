@@ -32,6 +32,12 @@
 
 #if defined(CONFIG_MDNIE_TFT_HIMAX)
 #include "mdnie_tft_himax.h"
+#define DDI_VIDEO_ENHANCE_TUNING
+#endif
+
+#if defined(DDI_VIDEO_ENHANCE_TUNING)
+#include <linux/syscalls.h>
+#include <asm/uaccess.h>
 #endif
 
 #if defined(CONFIG_ESD_ERR_FG_RECOVERY)
@@ -48,6 +54,7 @@ static int lcd_brightness = -1;
 static int is_panel_dtc;
 static int is_panel_boe;
 static int is_ldi_hx8369b;
+static int is_ldi_sc7798a;
 static DEFINE_SPINLOCK(bg_gpio_lock);
 
 #define DT_CMD_HDR 6
@@ -322,6 +329,8 @@ u32 mdss_dsi_panel_cmd_read(struct mdss_dsi_ctrl_pdata *ctrl, char cmd0,
 void mdss_dsi_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl, struct dsi_cmd_desc *cmds, int cnt,int flag)
 {
 	struct dcs_cmd_req cmdreq;
+	if(!get_lcd_attached())
+		return;
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 
@@ -344,6 +353,8 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 			struct dsi_panel_cmds *pcmds)
 {
 	struct dcs_cmd_req cmdreq;
+	if(!get_lcd_attached())
+		return;
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = pcmds->cmds;
@@ -386,24 +397,7 @@ unsigned char mdss_dsi_panel_pwm_scaling(int level)
 	return scaled_level;
 }
 
-#if defined(CONFIG_MACH_ROSSA_AUS)
-unsigned char mdss_dsi_panel_pwm_scaling_dtc(int level)
-{
-	unsigned char scaled_level;
-
-	/*	platform		10~255	:	245	*/
-	/*	DDI			10~245	:	235	*/
-	if(level) {
-		scaled_level = ((level - 10) * 235 / 245) + 10 ;
-	} else {
-		scaled_level = 0;
-	}
-
-	pr_info("%s : level = %d, scaled_level = %d\n", __func__, level, scaled_level);
-
-	return scaled_level;
-}
-#elif defined(CONFIG_MACH_ROSSA_CMCC)
+#if defined(CONFIG_MACH_ROSSA_AUS) || defined(CONFIG_MACH_ROSSA_EUR_OPEN)
 int scaling_step_array[] = {255,253,251,248,246,243,241,238,236,233,
 							231,228,226,223,221,218,216,213,211,208,
 							206,203,201,198,196,193,190,188,185,183,
@@ -420,6 +414,182 @@ int pwm_array[] = {188,187,186,183,180,177,174,171,168,165,
 					107,105,103,101,99,97,95,93,91,89,
 					87,85,84,83,82,81,80,79,78,75,
 					74,73,72,71,70,69,68,67,66,65,
+					64,63,62,61,60,58,56,54,52,50,
+					48,46,44,42,40,38,36,34,32,30,
+					28,27,26,25,24,23,21,20,19,18,
+					17,16,15,14,13,12,11,10,9,8};
+
+unsigned char mdss_dsi_panel_pwm_scaling_boe(int level)
+{
+	unsigned char scaled_level;
+	int i;
+	scaled_level = level;
+	for(i = 0; i < 100; i++)
+	{
+		if(level>=scaling_step_array[i])
+		{
+			scaled_level = pwm_array[i];
+			break;
+		}
+	}
+
+	pr_info("%s:boe  level = [%d]: scaled_level = [%d] \n",__func__,level,scaled_level);
+	return scaled_level;
+}
+unsigned char mdss_dsi_panel_pwm_scaling_dtc(int level)
+{
+	unsigned char scaled_level;
+
+	/*	platform		10~255	:	245	*/
+	/*	DDI			10~245	:	235	*/
+	if(level) {
+		scaled_level = ((level - 10) * 235 / 245) + 10 ;
+	} else {
+		scaled_level = 0;
+	}
+
+	pr_info("%s : level = %d, scaled_level = %d\n", __func__, level, scaled_level);
+
+	return scaled_level;
+}
+#elif defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_VZW) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_SPR)\
+	|| defined(CONFIG_MACH_J1_VZW)
+int scaling_step_array[] = {255,253,251,248,246,243,241,238,236,233,
+							231,228,226,223,221,218,216,213,211,208,
+							206,203,201,198,196,193,190,188,185,183,
+							180,178,175,173,170,168,165,163,160,158,
+							155,153,150,148,145,143,140,138,135,133,
+							130,127,125,122,120,117,115,112,110,107,
+							105,102,100,97,95,92,90,87,85,82,
+							80,77,75,72,70,67,64,62,59,57,
+							54,52,49,47,44,42,39,37,34,32,
+							29,27,24,22,19,17,14,12,9,7};
+int pwm_array[] = {188,187,186,183,180,177,174,171,168,165,
+					162,159,156,153,150,147,144,141,138,135,
+					132,129,126,123,120,117,115,113,111,109,
+					107,105,103,101,99,97,95,93,91,89,
+					87,85,84,83,82,81,80,79,78,75,
+					74,73,72,71,70,69,68,67,66,65,
+					64,63,62,61,60,58,56,54,52,50,
+					48,46,44,42,40,38,36,34,32,30,
+					28,27,26,25,24,23,21,20,19,18,
+					17,16,15,14,13,12,11,10,9,8};
+
+unsigned char mdss_dsi_panel_pwm_scaling_boe(int level)
+{
+	unsigned char scaled_level;
+	int i;
+	scaled_level = level;
+	for(i = 0; i < 100; i++)
+	{
+		if(level>=scaling_step_array[i])
+		{
+			scaled_level = pwm_array[i];
+			break;
+		}
+	}
+
+	pr_info("%s:boe  level = [%d]: scaled_level = [%d] \n",__func__,level,scaled_level);
+	return scaled_level;
+}
+
+unsigned char mdss_dsi_panel_pwm_scaling_dtc(int level)
+{
+	unsigned char scaled_level;
+	int ui_max = 260;
+	unsigned char ui_level[] = {1,15,30,55,70,85,100};
+	unsigned char pwm_level[] = {15,50,70,100,170,200,255};
+	int i;
+	scaled_level = level;
+	for( i = 0; i < 6; i++){
+		if( level*100/ui_max >= ui_level[i] && level*100/ui_max < ui_level[i+1])
+		{
+			scaled_level = pwm_level[i] + (level*100/ui_max - ui_level[i])*(pwm_level[i+1] - pwm_level[i])/(ui_level[i+1] - ui_level[i]);
+			break;
+		}
+	}
+
+	pr_info("%s:dtc  level = [%d]: scaled_level = [%d] \n",__func__,level,scaled_level);
+
+	return scaled_level;
+}
+#elif defined(CONFIG_MACH_ROSSA_AIO)
+int scaling_step_array[] = {255,253,251,248,246,243,241,238,236,233,
+							231,228,226,223,221,218,216,213,211,208,
+							206,203,201,198,196,193,190,188,185,183,
+							180,178,175,173,170,168,165,163,160,158,
+							155,153,150,148,145,143,140,138,135,133,
+							130,127,125,122,120,117,115,112,110,107,
+							105,102,100,97,95,92,90,87,85,82,
+							80,77,75,72,70,67,64,62,59,57,
+							54,52,49,47,44,42,39,37,34,32,
+							29,27,24,22,19,17,14,12,9,7};
+int pwm_array[] = {209,206,203,200,197,194,191,188,185,182,
+					179,176,173,170,167,164,161,158,155,152,
+					149,146,143,140,137,134,131,128,125,122,
+					119,116,113,110,107,104,101,98,95,93,
+					91,89,87,85,83,81,79,77,75,73,
+					71,69,67,65,63,61,59,57,55,53,
+					51,49,47,45,43,42,41,40,39,38,
+					37,36,35,34,33,32,31,30,29,28,
+					27,26,25,24,23,22,21,20,19,18,
+					17,16,15,14,13,12,11,10,9,8};
+
+unsigned char mdss_dsi_panel_pwm_scaling_boe(int level)
+{
+	unsigned char scaled_level;
+	int i;
+	scaled_level = level;
+	for(i = 0; i < 100; i++)
+	{
+		if(level>=scaling_step_array[i])
+		{
+			scaled_level = pwm_array[i];
+			break;
+		}
+	}
+
+	pr_info("%s:boe  level = [%d]: scaled_level = [%d] \n",__func__,level,scaled_level);
+	return scaled_level;
+}
+
+unsigned char mdss_dsi_panel_pwm_scaling_dtc(int level)
+{
+	unsigned char scaled_level;
+	int ui_max = 260;
+	unsigned char ui_level[] = {1,15,30,55,70,85,100};
+	unsigned char pwm_level[] = {15,50,70,100,170,200,255};
+	int i;
+	scaled_level = level;
+	for( i = 0; i < 6; i++){
+		if( level*100/ui_max >= ui_level[i] && level*100/ui_max < ui_level[i+1])
+		{
+			scaled_level = pwm_level[i] + (level*100/ui_max - ui_level[i])*(pwm_level[i+1] - pwm_level[i])/(ui_level[i+1] - ui_level[i]);
+			break;
+		}
+	}
+
+	pr_info("%s:dtc  level = [%d]: scaled_level = [%d] \n",__func__,level,scaled_level);
+
+	return scaled_level;
+}
+#elif defined(CONFIG_MACH_ROSSA_CTC)
+int scaling_step_array[] = {255,253,251,248,246,243,241,238,236,233,
+							231,228,226,223,221,218,216,213,211,208,
+							206,203,201,198,196,193,190,188,185,183,
+							180,178,175,173,170,168,165,163,160,158,
+							155,153,150,148,145,143,140,138,135,133,
+							130,127,125,122,120,117,115,112,110,107,
+							105,102,100,97,95,92,90,87,85,82,
+							80,77,75,72,70,67,64,62,59,57,
+							54,52,49,47,44,42,39,37,34,32,
+							29,27,24,22,19,17,14,12,9,7};
+int pwm_array[] = {188,187,186,183,180,177,174,171,168,165,
+					162,159,156,153,150,147,144,141,138,135,
+					132,129,126,123,120,117,115,113,111,109,
+					108,107,106,105,104,103,102,101,100,99,
+					98,97,96,95,94,93,90,87,84,80,
+					76,73,72,71,70,69,68,67,66,65,
 					64,63,62,61,60,58,56,54,52,50,
 					48,46,44,42,40,38,36,34,32,30,
 					28,26,24,22,21,20,19,18,17,16,
@@ -463,6 +633,7 @@ unsigned char mdss_dsi_panel_pwm_scaling_dtc(int level)
 	
 	return scaled_level;
 }
+
 #endif
 
 static char led_pwm1[2] = {0x51, 0x0};	/* DTYPE_DCS_WRITE1 */
@@ -476,15 +647,15 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	struct dcs_cmd_req cmdreq;
 
 	pr_debug("%s: level=%d\n", __func__, level);
-#if defined(CONFIG_MACH_ROSSA_CMCC)
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_AUS)|| defined(CONFIG_MACH_ROSSA_CTC) || \
+	defined(CONFIG_MACH_ROSSA_VZW) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_SPR) ||\
+	defined(CONFIG_MACH_ROSSA_EUR_OPEN) || defined(CONFIG_MACH_ROSSA_AIO) || defined(CONFIG_MACH_J1_VZW)
 	if(msd.manufacture_id == 0x55c090)
 		led_pwm1[1] = mdss_dsi_panel_pwm_scaling_dtc(level);
-	else if(msd.manufacture_id == 0x55b890)
+	else if(msd.manufacture_id == 0x55b890 || msd.manufacture_id == 0x55b8f0)
 		led_pwm1[1] = mdss_dsi_panel_pwm_scaling_boe(level);
 	else
 		led_pwm1[1] = (unsigned char)level;
-#elif defined(CONFIG_MACH_ROSSA_AUS)
-	led_pwm1[1] = mdss_dsi_panel_pwm_scaling_dtc(level);
 #else
 	led_pwm1[1] = (unsigned char)level;
 #endif
@@ -504,7 +675,7 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
-
+#ifndef CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL
 	if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 		rc = gpio_request(ctrl_pdata->disp_en_gpio,
 						"disp_enable");
@@ -514,6 +685,7 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 			goto disp_en_gpio_err;
 		}
 	}
+#endif
 	rc = gpio_request(ctrl_pdata->rst_gpio, "disp_rst_n");
 	if (rc) {
 		pr_err("request reset gpio failed, rc=%d\n",
@@ -562,9 +734,11 @@ mode_gpio_err:
 bklt_en_gpio_err:
 	gpio_free(ctrl_pdata->rst_gpio);
 rst_gpio_err:
+#ifndef CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL
 	if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 		gpio_free(ctrl_pdata->disp_en_gpio);
 disp_en_gpio_err:
+#endif
 	return rc;
 }
 
@@ -593,9 +767,10 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_err("gpio request failed\n");
 			return rc;
 		}
-
+#ifndef CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+#endif
 #ifdef CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL
 		mdelay(10);
 #endif
@@ -630,6 +805,17 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->bklt_en_gpio), 0);
 			gpio_free(ctrl_pdata->bklt_en_gpio);
 		}
+#if defined(CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
+		if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
+			gpio_set_value((ctrl_pdata->rst_gpio), 0);
+			gpio_free(ctrl_pdata->rst_gpio);
+		}	
+		mdelay(32);
+		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+			gpio_free(ctrl_pdata->disp_en_gpio);
+		}
+#else
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
@@ -638,6 +824,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->rst_gpio), 0);
 			gpio_free(ctrl_pdata->rst_gpio);
 		}
+#endif
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
 	}
@@ -1538,7 +1725,11 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	pinfo->mipi.frame_rate = (!rc ? tmp : 60);
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-clockrate", &tmp);
 	pinfo->clk_rate = (!rc ? tmp : 0);
+#if defined(CONFIG_MACH_ROSSA_CTC)
+	data = of_get_property(np, "qcom,mdss-dsi-panel-timings-boe-ctc", &len);
+#else
 	data = of_get_property(np, "qcom,mdss-dsi-panel-timings", &len);
+#endif
 	if ((!data) || (len != 12)) {
 		pr_err("%s:%d, Unable to read Phy timing settings",
 		       __func__, __LINE__);
@@ -1614,24 +1805,52 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post-dtc", &tmp);
 		pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
 	} else if (is_panel_boe) {
-		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
-				"qcom,mdss-dsi-on-command-boe", "qcom,mdss-dsi-on-command-state");
-		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch-boe", &tmp);
-		pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
-		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-boe", &tmp);
-		pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
-		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-boe", &tmp);
-		pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
-		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch-boe", &tmp);
-		pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
-		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch-boe", &tmp);
-		pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
-		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width-boe", &tmp);
-		pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
-		rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-pre-boe", &tmp);
-		pinfo->mipi.t_clk_pre = (!rc ? tmp : 0x24);
-		rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post-boe", &tmp);
-		pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
+		if (is_ldi_sc7798a)
+		{
+			mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
+				"qcom,mdss-dsi-on-command-sc7798a-boe", "qcom,mdss-dsi-on-command-state");
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch-sc7798a-boe", &tmp);
+			pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-sc7798a-boe", &tmp);
+			pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-sc7798a-boe", &tmp);
+			pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch-sc7798a-boe", &tmp);
+			pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch-sc7798a-boe", &tmp);
+			pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width-sc7798a-boe", &tmp);
+			pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-pre-sc7798a-boe", &tmp);
+			pinfo->mipi.t_clk_pre = (!rc ? tmp : 0x24);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post-sc7798a-boe", &tmp);
+			pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
+		}
+		else
+		{
+			mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
+					"qcom,mdss-dsi-on-command-boe", "qcom,mdss-dsi-on-command-state");
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch-boe", &tmp);
+			pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
+#if defined(CONFIG_MACH_ROSSA_CTC)
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-boe-ctc", &tmp);
+#else
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-boe", &tmp);
+#endif
+			pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-boe", &tmp);
+			pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch-boe", &tmp);
+			pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch-boe", &tmp);
+			pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width-boe", &tmp);
+			pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-pre-boe", &tmp);
+			pinfo->mipi.t_clk_pre = (!rc ? tmp : 0x24);
+			rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post-boe", &tmp);
+			pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
+		}
 	}else {
 		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
 			"qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
@@ -1772,9 +1991,21 @@ static ssize_t mdss_disp_lcdtype_show(struct device *dev,
 {
 	char temp[12] = {0,};
 
-	if (msd.manufacture_id)
-		snprintf(temp, 12, "DTC_%x\n",msd.manufacture_id);
-	else
+	if (msd.manufacture_id) {
+		switch(msd.manufacture_id) {
+		case 0x55b890:
+		case 0x55b8f0:
+			snprintf(temp, 12, "BOE_%x\n",msd.manufacture_id);
+			break;
+		case 0x55c0c0:
+		case 0x55c090:
+			snprintf(temp, 12, "DTC_%x\n",msd.manufacture_id);
+			break;
+		default: 
+			snprintf(temp, 12, "BOE_%x\n",msd.manufacture_id);
+			break;
+		}
+	} else
 		snprintf(temp, 12, "NOT_DEFINED");
 
 	strncat(buf, temp, 12);
@@ -1875,6 +2106,189 @@ void mdss_dsi_panel_cabc_store(unsigned char cabc)
 
 }
 #endif
+#ifdef DDI_VIDEO_ENHANCE_TUNING
+#define MAX_FILE_NAME 128
+#define TUNING_FILE_PATH "/sdcard/"
+#define TUNE_FIRST_SIZE 113
+static char tuning_file[MAX_FILE_NAME];
+static char mdni_tuning1[TUNE_FIRST_SIZE] ={ 0xE6, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+static struct dsi_cmd_desc mdni_tune_cmd[] = {
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+		sizeof(mdni_tuning1)}, mdni_tuning1},
+};
+static char char_to_dec(char data1, char data2)
+{
+	char dec;
+
+	dec = 0;
+
+	if (data1 >= 'a') {
+		data1 -= 'a';
+		data1 += 10;
+	} else if (data1 >= 'A') {
+		data1 -= 'A';
+		data1 += 10;
+	} else
+		data1 -= '0';
+
+	dec = data1 << 4;
+
+	if (data2 >= 'a') {
+		data2 -= 'a';
+		data2 += 10;
+	} else if (data2 >= 'A') {
+		data2 -= 'A';
+		data2 += 10;
+	} else
+		data2 -= '0';
+
+	dec |= data2;
+
+	return dec;
+}
+static void sending_tune_cmd(char *src, int len)
+{
+	int data_pos;
+	int cmd_step;
+	int cmd_pos;
+	struct mdss_panel_data *pdata = msd.mpd;
+	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
+	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+						panel_data);
+
+	cmd_step = 0;
+	cmd_pos = 1;
+	for (data_pos = 0; data_pos < len;) {
+		if (*(src + data_pos) == '0') {
+			if (*(src + data_pos + 1) == 'x') {
+
+				mdni_tuning1[cmd_pos] =
+				char_to_dec(*(src + data_pos + 2),
+						*(src + data_pos + 3));
+
+				data_pos += 3;
+				cmd_pos++;
+			} else
+				data_pos++;
+		} else {
+			data_pos++;
+		}
+	}
+	printk(KERN_INFO "\n");
+	for (data_pos = 0; data_pos < TUNE_FIRST_SIZE ; data_pos++)
+		printk(KERN_INFO "0x%02x  \n", mdni_tuning1[data_pos]);
+	printk(KERN_INFO "\n");
+
+	mutex_lock(&msd.lock);
+	mdss_dsi_cmds_send(ctrl_pdata, &mdni_tune_cmd[0], 1,0);
+	mutex_unlock(&msd.lock);
+
+//	mdss_dsi_cmds_send(ctrl_pdata, mdni_tune_cmd, ARRAY_SIZE(mdni_tune_cmd),0);
+}
+static void load_tuning_file(char *filename)
+{
+	struct file *filp;
+	char *dp;
+	long l;
+	loff_t pos;
+	int ret;
+	mm_segment_t fs;
+
+	pr_info("%s called loading file name : [%s]\n", __func__,
+	       filename);
+
+	fs = get_fs();
+	set_fs(get_ds());
+
+	filp = filp_open(filename, O_RDONLY, 0);
+	if (IS_ERR(filp)) {
+		printk(KERN_ERR "%s File open failed\n", __func__);
+		return;
+	}
+
+	l = filp->f_path.dentry->d_inode->i_size;
+	pr_info("%s Loading File Size : %ld(bytes)", __func__, l);
+
+	dp = kmalloc(l + 10, GFP_KERNEL);
+	if (dp == NULL) {
+		pr_info("Can't not alloc memory for tuning file load\n");
+		filp_close(filp, current->files);
+		return;
+	}
+	pos = 0;
+	memset(dp, 0, l);
+
+	pr_info("%s before vfs_read()\n", __func__);
+	ret = vfs_read(filp, (char __user *)dp, l, &pos);
+	pr_info("%s after vfs_read()\n", __func__);
+
+	if (ret != l) {
+		pr_info("vfs_read() filed ret : %d\n", ret);
+		kfree(dp);
+		filp_close(filp, current->files);
+		return;
+	}
+
+	filp_close(filp, current->files);
+
+	set_fs(fs);
+
+	sending_tune_cmd(dp, l);
+
+	kfree(dp);
+}
+
+static ssize_t tuning_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	ret = snprintf(buf, MAX_FILE_NAME, "tuned file name : %s\n",
+								tuning_file);
+
+	return ret;
+}
+
+static ssize_t tuning_store(struct device *dev,
+			    struct device_attribute *attr, const char *buf,
+			    size_t size)
+{
+	char *pt;
+	memset(tuning_file, 0, sizeof(tuning_file));
+	snprintf(tuning_file, MAX_FILE_NAME, "%s%s", TUNING_FILE_PATH, buf);
+
+	pt = tuning_file;
+	while (*pt) {
+		if (*pt == '\r' || *pt == '\n') {
+			*pt = 0;
+			break;
+		}
+		pt++;
+	}
+
+	pr_info("%s:%s\n", __func__, tuning_file);
+
+	load_tuning_file(tuning_file);
+
+	return size;
+}
+static DEVICE_ATTR(tuning, S_IRUGO | S_IWUSR | S_IWGRP,
+			tuning_show,
+			tuning_store);
+#endif
 
 static int __init detect_lcd_panel_vendor(char* read_id)
 {
@@ -1886,10 +2300,14 @@ static int __init detect_lcd_panel_vendor(char* read_id)
 	} else if(lcd_id == 0x55c090) {
 		is_panel_dtc=1;
 		is_ldi_hx8369b=1;
-	}  else if(lcd_id == 0x55b890) {
+	} else if(lcd_id == 0x55b890) {
 		is_panel_boe = 1;
 		is_panel_dtc = 0;
-	}else {
+	} else if(lcd_id == 0x55b8F0) {
+		is_panel_boe = 1;
+		is_panel_dtc = 0;
+		is_ldi_sc7798a = 1;
+	} else {
 		pr_info("%s: manufacture id read may be faulty id[0x%x]\n", __func__, lcd_id);
 		is_panel_dtc = 0;
 		is_ldi_hx8369b=0;
@@ -1921,6 +2339,9 @@ int mdss_dsi_panel_init(struct device_node *node,
 	pdev = of_find_device_by_node(np);
 #endif
 
+#ifdef DDI_VIDEO_ENHANCE_TUNING
+	mutex_init(&msd.lock);
+#endif
 	if (!node || !ctrl_pdata) {
 		pr_err("%s: Invalid arguments\n", __func__);
 		return -ENODEV;
@@ -1979,6 +2400,14 @@ int mdss_dsi_panel_init(struct device_node *node,
 		return rc;
 	}
 #endif /* CONFIG_LCD_CLASS_DEVICE */
+#if defined(DDI_VIDEO_ENHANCE_TUNING)
+	rc = sysfs_create_file(&lcd_device->dev.kobj,
+			&dev_attr_tuning.attr);
+	if (rc) {
+		pr_info("sysfs create fail-%s\n",
+				dev_attr_tuning.attr.name);
+	}
+#endif
 #if defined(CONFIG_ESD_ERR_FG_RECOVERY)
 #ifdef ESD_DEBUG
 	rc = sysfs_create_file(&lcd_device->dev.kobj,

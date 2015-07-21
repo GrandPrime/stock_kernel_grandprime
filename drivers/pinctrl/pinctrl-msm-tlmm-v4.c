@@ -943,6 +943,59 @@ static const struct of_device_id msm_tlmm_v4_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, msm_tlmm_v4_dt_match);
 
+int msm_tlmm_v4_set_gp_cfg(uint pin_no, uint id, bool level)
+{
+        unsigned int val, data, inout_val;
+        u32 mask = 0, shft = 0;
+		struct msm_pintype_info pinfo = tlmm_v4_pininfo[0];
+        void __iomem *inout_reg = NULL;
+        void __iomem *cfg_reg = TLMMV4_GP_CFG(pinfo.reg_base, pin_no);
+		pr_info("[secgpio_dvs][%s] pin_no = %d, id = %d, level = %d\n",
+				__func__,pin_no,id,level);
+#ifdef ENABLE_SENSORS_FPRINT_SECURE
+		if (pin_no >= 23 && pin_no <= 26)
+			return 0;
+#endif
+        val = readl_relaxed(cfg_reg);
+        /* Get mask and shft values for this config type */
+        switch (id) {
+        case PIN_CONFIG_BIAS_PULL_DOWN:
+                mask = TLMMV4_GP_PULL_MASK;
+                shft = TLMMV4_GP_PULL_SHFT;
+                data = TLMMV4_PULL_DOWN;
+                break;
+        case PIN_CONFIG_BIAS_PULL_UP:
+                mask = TLMMV4_GP_PULL_MASK;
+                shft = TLMMV4_GP_PULL_SHFT;
+                data = TLMMV4_PULL_UP;
+                break;
+		case PIN_CONFIG_BIAS_DISABLE:
+                mask = TLMMV4_GP_PULL_MASK;
+                shft = TLMMV4_GP_PULL_SHFT;
+                data = TLMMV4_NO_PULL;
+                break;
+        case PIN_CONFIG_OUTPUT:
+                mask = TLMMV4_GP_DIR_MASK;
+                shft = TLMMV4_GP_DIR_SHFT;
+                inout_reg = TLMMV4_GP_INOUT(pinfo.reg_base, pin_no);
+                data = level;
+                inout_val = dir_to_inout_val(data);
+                writel_relaxed(inout_val, inout_reg);
+                data = mask;
+                break;
+        default:
+                return -EINVAL;
+        };
+
+        val &= ~(mask << shft);
+        val |= (data << shft);
+		if(id == PIN_CONFIG_OUTPUT)
+			val |= BIT(GPIO_OE_BIT);
+		else
+			val &= ~BIT(GPIO_OE_BIT);
+        writel_relaxed(val, cfg_reg);
+		return 0;
+}
 
 void msm_tlmm_v4_get_gp_cfg(uint pin_no, struct gpiomux_setting *val)
 {

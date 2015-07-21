@@ -50,14 +50,24 @@ extern int current_cable_type;
 #endif
 extern int system_rev;
 extern bool is_cable_attached;
+static struct qpnp_vadc_chip *adc_client;
 
 #include CONFIG_BATTERY_SAMSUNG_DATA_FILE
 
 static void sec_bat_adc_ap_init(struct platform_device *pdev,
         struct sec_battery_info *battery)
 {
-  temp_channel = LR_MUX1_BATT_THERM;
-  pr_info("%s :  temp_channel = %d\n", __func__,temp_channel);
+	adc_client = qpnp_get_vadc(battery->dev, "sec-battery");
+
+	if (IS_ERR(adc_client)) {
+		int rc;
+		rc = PTR_ERR(adc_client);
+		if (rc != -EPROBE_DEFER)
+			pr_err("%s: Fail to get vadc %d\n", __func__, rc);
+	}
+
+	temp_channel = LR_MUX1_BATT_THERM;
+	pr_info("%s :  temp_channel = %d\n", __func__,temp_channel);
 }
 
 static int sec_bat_adc_ap_read(struct sec_battery_info *battery, int channel)
@@ -69,7 +79,7 @@ static int sec_bat_adc_ap_read(struct sec_battery_info *battery, int channel)
   switch (channel)
   {
   case SEC_BAT_ADC_CHANNEL_TEMP :
-    rc = qpnp_vadc_read(NULL, temp_channel, &results);
+    rc = qpnp_vadc_read(adc_client, temp_channel, &results);
     if (rc) {
       pr_err("%s: Unable to read batt temperature rc=%d\n",
         __func__, rc);
@@ -81,7 +91,7 @@ static int sec_bat_adc_ap_read(struct sec_battery_info *battery, int channel)
     data = 33000;
     break;
   case SEC_BAT_ADC_CHANNEL_BAT_CHECK:
-    rc = qpnp_vadc_read(NULL, LR_MUX2_BAT_ID, &results);
+    rc = qpnp_vadc_read(adc_client, LR_MUX2_BAT_ID, &results);
     if (rc) {
       pr_err("%s: Unable to read BATT_ID ADC rc=%d\n",
         __func__, rc);
@@ -91,7 +101,7 @@ static int sec_bat_adc_ap_read(struct sec_battery_info *battery, int channel)
     data = results.physical;
     break;
   case SEC_BAT_ADC_CHANNEL_INBAT_VOLTAGE:
-	rc = qpnp_vadc_read(NULL, VBAT_SNS, &results);
+	rc = qpnp_vadc_read(adc_client, VBAT_SNS, &results);
 	if (rc) {
 		pr_err("%s: Unable to read VBAT_SNS ADC rc=%d\n",
 			__func__, rc);
@@ -245,7 +255,8 @@ bool sec_bat_check_callback(struct sec_battery_info *battery)
   return true;
 }
 
-void sec_bat_check_cable_result_callback(int cable_type)
+void sec_bat_check_cable_result_callback(struct device *dev,
+		int cable_type)
 {
 }
 
@@ -327,26 +338,35 @@ void board_fuelgauge_init(struct sec_fuelgauge_info *fuelgauge)
 	fuelgauge->pdata->capacity_max = CAPACITY_MAX;
 	fuelgauge->pdata->capacity_max_margin = CAPACITY_MAX_MARGIN;
 	fuelgauge->pdata->capacity_min = CAPACITY_MIN;
+#if defined(CONFIG_FUELGAUGE_STC3117)
+    fuelgauge->pdata->battery_data = stc3117_battery_data;
+#endif
 }
 
 void cable_initial_check(struct sec_battery_info *battery)
 {
   union power_supply_propval value;
 
-  pr_info("%s : current_cable_type : (%d)\n", __func__, current_cable_type);
-  if (POWER_SUPPLY_TYPE_BATTERY != current_cable_type) {
-    value.intval = current_cable_type;
-    psy_do_property("battery", set,
-        POWER_SUPPLY_PROP_ONLINE, value);
-  } else {
-    psy_do_property(battery->pdata->charger_name, get,
-        POWER_SUPPLY_PROP_ONLINE, value);
-    if (value.intval == POWER_SUPPLY_TYPE_WIRELESS) {
-      value.intval = 1;
-      psy_do_property("wireless", set,
-          POWER_SUPPLY_PROP_ONLINE, value);
-    }
-  }
+	pr_info("%s : current_cable_type : (%d)\n", __func__, current_cable_type);
+	if (POWER_SUPPLY_TYPE_BATTERY != current_cable_type) {
+		if (current_cable_type == POWER_SUPPLY_TYPE_POWER_SHARING) {
+			value.intval = current_cable_type;
+			psy_do_property("ps", set,
+					POWER_SUPPLY_PROP_ONLINE, value);
+		} else {
+			value.intval = current_cable_type;
+			psy_do_property("battery", set,
+					POWER_SUPPLY_PROP_ONLINE, value);
+		}
+	} else {
+		psy_do_property(battery->pdata->charger_name, get,
+				POWER_SUPPLY_PROP_ONLINE, value);
+		if (value.intval == POWER_SUPPLY_TYPE_WIRELESS) {
+			value.intval = 1;
+			psy_do_property("wireless", set,
+					POWER_SUPPLY_PROP_ONLINE, value);
+		}
+	}
 }
 
 EXPORT_SYMBOL(cable_initial_check);

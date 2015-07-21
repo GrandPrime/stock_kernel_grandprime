@@ -1,7 +1,0 @@
-
-# Imagis Touchscreen driver configuration
-#
-
-config TOUCHSCREEN_IST30XXB
-	tristate "IMAGIS touchscreen driver"
-	depends on I2C

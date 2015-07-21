@@ -93,8 +93,8 @@ typedef struct {
 #define VIBRATION_ON            1
 #define VIBRATION_OFF           0
 
-extern struct class *sec_class;
 int32_t g_nforce_32;
+
 
 #define MOTOR_STRENGTH			98/*MOTOR_STRENGTH 98 %*/
 

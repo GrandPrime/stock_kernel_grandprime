@@ -29,11 +29,11 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 
-
+#ifdef CONFIG_OF
 #if defined(CONFIG_MFD_RT5033_USE_DT) || (LINUX_VERSION_CODE>=KERNEL_VERSION(3,10,0))
 #define RT5033_USE_NEW_MFD_DT_API
 #endif
-
+#endif
 
 #define RT5033_DECLARE_IRQ(irq) { \
 	irq, irq, \
@@ -41,21 +41,22 @@
 
 #ifdef CONFIG_CHARGER_RT5033
 const static struct resource rt5033_charger_res[] = {
-    RT5033_DECLARE_IRQ(RT5033_ADPBAD_IRQ),
+	RT5033_DECLARE_IRQ(RT5033_ADPBAD_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_PPBATLV_IRQ),
-	RT5033_DECLARE_IRQ(RT5033_CHTERMI_IRQ),
+	RT5033_DECLARE_IRQ(RT5033_CHTMRFI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_VINOVPI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_TSDI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_CHMIVRI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_CHTREGI_IRQ),
-	RT5033_DECLARE_IRQ(RT5033_CHTMRFI_IRQ),
-	RT5033_DECLARE_IRQ(RT5033_CHRCHGI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_IEOC_IRQ),
+	RT5033_DECLARE_IRQ(RT5033_CHTERMI_IRQ),
+	RT5033_DECLARE_IRQ(RT5033_CHRCHGI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_CHBATOVI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_CHRVPI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_BSTLOWVI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_BSTOLI_IRQ),
 	RT5033_DECLARE_IRQ(RT5033_BSTVMIDOVP_IRQ),
+	RT5033_DECLARE_IRQ(RT5033_OVPR_IRQ),
 };
 
 static struct mfd_cell rt5033_charger_devs[] = {
@@ -131,6 +132,20 @@ static struct mfd_cell rt5033_regulator_devs[] = {
 	RT5033_VR_DEVS(DCDC1),
 };
 #endif
+
+void rt5033_lock_regulator(struct i2c_client *i2c)
+{
+     struct rt5033_mfd_chip *chip = i2c_get_clientdata(i2c);
+     mutex_lock(&chip->regulator_lock);
+}
+EXPORT_SYMBOL(rt5033_lock_regulator);
+
+void rt5033_unlock_regulator(struct i2c_client *i2c)
+{
+     struct rt5033_mfd_chip *chip = i2c_get_clientdata(i2c);
+     mutex_unlock(&chip->regulator_lock);
+}
+EXPORT_SYMBOL(rt5033_unlock_regulator);
 
 inline static int rt5033_read_device(struct i2c_client *i2c,
 		int reg, int bytes, void *dest)
@@ -271,18 +286,10 @@ static int rt5033mfd_parse_dt(struct device *dev,
 	}
 
 	pdata->irq_base = -1;
-	ret = of_property_read_u32(np, "rt5033,irq-base", (u32*)&pdata->irq_base);
+	ret = of_property_read_u32(np, "rt5033,irq-base", (u32 *)&pdata->irq_base);
 	if (ret < 0 || pdata->irq_base == -1) {
 		dev_info(dev, "%s : no assignment of irq_base, use irq_alloc_descs()\r\n",
 			 __FUNCTION__);
-#ifdef CONFIG_MFD_RT5033_EN_MRSTB
-	ret = pdata->mrstb_gpio = of_get_named_gpio_flags(np,
-			"rt5033,mrstb-gpio", 0, NULL);
-	if (ret < 0) {
-		dev_err(dev, "%s : can't get mrstb-gpio\r\n", __FUNCTION__);
-		return ret;
-	}
-#endif /* CONFIG_MFD_RT5033_EN_MRSTB */
 	}
 	return 0;
 }
@@ -292,15 +299,12 @@ static int rt5033_mfd_probe(struct i2c_client *i2c,
 {
 	int ret = 0;
 	u8 data = 0;
-	//struct device_node *of_node = i2c->dev.of_node;
+	struct device_node *of_node = i2c->dev.of_node;
 	rt5033_mfd_chip_t *chip;
 	rt5033_mfd_platform_data_t *pdata = i2c->dev.platform_data;
 
-	pr_info("%s : RT5033 MFD Driver %s start probing\n",
-            __func__, RT5033_DRV_VER);
-    //if (of_node) 
-	if(1)
-	{
+	pr_info("%s : RT5033 MFD Driver %s start probing\n", __func__, RT5033_DRV_VER);
+	if (of_node) {
 		pdata = devm_kzalloc(&i2c->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			dev_err(&i2c->dev, "Failed to allocate memory\n");
@@ -349,27 +353,17 @@ static int rt5033_mfd_probe(struct i2c_client *i2c,
 	} else {
 		chip->irq_base = pdata->irq_base;
 		pr_info("%s:%s irq_base = %d\n",
-				"rt5033-mfd", __func__, chip->irq_base);
+			"rt5033-mfd", __func__, chip->irq_base);
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(3,4,0))
+		irq_domain_add_legacy(of_node, RT5033_IRQS_NR, chip->irq_base, 0,
+				      &irq_domain_simple_ops, NULL);
+#endif /*(LINUX_VERSION_CODE>=KERNEL_VERSION(3,4,0))*/
 	}
 
 	i2c_set_clientdata(i2c, chip);
 	mutex_init(&chip->io_lock);
+	mutex_init(&chip->regulator_lock);
 	mutex_init(&chip->suspend_flag_lock);
-
-#ifdef CONFIG_MFD_RT5033_EN_MRSTB
-	/* Set MRSTB GPIO pin to high level to indicate that
-	 * system is alive (do NOT do reset) */
-	ret = gpio_request(pdata->mrstb_gpio, "rt5033_mrstb");
-	if (ret == 0) {
-		ret = gpio_direction_output(pdata->mrstb_gpio, 1);
-		if (ret < 0)
-			pr_err("%s : cannot set GPIO%d output direction(%d)\n",
-			__func__, pdata->mrstb_gpio, ret);
-
-	} else
-		pr_info("%s : Request GPIO %d failed\n",
-		       __func__, (int)pdata->mrstb_gpio);
-#endif /* CONFIG_MFD_RT5033_EN_MRSTB */
 
 	wake_lock_init(&(chip->irq_wake_lock), WAKE_LOCK_SUSPEND,
 			"rt5033mfd_wakelock");
@@ -454,11 +448,13 @@ err_add_regulator_devs:
 #endif /*CONFIG_REGULATOR_RT5033*/
 err_init_irq:
 	wake_lock_destroy(&(chip->irq_wake_lock));
+	mutex_destroy(&chip->suspend_flag_lock);
+	mutex_destroy(&chip->regulator_lock);
 	mutex_destroy(&chip->io_lock);
-	kfree(chip);
 irq_base_err:
-err_mfd_nomem:
 err_i2cfunc_not_support:
+	kfree(chip);
+err_mfd_nomem:
 err_parse_dt:
 err_dt_nomem:
 	return ret;
@@ -469,12 +465,10 @@ static int rt5033_mfd_remove(struct i2c_client *i2c)
 	rt5033_mfd_chip_t *chip = i2c_get_clientdata(i2c);
 
 	pr_info("%s : RT5033 MFD Driver remove\n", __func__);
-#ifdef CONFIG_MFD_RT5033_EN_MRSTB
-	gpio_free(chip->pdata->mrstb_gpio);
-#endif /* CONFIG_MFD_RT5033_EN_MRSTB */
 	mfd_remove_devices(chip->dev);
 	wake_lock_destroy(&(chip->irq_wake_lock));
 	mutex_destroy(&chip->suspend_flag_lock);
+	mutex_destroy(&chip->regulator_lock);
 	mutex_destroy(&chip->io_lock);
 	kfree(chip);
 

@@ -5,11 +5,13 @@ obj-$(CONFIG_ARCH_MSM8226)		+= sec_board-msm8226.o
 obj-$(CONFIG_ARCH_APQ8084)		+= sec_board-8084.o
 obj-$(CONFIG_ARCH_MSM8610)		+= sec_board-msm8610.o
 obj-$(CONFIG_ARCH_MSM8916)		+= sec_board-msm8916.o
+obj-$(CONFIG_ARCH_MSM8939)		+= sec_board-msm8939.o
 endif
 obj-$(CONFIG_FUELGAUGE_MAX17042)	+= max17042_fuelgauge.o	sec_fuelgauge.o
 obj-$(CONFIG_FUELGAUGE_MAX17048)	+= max17048_fuelgauge.o	sec_fuelgauge.o
 obj-$(CONFIG_FUELGAUGE_MAX17050)	+= max17050_fuelgauge.o	sec_fuelgauge.o
 obj-$(CONFIG_FUELGAUGE_MAX77823)	+= max77823_fuelgauge.o
+obj-$(CONFIG_FUELGAUGE_STC3117)         += stc3117_fuelgauge.o sec_fuelgauge.o
 obj-$(CONFIG_FUELGAUGE_RT5033)		+= rt5033_fuelgauge.o sec_fuelgauge.o
 
 obj-$(CONFIG_CHARGER_MAX8903)	+= max8903_charger.o
@@ -24,5 +26,6 @@ obj-$(CONFIG_CHARGER_MAX77693)	+= max77693_charger.o
 obj-$(CONFIG_CHARGER_MAX77803)	+= max77803_charger.o
 obj-$(CONFIG_CHARGER_MAX77804K)	+= max77804k_charger.o
 obj-$(CONFIG_CHARGER_MAX77888)  += max77888_charger.o
+obj-$(CONFIG_CHARGER_SM5701)    += sm5701_charger.o
 obj-$(CONFIG_CHARGER_MAX77823)	+= max77823_charger.o
 obj-$(CONFIG_CHARGER_RT5033)    += rt5033_charger.o 

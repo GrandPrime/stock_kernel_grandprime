@@ -351,6 +351,7 @@ static int tspdrv_parse_dt(struct platform_device *pdev)
 }
 
 static struct device *vib_dev;
+extern struct class *sec_class;
 
 static ssize_t show_vib_tuning(struct device *dev,
 				struct device_attribute *attr, char *buf)

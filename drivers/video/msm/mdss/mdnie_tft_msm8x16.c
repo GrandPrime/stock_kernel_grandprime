@@ -31,11 +31,17 @@
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
 #include "mdnie_tft_msm8x16.h"
+#define DDI_VIDEO_ENHANCE_TUNING
+#if defined(DDI_VIDEO_ENHANCE_TUNING)
+#include <linux/syscalls.h>
+#include <asm/uaccess.h>
+#endif
 
 #if defined(CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
 #include "mdnie_tft_data_wvga_hx8369b.h"
+#elif defined(CONFIG_FB_MSM_MIPI_S6D2AA0X_HD_VIDEO_PANEL)
+#include "mdnie_tft_data_s6d2aa0x.h"
 #endif
-
 
 #define MDNIE_TFT_DEBUG
 
@@ -47,11 +53,11 @@
 
 #define MAX_LUT_SIZE	256
 #if defined (CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
-#define PAYLOAD1 mdni_tune_cmd[1]
-#define PAYLOAD2 mdni_tune_cmd[2]
+#define PAYLOAD1 mdni_tune_cmd[5]
+#define PAYLOAD2 mdni_tune_cmd[4]
 #define PAYLOAD3 mdni_tune_cmd[3]
-#define PAYLOAD4 mdni_tune_cmd[4]
-#define PAYLOAD5 mdni_tune_cmd[5]
+#define PAYLOAD4 mdni_tune_cmd[2]
+#define PAYLOAD5 mdni_tune_cmd[1]
 
 #define INPUT_PAYLOAD1(x) PAYLOAD1.payload = x
 #define INPUT_PAYLOAD2(x) PAYLOAD2.payload = x
@@ -59,8 +65,8 @@
 #define INPUT_PAYLOAD4(x) PAYLOAD4.payload = x
 #define INPUT_PAYLOAD5(x) PAYLOAD5.payload = x
 #else
-#define PAYLOAD1 mdni_tune_cmd[2]
-#define PAYLOAD2 mdni_tune_cmd[3]
+#define PAYLOAD1 mdni_tune_cmd[3]
+#define PAYLOAD2 mdni_tune_cmd[2]
 
 #define INPUT_PAYLOAD1(x) PAYLOAD1.payload = x
 #define INPUT_PAYLOAD2(x) PAYLOAD2.payload = x
@@ -143,12 +149,12 @@ static struct dsi_cmd_desc mdni_tune_cmd[] = {
 	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(tune_data5)}, tune_data5},
 	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(cmd_disable)}, cmd_disable},
 #else
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0,
 		sizeof(level1_key)}, level1_key},
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0,
 		sizeof(level2_key)}, level2_key},
 
-	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
+	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0,
 		sizeof(tune_data1)}, tune_data1},
 	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data2)}, tune_data2},
@@ -161,11 +167,11 @@ void print_tun_data(void)
 
 #if defined (CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
 	DPRINT("---- size1 : %d", PAYLOAD1.dchdr.dlen);
-	for (i = 0; i < MDNIE_TUNE_FIRST_SIZE ; i++)
+	for (i = 0; i < MDNIE_TUNE_FIFTH_SIZE ; i++)
 		DPRINT("0x%x ", PAYLOAD1.payload[i]);
 	DPRINT("\n");
 		DPRINT("---- size2 : %d", PAYLOAD2.dchdr.dlen);
-	for (i = 0; i < MDNIE_TUNE_SECOND_SIZE ; i++)
+	for (i = 0; i < MDNIE_TUNE_FOURTH_SIZE ; i++)
 	DPRINT("0x%x ", PAYLOAD2.payload[i]);
 	DPRINT("\n");
 	DPRINT("---- size3 : %d", PAYLOAD3.dchdr.dlen);
@@ -173,21 +179,21 @@ void print_tun_data(void)
 		DPRINT("0x%x ", PAYLOAD3.payload[i]);
 	DPRINT("\n");
 	DPRINT("---- size4 : %d", PAYLOAD4.dchdr.dlen);
-	for (i = 0; i < MDNIE_TUNE_FOURTH_SIZE ; i++)
+	for (i = 0; i < MDNIE_TUNE_SECOND_SIZE ; i++)
 		DPRINT("0x%x ", PAYLOAD4.payload[i]);
 	DPRINT("\n");
 	DPRINT("---- size5 : %d", PAYLOAD5.dchdr.dlen);
-	for (i = 0; i < MDNIE_TUNE_FIFTH_SIZE ; i++)
+	for (i = 0; i < MDNIE_TUNE_FIRST_SIZE ; i++)
 		DPRINT("0x%x ", PAYLOAD5.payload[i]);
 	DPRINT("\n");
 #else
 	DPRINT("\n");
 	DPRINT("---- size1 : %d", PAYLOAD1.dchdr.dlen);
-	for (i = 0; i < MDNIE_TUNE_FIRST_SIZE ; i++)
+	for (i = 0; i < MDNIE_TUNE_SECOND_SIZE ; i++)
 		DPRINT("0x%x ", PAYLOAD1.payload[i]);
 	DPRINT("\n");
 	DPRINT("---- size2 : %d", PAYLOAD2.dchdr.dlen);
-	for (i = 0; i < MDNIE_TUNE_SECOND_SIZE ; i++)
+	for (i = 0; i < MDNIE_TUNE_FIRST_SIZE ; i++)
 		DPRINT("0x%x ", PAYLOAD2.payload[i]);
 	DPRINT("\n");
 #endif
@@ -418,8 +424,8 @@ void mDNIe_Set_Mode(enum Lcd_mDNIe_UI mode)
 #if defined(CONFIG_TDMB)
 	case mDNIe_DMB_MODE:
 		DPRINT(" = DMB MODE =\n");
-		INPUT_PAYLOAD1(TDMB_1);
-		INPUT_PAYLOAD2(TDMB_2);
+/*		INPUT_PAYLOAD1(TDMB_1); */
+/*		INPUT_PAYLOAD2(TDMB_2); */
 		break;
 
 	case mDNIe_DMB_WARM_MODE:
@@ -478,12 +484,16 @@ void is_negative_on(void)
 		DPRINT("mDNIe_Set_Negative = %d\n", mdnie_tun_state.negative);
 		DPRINT(" = NEGATIVE MODE =\n");
 
+#if defined (CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
 		INPUT_PAYLOAD1(NEGATIVE_1);
 		INPUT_PAYLOAD2(NEGATIVE_2);
 		INPUT_PAYLOAD3(NEGATIVE_3);
 		INPUT_PAYLOAD4(NEGATIVE_4);
 		INPUT_PAYLOAD5(NEGATIVE_5);
-
+#else
+		INPUT_PAYLOAD1(NEGATIVE_1);
+		INPUT_PAYLOAD2(NEGATIVE_2);
+#endif
 		sending_tuning_cmd();
 		free_tun_cmd();
 	} else {
@@ -506,12 +516,16 @@ void mDNIe_set_negative(enum Lcd_mDNIe_Negative negative)
 		DPRINT("mDNIe_Set_Negative = %d\n", mdnie_tun_state.negative);
 		DPRINT(" = NEGATIVE MODE =\n");
 
+#if defined (CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
 		INPUT_PAYLOAD1(NEGATIVE_1);
 		INPUT_PAYLOAD2(NEGATIVE_2);
 		INPUT_PAYLOAD3(NEGATIVE_3);
 		INPUT_PAYLOAD4(NEGATIVE_4);
 		INPUT_PAYLOAD5(NEGATIVE_5);
-
+#else
+		INPUT_PAYLOAD1(NEGATIVE_1);
+		INPUT_PAYLOAD2(NEGATIVE_2);
+#endif
 		sending_tuning_cmd();
 		free_tun_cmd();
 	}
@@ -935,6 +949,8 @@ static ssize_t accessibility_store(struct device *dev,
 	} else if (cmd_value == COLOR_BLIND) {
 		mdnie_tun_state.negative = mDNIe_NEGATIVE_OFF;
 		mdnie_tun_state.blind = COLOR_BLIND;
+		memcpy(&COLOR_BLIND_2[MDNIE_COLOR_BLINDE_CMD],
+				buffer, MDNIE_COLOR_BLINDE_CMD);
 	} else if (cmd_value == ACCESSIBILITY_OFF) {
 		mdnie_tun_state.blind = ACCESSIBILITY_OFF;
 		mdnie_tun_state.negative = mDNIe_NEGATIVE_OFF;
@@ -953,6 +969,177 @@ static DEVICE_ATTR(accessibility, 0664,
 
 static struct class *mdnie_class;
 struct device *tune_mdnie_dev;
+
+#ifdef DDI_VIDEO_ENHANCE_TUNING
+#define MAX_FILE_NAME 128
+#define TUNING_FILE_PATH "/sdcard/"
+#define TUNE_FIRST_SIZE 5
+#define TUNE_SECOND_SIZE 92
+static char tuning_file[MAX_FILE_NAME];
+static char mdnie_tuning1[TUNE_FIRST_SIZE];
+static char mdnie_tuning2[TUNE_SECOND_SIZE];
+
+static char char_to_dec(char data1, char data2)
+{
+	char dec;
+
+	dec = 0;
+
+	if (data1 >= 'a') {
+		data1 -= 'a';
+		data1 += 10;
+	} else if (data1 >= 'A') {
+		data1 -= 'A';
+		data1 += 10;
+	} else
+		data1 -= '0';
+
+	dec = data1 << 4;
+
+	if (data2 >= 'a') {
+		data2 -= 'a';
+		data2 += 10;
+	} else if (data2 >= 'A') {
+		data2 -= 'A';
+		data2 += 10;
+	} else
+		data2 -= '0';
+
+	dec |= data2;
+
+	return dec;
+}
+static void sending_tune_cmd(char *src, int len)
+{
+	int data_pos;
+	int cmd_step;
+	int cmd_pos;
+	cmd_step = 0;
+	cmd_pos = 0;
+
+	for (data_pos = 0; data_pos < len;) {
+		if (*(src + data_pos) == '0') {
+			if (*(src + data_pos + 1) == 'x') {
+				if (!cmd_step) {
+					mdnie_tuning1[cmd_pos] =
+					char_to_dec(*(src + data_pos + 2),
+							*(src + data_pos + 3));
+				} else {
+					mdnie_tuning2[cmd_pos] =
+					char_to_dec(*(src + data_pos + 2),
+							*(src + data_pos + 3));
+				}
+				data_pos += 3;
+				cmd_pos++;
+				if (cmd_pos == TUNE_FIRST_SIZE && !cmd_step) {
+					cmd_pos = 0;
+					cmd_step = 1;
+				}
+			} else
+				data_pos++;
+		} else {
+			data_pos++;
+		}
+	}
+
+	INPUT_PAYLOAD1(mdnie_tuning1);
+	INPUT_PAYLOAD2(mdnie_tuning2);
+	print_tun_data();
+
+	sending_tuning_cmd();
+	free_tun_cmd();
+}
+static void load_tuning_file(char *filename)
+{
+	struct file *filp;
+	char *dp;
+	long l;
+	loff_t pos;
+	int ret;
+	mm_segment_t fs;
+
+	pr_info("%s called loading file name : [%s]\n", __func__,
+	       filename);
+
+	fs = get_fs();
+	set_fs(get_ds());
+
+	filp = filp_open(filename, O_RDONLY, 0);
+	if (IS_ERR(filp)) {
+		printk(KERN_ERR "%s File open failed\n", __func__);
+		return;
+	}
+
+	l = filp->f_path.dentry->d_inode->i_size;
+	pr_info("%s Loading File Size : %ld(bytes)", __func__, l);
+
+	dp = kmalloc(l + 10, GFP_KERNEL);
+	if (dp == NULL) {
+		pr_info("Can't not alloc memory for tuning file load\n");
+		filp_close(filp, current->files);
+		return;
+	}
+	pos = 0;
+	memset(dp, 0, l);
+
+	pr_info("%s before vfs_read()\n", __func__);
+	ret = vfs_read(filp, (char __user *)dp, l, &pos);
+	pr_info("%s after vfs_read()\n", __func__);
+
+	if (ret != l) {
+		pr_info("vfs_read() filed ret : %d\n", ret);
+		kfree(dp);
+		filp_close(filp, current->files);
+		return;
+	}
+
+	filp_close(filp, current->files);
+
+	set_fs(fs);
+
+	sending_tune_cmd(dp, l);
+
+	kfree(dp);
+}
+
+static ssize_t tuning_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	ret = snprintf(buf, MAX_FILE_NAME, "tuned file name : %s\n",
+								tuning_file);
+
+	return ret;
+}
+
+static ssize_t tuning_store(struct device *dev,
+			    struct device_attribute *attr, const char *buf,
+			    size_t size)
+{
+	char *pt;
+	memset(tuning_file, 0, sizeof(tuning_file));
+	snprintf(tuning_file, MAX_FILE_NAME, "%s%s", TUNING_FILE_PATH, buf);
+
+	pt = tuning_file;
+	while (*pt) {
+		if (*pt == '\r' || *pt == '\n') {
+			*pt = 0;
+			break;
+		}
+		pt++;
+	}
+
+	pr_info("%s:%s\n", __func__, tuning_file);
+
+	load_tuning_file(tuning_file);
+
+	return size;
+}
+static DEVICE_ATTR(tuning, S_IRUGO | S_IWUSR | S_IWGRP,
+			tuning_show,
+			tuning_store);
+#endif
 
 void init_mdnie_class(void)
 {
@@ -1016,6 +1203,13 @@ void init_mdnie_class(void)
 		(tune_mdnie_dev, &dev_attr_negative) < 0)
 		pr_err("Failed to create device file(%s)!\n",
 			dev_attr_negative.attr.name);
+
+#if defined(DDI_VIDEO_ENHANCE_TUNING)
+	if (device_create_file
+		(tune_mdnie_dev, &dev_attr_tuning) < 0)
+		pr_err("Failed to create device file(%s)!=n",
+			dev_attr_tuning.attr.name);
+#endif
 
 	mdnie_tun_state.mdnie_enable = true;
 

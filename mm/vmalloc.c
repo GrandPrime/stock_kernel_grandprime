@@ -57,38 +57,11 @@ static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end)
 {
 	pte_t *pte;
 
-#ifdef CONFIG_TIMA_RKP_LAZY_MMU
-	unsigned long do_lazy_mmu = 0;
-#endif
-
 	pte = pte_offset_kernel(pmd, addr);
-	
-#ifdef CONFIG_TIMA_RKP_LAZY_MMU
-	if (tima_is_pg_protected((unsigned long)pte) == 1)
-		do_lazy_mmu = 1;
-	if (do_lazy_mmu) {
-		spin_lock(&init_mm.page_table_lock);
-		tima_send_cmd2((unsigned int)pmd, TIMA_LAZY_MMU_START, TIMA_LAZY_MMU_CMDID);
-		flush_tlb_l2_page(pmd);
-		spin_unlock(&init_mm.page_table_lock);
-	}
-#endif
-
-
 	do {
 		pte_t ptent = ptep_get_and_clear(&init_mm, addr, pte);
 		WARN_ON(!pte_none(ptent) && !pte_present(ptent));
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-
-#ifdef CONFIG_TIMA_RKP_LAZY_MMU
-	if (do_lazy_mmu) {
-		spin_lock(&init_mm.page_table_lock);
-		tima_send_cmd2((unsigned int)pmd, TIMA_LAZY_MMU_STOP, TIMA_LAZY_MMU_CMDID);
-		flush_tlb_l2_page(pmd);
-		spin_unlock(&init_mm.page_table_lock);
-	}
-#endif
-
 }
 
 static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
@@ -138,9 +111,6 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
 {
 	pte_t *pte;
-#ifdef CONFIG_TIMA_RKP_LAZY_MMU
-	unsigned long do_lazy_mmu = 0;
-#endif
 
 	/*
 	 * nr is a running index into the array which helps higher level
@@ -150,18 +120,6 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 	pte = pte_alloc_kernel(pmd, addr);
 	if (!pte)
 		return -ENOMEM;
-
-#ifdef CONFIG_TIMA_RKP_LAZY_MMU
-	if (tima_is_pg_protected((unsigned long)pte) == 1)
-		do_lazy_mmu = 1;
-	if (do_lazy_mmu) {
-		spin_lock(&init_mm.page_table_lock);
-		tima_send_cmd2((unsigned int)pmd, TIMA_LAZY_MMU_START, TIMA_LAZY_MMU_CMDID);
-		flush_tlb_l2_page(pmd);
-		spin_unlock(&init_mm.page_table_lock);
-	}
-#endif
-
 	do {
 		struct page *page = pages[*nr];
 
@@ -172,16 +130,6 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
 		(*nr)++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-
-#ifdef CONFIG_TIMA_RKP_LAZY_MMU
-	if (do_lazy_mmu) {
-		spin_lock(&init_mm.page_table_lock);
-		tima_send_cmd2((unsigned int)pmd, TIMA_LAZY_MMU_STOP, TIMA_LAZY_MMU_CMDID);
-		flush_tlb_l2_page(pmd);
-		spin_unlock(&init_mm.page_table_lock);
-	}
-#endif
-
 	return 0;
 }
 
@@ -1415,19 +1363,15 @@ void unmap_kernel_range(unsigned long addr, unsigned long size)
 	flush_tlb_kernel_range(addr, end);
 }
 
-int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
+int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page **pages)
 {
 	unsigned long addr = (unsigned long)area->addr;
 	unsigned long end = addr + area->size - PAGE_SIZE;
 	int err;
 
-	err = vmap_page_range(addr, end, prot, *pages);
-	if (err > 0) {
-		*pages += err;
-		err = 0;
-	}
+	err = vmap_page_range(addr, end, prot, pages);
 
-	return err;
+	return err > 0 ? 0 : err;
 }
 EXPORT_SYMBOL_GPL(map_vm_area);
 
@@ -1730,7 +1674,7 @@ void *vmap(struct page **pages, unsigned int count,
 	if (!area)
 		return NULL;
 
-	if (map_vm_area(area, prot, &pages)) {
+	if (map_vm_area(area, prot, pages)) {
 		vunmap(area->addr);
 		return NULL;
 	}
@@ -1787,7 +1731,7 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 		area->pages[i] = page;
 	}
 
-	if (map_vm_area(area, prot, &pages))
+	if (map_vm_area(area, prot, pages))
 		goto fail;
 	return area->addr;
 

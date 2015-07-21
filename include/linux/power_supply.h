@@ -44,6 +44,7 @@ enum {
 	POWER_SUPPLY_CHARGE_TYPE_NONE,
 	POWER_SUPPLY_CHARGE_TYPE_TRICKLE,
 	POWER_SUPPLY_CHARGE_TYPE_FAST,
+	POWER_SUPPLY_CHARGE_TYPE_TAPER,
 	POWER_SUPPLY_CHARGE_TYPE_SLOW,
 };
 
@@ -57,6 +58,8 @@ enum {
 	POWER_SUPPLY_HEALTH_UNSPEC_FAILURE,
 	POWER_SUPPLY_HEALTH_COLD,
 	POWER_SUPPLY_HEALTH_COOL,
+	POWER_SUPPLY_HEALTH_WATCHDOG_TIMER_EXPIRE,
+	POWER_SUPPLY_HEALTH_SAFETY_TIMER_EXPIRE,
 	POWER_SUPPLY_HEALTH_UNDERVOLTAGE,
 	POWER_SUPPLY_HEALTH_OVERHEATLIMIT,
 };
@@ -192,7 +195,12 @@ enum power_supply_type {
 	POWER_SUPPLY_TYPE_SMART_OTG,		/* 21 */
 	POWER_SUPPLY_TYPE_SMART_NOTG,		/* 22 */
 	POWER_SUPPLY_TYPE_POWER_SHARING,	/* power sharing cable (23) */
-	POWER_SUPPLY_TYPE_HV_MAINS,			/* Adaptive Charger (24) */
+	POWER_SUPPLY_TYPE_HV_PREPARE_MAINS,	/* Prepare Adaptive Charger (24) */
+	POWER_SUPPLY_TYPE_HV_ERR,			/* Adaptive Charger Err (25) */
+	POWER_SUPPLY_TYPE_HV_UNKNOWN,		/* Adaptive Charger Unknown (26) */
+	POWER_SUPPLY_TYPE_HV_MAINS,			/* Adaptive Charger (27) */
+	POWER_SUPPLY_TYPE_MDOCK_TA,			   /* MMdock charger (28) */
+	POWER_SUPPLY_TYPE_USB_PARALLEL,		/* USB Parallel Path */
 	POWER_SUPPLY_TYPE_MAX,
 };
 
@@ -283,6 +291,7 @@ extern int power_supply_set_online(struct power_supply *psy, bool enable);
 extern int power_supply_set_health_state(struct power_supply *psy, int health);
 extern int power_supply_set_present(struct power_supply *psy, bool enable);
 extern int power_supply_set_scope(struct power_supply *psy, int scope);
+extern int power_supply_set_usb_otg(struct power_supply *psy, int otg);
 extern int power_supply_set_charge_type(struct power_supply *psy, int type);
 extern int power_supply_set_supply_type(struct power_supply *psy,
 					enum power_supply_type supply_type);
@@ -316,6 +325,8 @@ static inline int power_supply_set_present(struct power_supply *psy,
 							{ return -ENOSYS; }
 static inline int power_supply_set_scope(struct power_supply *psy,
 							int scope)
+							{ return -ENOSYS; }
+static inline int power_supply_set_usb_otg(struct power_supply *psy, int otg)
 							{ return -ENOSYS; }
 static inline int power_supply_set_charge_type(struct power_supply *psy,
 							int type)

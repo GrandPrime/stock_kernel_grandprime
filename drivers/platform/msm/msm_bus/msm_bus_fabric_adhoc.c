@@ -459,7 +459,7 @@ int msm_bus_update_clks(struct msm_bus_node_device_type *nodedev,
 	req_clk = nodedev->cur_clk_hz[ctx];
 	nodeclk = &nodedev->clk[ctx];
 
-	if (!nodeclk->clk)
+	if (IS_ERR_OR_NULL(nodeclk))
 		goto exit_set_clks;
 
 	if (!nodeclk->dirty || (nodeclk->dirty && (nodeclk->rate < req_clk))) {
@@ -581,15 +581,15 @@ static int msm_bus_qos_enable_clk(struct msm_bus_node_device_type *node)
 		rounded_rate = clk_round_rate(node->qos_clk.clk, 1);
 		ret = setrate_nodeclk(&node->qos_clk, rounded_rate);
 		if (ret) {
-			MSM_BUS_ERR("%s: Failed to enable mas qos clk, node %d",
-				__func__, node->node_info->id);
+			MSM_BUS_ERR("Failed to set bus clk, node %d",
+			 node->node_info->id);
 			goto exit_enable_qos_clk;
 		}
 
 		ret = enable_nodeclk(&node->qos_clk);
 		if (ret) {
-			MSM_BUS_ERR("%s: Failed to enable mas qos clk, node %d",
-				__func__, node->node_info->id);
+			MSM_BUS_ERR("Err enable mas qos clk, node %d ret %d",
+				node->node_info->id, ret);
 			goto exit_enable_qos_clk;
 		}
 	}

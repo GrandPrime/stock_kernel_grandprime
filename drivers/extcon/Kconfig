@@ -45,38 +45,6 @@ config EXTCON_MAX8997
 	  Maxim MAX8997 PMIC. The MAX8997 MUIC is a USB port accessory
 	  detector and switch.
 
-config EXTCON_SM5502
-	tristate "SM5502 EXTCON Support"
-	depends on I2C
-	help
-	  If you say yes here you get support for the MUIC device of
-	  Texas Instrument SM5502. The SM5502 MUIC is a USB port accessory
-	  detector and switch.
-
-config MUIC_SUPPORT_AUDIO_DOCK
-	bool "MUIC_SUPPORT_AUDIO_DOCK"
-	default n
-	help
-	  If you say yes here you will get support for the audio dock.
-
-config MUIC_SUPPORT_DESK_DOCK
-	bool "MUIC_SUPPORT_DESK_DOCK"
-	default n
-	help
-	  If you say yes here you will get support for the desk dock.
-
-config MUIC_SUPPORT_SMART_DOCK
-	bool "MUIC_SUPPORT_SMART_DOCK"
-	default n
-	help
-	  If you say yes here you will get support for the smart dock.
-
-config MUIC_SUPPORT_INCOMPATIBLE_CHARGER
-	bool "MUIC_SUPPORT_INCOMPATIBLE_CHARGER"
-	default n
-	help
-	  If you say yes here you will get support for the incompatible charger.
-
 config EXTCON_ARIZONA
 	tristate "Wolfson Arizona EXTCON support"
 	depends on MFD_ARIZONA && INPUT && SND_SOC

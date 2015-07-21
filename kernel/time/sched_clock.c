@@ -213,7 +213,7 @@ void __init sched_clock_postinit(void)
 
 static int sched_clock_suspend(void)
 {
-        update_sched_clock();
+	update_sched_clock();
 	hrtimer_cancel(&sched_clock_timer);
 	cd.suspended = true;
 	return 0;

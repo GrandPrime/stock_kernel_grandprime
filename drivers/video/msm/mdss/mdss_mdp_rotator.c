@@ -180,6 +180,7 @@ static int mdss_mdp_rotator_pipe_dequeue(struct mdss_mdp_rotator_session *rot)
 					       head);
 
 			rc = mdss_mdp_rotator_busy_wait(tmp);
+			mdss_mdp_smp_release(tmp->pipe);
 			list_del(&tmp->head);
 			if (rc) {
 				pr_err("no pipe attached to session=%d\n",
@@ -441,7 +442,9 @@ int mdss_mdp_rotator_setup(struct msm_fb_data_type *mfd,
 	struct mdss_overlay_private *mdp5_data = mfd_to_mdp5_data(mfd);
 	struct mdss_mdp_rotator_session *rot = NULL;
 	struct mdss_mdp_format_params *fmt;
+	struct mdss_data_type *mdata = mfd_to_mdata(mfd);
 	u32 bwc_enabled;
+	bool format_changed = false;
 	int ret = 0;
 
 	mutex_lock(&rotator_lock);
@@ -475,6 +478,10 @@ int mdss_mdp_rotator_setup(struct msm_fb_data_type *mfd,
 			ret = -ENODEV;
 			goto rot_err;
 		}
+
+		if (rot->format != fmt->format)
+			format_changed = true;
+
 	} else {
 		pr_err("invalid rotator session id=%x\n", req->id);
 		ret = -EINVAL;
@@ -520,7 +527,7 @@ int mdss_mdp_rotator_setup(struct msm_fb_data_type *mfd,
 	if (rot->flags & MDP_ROT_90)
 		swap(rot->dst.w, rot->dst.h);
 
-	if (rot->src_rect.w > MAX_MIXER_WIDTH) {
+	if (rot->src_rect.w > mdata->max_mixer_width) {
 		struct mdss_mdp_rotator_session *tmp;
 		u32 width;
 
@@ -535,7 +542,7 @@ int mdss_mdp_rotator_setup(struct msm_fb_data_type *mfd,
 		pr_debug("setting up split rotation src=%dx%d\n",
 			rot->src_rect.w, rot->src_rect.h);
 
-		if (width > (MAX_MIXER_WIDTH * 2)) {
+		if (width > (mdata->max_mixer_width * 2)) {
 			pr_err("unsupported source width %d\n", width);
 			ret = -EOVERFLOW;
 			goto rot_err;
@@ -593,6 +600,12 @@ int mdss_mdp_rotator_setup(struct msm_fb_data_type *mfd,
 	}
 
 	rot->params_changed++;
+
+	/* If the format changed, release the smp alloc */
+	if (format_changed && rot->pipe) {
+		mdss_mdp_rotator_busy_wait(rot);
+		mdss_mdp_smp_release(rot->pipe);
+	}
 
 	ret = __mdss_mdp_rotator_pipe_reserve(rot);
 	if (!ret && rot->next)
@@ -696,6 +709,7 @@ int mdss_mdp_rotator_play(struct msm_fb_data_type *mfd,
 	struct mdss_mdp_rotator_session *rot;
 	int ret;
 	u32 flgs;
+	struct mdss_mdp_data src_buf;
 
 	mutex_lock(&rotator_lock);
 	rot = mdss_mdp_rotator_session_get(req->id);
@@ -705,6 +719,8 @@ int mdss_mdp_rotator_play(struct msm_fb_data_type *mfd,
 		goto dst_buf_fail;
 	}
 
+	memset(&src_buf, 0, sizeof(struct mdss_mdp_data));
+
 	flgs = rot->flags & MDP_SECURE_OVERLAY_SESSION;
 
 	ret = mdss_mdp_rotator_busy_wait_ex(rot);
@@ -713,12 +729,14 @@ int mdss_mdp_rotator_play(struct msm_fb_data_type *mfd,
 		goto dst_buf_fail;
 	}
 
-	mdss_mdp_overlay_free_buf(&rot->src_buf);
-	ret = mdss_mdp_overlay_get_buf(mfd, &rot->src_buf, &req->data, 1, flgs);
+	ret = mdss_mdp_overlay_get_buf(mfd, &src_buf, &req->data, 1, flgs);
 	if (ret) {
 		pr_err("src_data pmem error\n");
+		mdss_mdp_overlay_free_buf(&rot->src_buf);
 		goto dst_buf_fail;
 	}
+	mdss_mdp_overlay_free_buf(&rot->src_buf);
+	memcpy(&rot->src_buf, &src_buf, sizeof(struct mdss_mdp_data));
 
 	mdss_mdp_overlay_free_buf(&rot->dst_buf);
 	ret = mdss_mdp_overlay_get_buf(mfd, &rot->dst_buf,

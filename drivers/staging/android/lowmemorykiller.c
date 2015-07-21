@@ -92,7 +92,6 @@ static unsigned long lowmem_deathpending_timeout;
 			pr_info(x);			\
 	} while (0)
 
-#if defined(CONFIG_SEC_DEBUG_LMK_MEMINFO)
 static void dump_tasks_info(void)
 {
 	struct task_struct *p;
@@ -116,15 +115,14 @@ static void dump_tasks_info(void)
 			continue;
 		}
 
-		pr_info("[%5d] %5d %5d %8lu %8lu %3u	 %5d %s\n",
-		task->pid, task_uid(task), task->tgid,
-		task->mm->total_vm, get_mm_rss(task->mm),
-		task_cpu(task),
-		task->signal->oom_score_adj, task->comm);
+		pr_info("[%5d] %5d %5d %8lu %8lu %3u     %5d %s\n",
+				task->pid, task_uid(task), task->tgid,
+				task->mm->total_vm, get_mm_rss(task->mm),
+				task_cpu(task),
+				task->signal->oom_score_adj, task->comm);
 		task_unlock(task);
 	}
 }
-#endif
 
 static int test_task_flag(struct task_struct *p, int flag)
 {
@@ -338,9 +336,7 @@ static int android_oom_handler(struct notifier_block *nb,
 	int selected_tasksize = 0;
 	int selected_oom_score_adj;
 #endif
-#ifdef CONFIG_SEC_DEBUG_LMK_MEMINFO
 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL/5, 1);
-#endif
 
 	unsigned long *freed = data;
 
@@ -349,12 +345,10 @@ static int android_oom_handler(struct notifier_block *nb,
 		"oom_score_adj=%d\n",
 		current->comm,
 		current->signal->oom_score_adj);
-#ifdef CONFIG_SEC_DEBUG_LMK_MEMINFO
 	dump_stack();
 	show_mem(SHOW_MEM_FILTER_NODES);
 	if (__ratelimit(&oom_rs))
 		dump_tasks_info();
-#endif
 
 	min_score_adj = 0;
 #ifdef MULTIPLE_OOM_KILLER
@@ -457,7 +451,6 @@ static int android_oom_handler(struct notifier_block *nb,
 #ifdef OOM_COUNT_READ
 			oom_count++;
 #endif
-
 		}
 	}
 #else

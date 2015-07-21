@@ -30,3 +30,7 @@ obj-$(CONFIG_INPUT_KEYRESET)	+= keyreset.o
 # Input Booster
 obj-$(CONFIG_INPUT_BOOSTER)	+= input_booster.o
 
+# Led driver
+ifdef CONFIG_SEC_FACTORY
+obj-$(CONFIG_INPUT_SECLED)	+= sec_led.o
+endif

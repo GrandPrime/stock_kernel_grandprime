@@ -36,13 +36,21 @@
 	{  0x32,	 0x03  },
 	{  0x33,	 0x1B  },
 	{  0x34,	 0x60  },
-	{  0x37,	 0xA0  },
+	{  0x37,	 0xA8  },
 	{  0x38,	 0x08  },
-	{  0x39,	 0x53  },
+#if (RTV_SRC_CLK_FREQ_KHz == 26000)
+#if defined(RAONTV_CHIP_PKG_WLCSP)
+	{  0x39,	 0x33  },
+#else
+	{  0x39,	 0x33  },
+#endif
+#else
+	{  0x39,	 0x33  },
+#endif
 	{  0x3A,	 0xDC  },
 	{  0x3B,	 0xD0  },
-	{  0x3C,	 0x0B  },
-	{  0x3D,	 0x76  },
+	{  0x3C,	 0xEB  }, // 0x0B => 0xEB
+	{  0x3D,	 0xF6  },
 	{  0x3E,	 0x4F  },
 	{  0x3F,	 0x26  },
 	{  0x40,	 0xDA  },
@@ -161,9 +169,9 @@ static INT rtvRF_Lna_Tuning( U32 dwLoFreq)
 
 	RTV_REG_MAP_SEL(RF_PAGE);
 
-	RTV_REG_MASK_SET(0x3E,0x3F,g_atLNAtbl[nidx][0]);
+	RTV_REG_MASK_SET(0x3E,0x1F,g_atLNAtbl[nidx][0]);
 	RTV_REG_MASK_SET(0x42,0x03,g_atLNAtbl[nidx][1]);
-	RTV_REG_MASK_SET(0x3C,0x3F,g_atLNAtbl[nidx][2]);
+	RTV_REG_MASK_SET(0x3C,0x1F,g_atLNAtbl[nidx][2]);
 	RTV_REG_MASK_SET(0x41,0xF1,g_atLNAtbl[nidx][3]<<3);
 	RTV_REG_MASK_SET(0xA9,0xF0,g_atLNAtbl[nidx][4]<<4);
 
@@ -206,6 +214,7 @@ INT rtvRF_ChangeAdcClock(E_RTV_TV_MODE_TYPE eTvMode,
 
 	RTV_REG_MAP_SEL(OFDM_PAGE);
 
+#if !((RTV_SRC_CLK_FREQ_KHz == 26000) && defined(RAONTV_CHIP_INTEGER_MODE_EN))
 	if (dwIFFreq == 857) {
 		RTV_REG_SET(0x18, ( ptOfdmCfgTbl->dwPNCO2  >> 0 ));  
 		RTV_REG_SET(0x19, ( ptOfdmCfgTbl->dwPNCO2  >> 8 ));
@@ -218,6 +227,7 @@ INT rtvRF_ChangeAdcClock(E_RTV_TV_MODE_TYPE eTvMode,
 		RTV_REG_SET(0x1A, ( ptOfdmCfgTbl->dwPNCO1  >> 16));
 		RTV_REG_SET(0x1B, ( ptOfdmCfgTbl->dwPNCO1  >> 24));
 	}
+#endif
 
 	if (eAdcClkFreqType == g_eRtvAdcClkFreqType)
 		return RTV_SUCCESS;
@@ -275,7 +285,7 @@ INT rtvRF_SetFrequency(E_RTV_TV_MODE_TYPE eTvMode, UINT nChNum, U32 dwChFreqKHz)
 	S16 dwIFfREQ = 0;
 	U8 WR2A,RD15;
 	U32 PLL_Verify_cnt = 10;
-#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+#if defined(RAONTV_CHIP_INTEGER_MODE_EN)
 	U8 nPllr=4;
 #else
 	U8 nPllr=1;
@@ -293,9 +303,32 @@ INT rtvRF_SetFrequency(E_RTV_TV_MODE_TYPE eTvMode, UINT nChNum, U32 dwChFreqKHz)
 	g_bAdjRefL = 0x4F;
 
     /* Get the PLLNF and ADC clock type. */
+#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+	switch (nChNum) {
+	case 15: case 24: case 33: case 42: case 51:
+		eAdcClkFreqType = g_aeAdcClkTypeTbl_ISDBT[2];
+		break;
+	case 60:
+		eAdcClkFreqType = g_aeAdcClkTypeTbl_ISDBT[0];
+		break;
+	default:
+		eAdcClkFreqType = g_aeAdcClkTypeTbl_ISDBT[1];
+		break;
+	}
+
+#else
 	switch (nChNum) {
 	case 14: case 22: case 38: case 46: case 54: case 57: case 62:
+#if (RTV_SRC_CLK_FREQ_KHz == 26000)
+#if defined(RAONTV_CHIP_PKG_WLCSP)
+	case 17: case 25: case 26: case 49: case 65:
+#else
 	case 17: case 25: case 26: case 33: case 49: case 65:
+#endif
+
+#else
+	case 17: case 25: case 26: case 33: case 49: case 65:
+#endif
 		eAdcClkFreqType = g_aeAdcClkTypeTbl_ISDBT[2];
 		break;
 	case 30: case 41: case 61:
@@ -305,18 +338,24 @@ INT rtvRF_SetFrequency(E_RTV_TV_MODE_TYPE eTvMode, UINT nChNum, U32 dwChFreqKHz)
 		eAdcClkFreqType = g_aeAdcClkTypeTbl_ISDBT[0];
 		break;
 	}
+#endif
 
-#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+#if ((RTV_SRC_CLK_FREQ_KHz == 19200) && defined(RAONTV_CHIP_INTEGER_MODE_EN))
 	if (nChNum & 0x01)
 		dwIFfREQ = -343;
 	else
 		dwIFfREQ = 857;
 #else
-	dwIFfREQ = 500;
+#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+	dwIFfREQ = -342;
+#else
+	dwIFfREQ = -500;
+#endif
+
 #endif
 
 	dwLoFreq = dwChFreqKHz + dwIFfREQ;
-    dwPllFreq = dwLoFreq << 1;
+	dwPllFreq = dwLoFreq << 1;
      
 	if (rtvRF_Lna_Tuning(dwLoFreq) != RTV_SUCCESS) {
 		nRet = RTV_INVAILD_FREQ;
@@ -338,18 +377,35 @@ INT rtvRF_SetFrequency(E_RTV_TV_MODE_TYPE eTvMode, UINT nChNum, U32 dwChFreqKHz)
 		RTV_REG_MASK_SET(0x56,0x0C,0x04);
 	}
 
-
     /* Set the PLLNF and channel. */
+#if (RTV_SRC_CLK_FREQ_KHz == 26000) && defined(RAONTV_CHIP_INTEGER_MODE_EN)
+
+	RTV_REG_MAP_SEL(OFDM_PAGE);
+	RTV_REG_SET(0x18, ( g_aPllnSynTbl[nChNum-13][0]  >> 0 ));
+	RTV_REG_SET(0x19, ( g_aPllnSynTbl[nChNum-13][0]  >> 8 ));
+	RTV_REG_SET(0x1A, ( g_aPllnSynTbl[nChNum-13][0]  >> 16));
+	RTV_REG_SET(0x1B, ( g_aPllnSynTbl[nChNum-13][0]  >> 24));
+
+	RTV_REG_MAP_SEL(RF_PAGE);
+	RTV_REG_MASK_SET(0x2B, 0xF0, g_aPllnSynTbl[nChNum-13][1]<<4);
+
+	dwPLLN = g_aPllnSynTbl[nChNum-13][2];
+	dwPLLF = 0;
+	dwPLLNF = (dwPLLN<<20);
+
+#else
+
 	dwPLLN = dwPllFreq / RTV_SRC_CLK_FREQ_KHz;
 	dwPLLF = dwPllFreq - (dwPLLN* RTV_SRC_CLK_FREQ_KHz);
 	dwPLLNF = ((dwPLLN<<20 )
 	     	+ (((dwPLLF<<16) / (RTV_SRC_CLK_FREQ_KHz>>r_div)) << pllf_mul))
 	     	* nPllr ; 
+#endif
 
 	RTV_REG_MAP_SEL(RF_PAGE);
 	RTV_REG_SET(0x21, ((dwPLLNF>>22)&0xFF));
 
-#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+#if defined(RAONTV_CHIP_INTEGER_MODE_EN)
 	RTV_REG_SET(0x22, ((dwPLLNF>>14)&0xC0));
 	RTV_REG_SET(0x2A, 0x00);
 	RTV_REG_SET(0x23, 0x00);
@@ -365,9 +421,13 @@ INT rtvRF_SetFrequency(E_RTV_TV_MODE_TYPE eTvMode, UINT nChNum, U32 dwChFreqKHz)
     RTV_REG_MASK_SET(0x2E,0x40,0x00);
 #else
 	RTV_REG_SET(0x22, ((dwPLLNF>>14)&0xFF));
+#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+	RTV_REG_SET(0x2A, 0x00);
+	RTV_REG_SET(0x23, 0x00);
+#else
 	RTV_REG_SET(0x2A, (dwPLLNF&0x3F));
 	RTV_REG_SET(0x23, ((dwPLLNF>>6)&0xFF));
-
+#endif
 	WR2A = RTV_REG_GET(0x2A) & 0x3F;
 	RTV_REG_SET(0x2A, (WR2A | 0x80));
 	RTV_REG_SET(0x2A, (WR2A | 0xC0));
@@ -375,16 +435,21 @@ INT rtvRF_SetFrequency(E_RTV_TV_MODE_TYPE eTvMode, UINT nChNum, U32 dwChFreqKHz)
 	RTV_REG_SET(0x2A, (WR2A | 0x80));
 	RTV_REG_SET(0x2A, (WR2A | 0x00));
 
+#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+	RTV_REG_MASK_SET(0x2E,0x40,0x40);
+	RTV_REG_MASK_SET(0x2E,0x40,0x00);
+#endif
+
 #endif
 
 	do {
-	RTV_DELAY_MS(1);
+		RTV_DELAY_MS(1);
 
 		RD15 = RTV_REG_GET(0x10);
 		if ((RD15 & 0x20) == 0x20)
 			break;
 		else {
-#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+#if defined(RAONTV_CHIP_INTEGER_MODE_EN)
 			RTV_REG_SET(0x2A, (WR2A | 0x80)); 
 			RTV_REG_SET(0x2A, (WR2A | 0xC0)); 
 			RTV_DELAY_MS(1);
@@ -400,9 +465,17 @@ INT rtvRF_SetFrequency(E_RTV_TV_MODE_TYPE eTvMode, UINT nChNum, U32 dwChFreqKHz)
 			RTV_DELAY_MS(1);
 			RTV_REG_SET(0x2A, (WR2A | 0x80)); 
 			RTV_REG_SET(0x2A, (WR2A | 0x00)); 
+
+#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+			RTV_REG_MASK_SET(0x2E,0x40,0x40);
+			RTV_REG_MASK_SET(0x2E,0x40,0x00);
+#endif
+
 #endif
 		}
 	} while (--PLL_Verify_cnt);
+
+	RTV_DELAY_MS(20);
 
 	RTV_REG_MAP_SEL(OFDM_PAGE);
 	RTV_REG_MASK_SET(0x10, 0x01, 0x01);
@@ -447,7 +520,7 @@ INT rtvRF_Initilize(E_RTV_TV_MODE_TYPE eTvMode)
 		ptInitTbl++;
 	} while (--nNumTblEntry);
 
-#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+#if defined(RAONTV_CHIP_INTEGER_MODE_EN)
 	RTV_REG_MASK_SET(0x2B, 0xF0, 4<<4); //PLLR
 	RTV_REG_MASK_SET(0x2E, 0x80, 0x00);//DTHEN =0;
 
@@ -476,7 +549,6 @@ INT rtvRF_Initilize(E_RTV_TV_MODE_TYPE eTvMode)
 	RTV_REG_SET(0xA7, 0x1E);
 #else
 	RTV_REG_MASK_SET(0x2B, 0xF0, 1<<4); //PLLR
-	RTV_REG_MASK_SET(0x2E, 0x80,0x80);//DTHEN =1;
 
 	RTV_REG_MASK_SET(0x52, 0x20, 0x00); //EN_DIG_VCOTEMPCON	0
 	RTV_REG_MASK_SET(0x2B, 0x03, 0x02); //SEL_VP  2
@@ -487,6 +559,27 @@ INT rtvRF_Initilize(E_RTV_TV_MODE_TYPE eTvMode)
 	RTV_REG_MASK_SET(0x56, 0x0C, 0x04); //BM_VCOCORE_I2C  1
 	RTV_REG_MASK_SET(0x88, 0xE0, 0x80); //ICONDIV1  4
 	RTV_REG_MASK_SET(0x5D, 0xE0, 0xC0); //LDO_OUTSEL  6
+
+#if (RTV_SRC_CLK_FREQ_KHz == 19200)
+	RTV_REG_MASK_SET(0x2E, 0x80, 0x00);//DTHEN =0;
+
+	RTV_REG_SET(0x94,0xC3);
+	RTV_REG_SET(0x95,0x01);
+	RTV_REG_SET(0x96,0x43);
+	RTV_REG_SET(0x97,0x83);
+	RTV_REG_SET(0x98,0xC1);
+	RTV_REG_SET(0x99,0x70);
+	RTV_REG_SET(0x9A,0x41);
+	RTV_REG_SET(0x9B,0x45);
+	RTV_REG_SET(0x9C,0x43);
+	RTV_REG_SET(0x9D,0x2D);
+	RTV_REG_SET(0x9E,0xBF);
+	RTV_REG_SET(0x9F,0x78);
+	RTV_REG_SET(0xA6,0x35);
+	RTV_REG_SET(0xA7,0xE9);
+#else
+    RTV_REG_MASK_SET(0x2E, 0x80,0x80);//DTHEN =1;
+
 	RTV_REG_SET(0x94,0xC3); 	
 	RTV_REG_SET(0x95,0x70); 	
 	RTV_REG_SET(0x96,0x43); 		
@@ -501,6 +594,8 @@ INT rtvRF_Initilize(E_RTV_TV_MODE_TYPE eTvMode)
 	RTV_REG_SET(0x9F,0xD7); 	
 	RTV_REG_SET(0xA6,0x3B); 					
 	RTV_REG_SET(0xA7,0x11); 
+#endif
+
 #endif
 
 	return RTV_SUCCESS;

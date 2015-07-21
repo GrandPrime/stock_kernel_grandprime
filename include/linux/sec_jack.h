@@ -14,8 +14,13 @@
 
 #ifndef __ASM_ARCH_SEC_HEADSET_H
 #define __ASM_ARCH_SEC_HEADSET_H
+#include <sound/soc.h>
+#include <sound/jack.h>
 
 #ifdef __KERNEL__
+
+#define SEC_SYSFS_FOR_FACTORY_TEST
+//#define SEC_USE_SOC_JACK_API 
 
 enum {
 	SEC_JACK_NO_DEVICE				= 0x0,
@@ -47,10 +52,14 @@ struct sec_jack_platform_data {
 	struct sec_jack_zone jack_zones[4];
 	struct sec_jack_buttons_zone jack_buttons_zones[3];
 	int mpp_ch_scale[3];
-#ifdef CONFIG_ARCH_MSM8916
 	struct pinctrl *jack_pinctrl;
-#endif
 };
+
+#if defined (SEC_USE_SOC_JACK_API)
+#define SEC_JACK_BUTTON_MASK (SND_JACK_BTN_0 | SND_JACK_BTN_1 | SND_JACK_BTN_2)
+#endif
+
+extern int sec_jack_soc_init(struct snd_soc_card *card);
 
 #endif
 

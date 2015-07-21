@@ -1122,7 +1122,7 @@ static void msm_bus_bimc_set_qos_mode(void __iomem *base,
 	switch (qmode_sel) {
 	case BIMC_QOS_MODE_FIXED:
 		reg_val = readl_relaxed(M_BKE_EN_ADDR(base,
-			mas_index)) & M_BKE_EN_RMSK;
+			mas_index));
 		writel_relaxed((reg_val & (~M_BKE_EN_EN_BMSK)),
 			M_BKE_EN_ADDR(base, mas_index));
 		/* Ensure that the book-keeping register writes
@@ -1136,7 +1136,7 @@ static void msm_bus_bimc_set_qos_mode(void __iomem *base,
 
 	case BIMC_QOS_MODE_BYPASS:
 		reg_val = readl_relaxed(M_BKE_EN_ADDR(base,
-			mas_index)) & M_BKE_EN_RMSK;
+			mas_index));
 		writel_relaxed((reg_val & (~M_BKE_EN_EN_BMSK)),
 			M_BKE_EN_ADDR(base, mas_index));
 		/* Ensure that the book-keeping register writes
@@ -1152,7 +1152,7 @@ static void msm_bus_bimc_set_qos_mode(void __iomem *base,
 	case BIMC_QOS_MODE_LIMITER:
 		set_qos_mode(base, mas_index, 0, 0, 0);
 		reg_val = readl_relaxed(M_BKE_EN_ADDR(base,
-			mas_index)) & M_BKE_EN_RMSK;
+			mas_index));
 		val = 1 << M_BKE_EN_EN_SHFT;
 		/* Ensure that the book-keeping register writes
 		 * go through before setting QoS mode.
@@ -1470,12 +1470,12 @@ static void free_commit_data(void *cdata)
 static void bke_switch(
 	void __iomem *baddr, uint32_t mas_index, bool req, int mode)
 {
-	uint32_t reg_val, val;
+	uint32_t reg_val, val, cur_val;
 
 	val = req << M_BKE_EN_EN_SHFT;
-	reg_val = readl_relaxed(M_BKE_EN_ADDR(baddr, mas_index)) &
-		M_BKE_EN_RMSK;
-	if (val == reg_val)
+	reg_val = readl_relaxed(M_BKE_EN_ADDR(baddr, mas_index));
+	cur_val = reg_val & M_BKE_EN_RMSK;
+	if (val == cur_val)
 		return;
 
 	if (!req && mode == BIMC_QOS_MODE_FIXED)

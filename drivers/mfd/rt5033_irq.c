@@ -46,6 +46,7 @@ static const char *rt5033_irq_names[] = {
 	IRQ_NAME(RT5033_BSTLOWVI_IRQ),
 	IRQ_NAME(RT5033_BSTOLI_IRQ),
 	IRQ_NAME(RT5033_BSTVMIDOVP_IRQ),
+	IRQ_NAME(RT5033_OVPR_IRQ),
 	IRQ_NAME(RT5033_VF_L_IRQ),
 	IRQ_NAME(RT5033_LEDCS2_SHORT_IRQ),
 	IRQ_NAME(RT5033_LEDCS1_SHORT_IRQ),
@@ -56,7 +57,6 @@ static const char *rt5033_irq_names[] = {
 	IRQ_NAME(RT5033_OT_IRQ),
 	IRQ_NAME(RT5033_VDDA_UV_IRQ),
 };
-
 
 const char *rt5033_get_irq_name_by_index(int index)
 {
@@ -90,33 +90,34 @@ static const u8 rt5033_mask_reg[] = {
 	[(idx)] = { .offset = (_offset), .mask = (_mask) }
 
 static const struct rt5033_irq_data rt5033_irqs[] = {
-	DECLARE_IRQ_CTRL(RT5033_ADPBAD_IRQ, 0, 1<<0),
-	DECLARE_IRQ_CTRL(RT5033_PPBATLV_IRQ, 0, 1<<4),
-	DECLARE_IRQ_CTRL(RT5033_CHTERMI_IRQ, 0, 1<<5),
-	DECLARE_IRQ_CTRL(RT5033_VINOVPI_IRQ, 0, 1<<6),
-	DECLARE_IRQ_CTRL(RT5033_TSDI_IRQ, 0, 1<<7),
-	DECLARE_IRQ_CTRL(RT5033_CHMIVRI_IRQ, 1, 1<<0),
-	DECLARE_IRQ_CTRL(RT5033_CHTREGI_IRQ, 1, 1<<1),
-	DECLARE_IRQ_CTRL(RT5033_CHTMRFI_IRQ, 1, 1<<2),
-	DECLARE_IRQ_CTRL(RT5033_CHRCHGI_IRQ, 1, 1<<3),
-    DECLARE_IRQ_CTRL(RT5033_IEOC_IRQ, 1, 1<<4),
-	DECLARE_IRQ_CTRL(RT5033_CHBATOVI_IRQ, 1, 1<<5),
-	DECLARE_IRQ_CTRL(RT5033_CHRVPI_IRQ, 1, 1<<7),
+	DECLARE_IRQ_CTRL(RT5033_ADPBAD_IRQ, 0, 1 << 0),
+	DECLARE_IRQ_CTRL(RT5033_PPBATLV_IRQ, 0, 1 << 4),
+	DECLARE_IRQ_CTRL(RT5033_CHTERMI_IRQ, 0, 1 << 5),
+	DECLARE_IRQ_CTRL(RT5033_VINOVPI_IRQ, 0, 1 << 6),
+	DECLARE_IRQ_CTRL(RT5033_TSDI_IRQ, 0, 1 << 7),
+	DECLARE_IRQ_CTRL(RT5033_CHMIVRI_IRQ, 1, 1 << 0),
+	DECLARE_IRQ_CTRL(RT5033_CHTREGI_IRQ, 1, 1 << 1),
+	DECLARE_IRQ_CTRL(RT5033_CHTMRFI_IRQ, 1, 1 << 2),
+	DECLARE_IRQ_CTRL(RT5033_CHRCHGI_IRQ, 1, 1 << 3),
+	DECLARE_IRQ_CTRL(RT5033_IEOC_IRQ, 1, 1 << 4),
+	DECLARE_IRQ_CTRL(RT5033_CHBATOVI_IRQ, 1, 1 << 5),
+	DECLARE_IRQ_CTRL(RT5033_CHRVPI_IRQ, 1, 1 << 7),
 
-	DECLARE_IRQ_CTRL(RT5033_BSTLOWVI_IRQ, 2, 1<<5),
-	DECLARE_IRQ_CTRL(RT5033_BSTOLI_IRQ, 2, 1<<6),
-	DECLARE_IRQ_CTRL(RT5033_BSTVMIDOVP_IRQ, 2, 1<<7),
+	DECLARE_IRQ_CTRL(RT5033_BSTLOWVI_IRQ, 2, 1 << 5),
+	DECLARE_IRQ_CTRL(RT5033_BSTOLI_IRQ, 2, 1 << 6),
+	DECLARE_IRQ_CTRL(RT5033_BSTVMIDOVP_IRQ, 2, 1 << 7),
 
-	DECLARE_IRQ_CTRL(RT5033_VF_L_IRQ, 3, 1<<3),
-	DECLARE_IRQ_CTRL(RT5033_LEDCS2_SHORT_IRQ, 3, 1<<6),
-	DECLARE_IRQ_CTRL(RT5033_LEDCS1_SHORT_IRQ, 3, 1<<7),
+	DECLARE_IRQ_CTRL(RT5033_OVPR_IRQ, 3, 1 << 2),
+	DECLARE_IRQ_CTRL(RT5033_VF_L_IRQ, 3, 1 << 3),
+	DECLARE_IRQ_CTRL(RT5033_LEDCS2_SHORT_IRQ, 3, 1 << 6),
+	DECLARE_IRQ_CTRL(RT5033_LEDCS1_SHORT_IRQ, 3, 1 << 7),
 
-	DECLARE_IRQ_CTRL(RT5033_BUCK_OCP_IRQ, 4, 1<<2),
-	DECLARE_IRQ_CTRL(RT5033_BUCK_LV_IRQ, 4, 1<<3),
-	DECLARE_IRQ_CTRL(RT5033_SAFE_LDO_LV_IRQ, 4, 1<<4),
-	DECLARE_IRQ_CTRL(RT5033_LDO_LV_IRQ, 4, 1<<5),
-	DECLARE_IRQ_CTRL(RT5033_OT_IRQ, 4, 1<<6),
-	DECLARE_IRQ_CTRL(RT5033_VDDA_UV_IRQ, 4, 1<<7),
+	DECLARE_IRQ_CTRL(RT5033_BUCK_OCP_IRQ, 4, 1 << 2),
+	DECLARE_IRQ_CTRL(RT5033_BUCK_LV_IRQ, 4, 1 << 3),
+	DECLARE_IRQ_CTRL(RT5033_SAFE_LDO_LV_IRQ, 4, 1 << 4),
+	DECLARE_IRQ_CTRL(RT5033_LDO_LV_IRQ, 4, 1 << 5),
+	DECLARE_IRQ_CTRL(RT5033_OT_IRQ, 4, 1 << 6),
+	DECLARE_IRQ_CTRL(RT5033_VDDA_UV_IRQ, 4, 1 << 7),
 };
 
 
@@ -210,43 +211,37 @@ static int rt5033_read_irq_status(rt5033_mfd_chip_t *chip)
 
 	now_irq_status = rt5033_get_irq_status(chip, RT5033_NOW_STATUS);
 
-#ifdef CONFIG_CHARGER_RT5033
 	ret = rt5033_block_read_device(iic, RT5033_CHG_IRQ,
-			sizeof(now_irq_status->chg_irq_status),
-			now_irq_status->chg_irq_status);
+				       sizeof(now_irq_status->chg_irq_status),
+				       now_irq_status->chg_irq_status);
 	if (ret < 0) {
 		dev_err(chip->dev,
-				"Failed on reading CHG irq status\n");
+			"Failed on reading CHG irq status\n");
 		return ret;
 	}
 
 	printk("charger irq = 0x%x 0x%x 0x%x\n", (int)now_irq_status->chg_irq_status[0],
-                                        (int)now_irq_status->chg_irq_status[1],
-                                        now_irq_status->chg_irq_status[2]);
-#endif
-#ifdef CONFIG_FLED_RT5033
+	       (int)now_irq_status->chg_irq_status[1],
+	       now_irq_status->chg_irq_status[2]);
 	ret = rt5033_block_read_device(iic, RT5033_LED_IRQ,
-			sizeof(now_irq_status->fled_irq_status),
-			now_irq_status->fled_irq_status);
+				       sizeof(now_irq_status->fled_irq_status),
+				       now_irq_status->fled_irq_status);
 	if (ret < 0) {
 		dev_err(chip->dev,
-				"Failed on reading FlashLED irq status\n");
+			"Failed on reading FlashLED irq status\n");
 		return ret;
 	}
 	printk("fled irq = 0x%x\n", (int)now_irq_status->fled_irq_status[0]);
-#endif /* CONFIG_FLED_RT5033 */
 
-#ifdef CONFIG_REGULATOR_RT5033
 	ret = rt5033_block_read_device(iic, RT5033_PMIC_IRQ,
-			sizeof(now_irq_status->pmic_irq_status),
-			now_irq_status->pmic_irq_status);
+				       sizeof(now_irq_status->pmic_irq_status),
+				       now_irq_status->pmic_irq_status);
 	if (ret < 0) {
 		dev_err(chip->dev,
-				"Failed on reading PMIC irq status\n");
+			"Failed on reading PMIC irq status\n");
 		return ret;
 	}
 	printk("regulator irq = 0x%x\n", (int)now_irq_status->pmic_irq_status[0]);
-#endif /* CONFIG_REGULATOR_RT5033 */
 
 	return 0;
 }

@@ -43,14 +43,21 @@ static const RTV_REG_INIT_INFO g_atTopHostInitData[] = {
 };
 
 static const RTV_REG_INIT_INFO g_atOfdmInitData[] = {
+	{0x10, 0xE8},
 	{0x21, 0xFF},
 	{0x22, 0xFF},
-	{0x34, 0x0F},
+	{0x24, 0x06},
+	{0x27, 0x8B},
+	{0x29, 0x09},
+	{0x2B, 0x05},
+	{0x30, 0x28},
+	{0x34, 0x1F},
 	{0x35, 0xFF},
-	{0x36, 0x00},
-	{0x37, 0x86}, //Locking
-	{0x39, 0x5A},
-	{0x3B, 0x74},
+	{0x36, 0x01},
+	{0x37, 0x81}, //Locking
+	{0x39, 0x5A}, 
+	{0x3A, 0x45}, 
+	{0x3B, 0xB4},
 	{0x4B, 0x2C},
 	{0x6D, 0x52},
 	{0x71, 0xAC},
@@ -75,7 +82,8 @@ static const RTV_REG_INIT_INFO g_atFecInitData[] = {
 	{0xA9, 0xB9},	
 	{0xAA, 0x80},	
 	{0xAB, 0x80},	
-	{0xFC, 0x00}
+	{0xFC, 0x02},
+	{0xFF, 0x01}
 }; 
 
 static void isdbt_UpdateMonitoring(void)
@@ -868,8 +876,8 @@ void rtvISDBT_GetTMCC(RTV_ISDBT_TMCC_INFO *ptTmccInfo)
 //SCAN debuging log enable
 //#define DEBUG_LOG_FOR_SCAN
 
-#define MAX_MON_FSM_MS		100
-#define MAX_COARSE_MS		1600
+#define MAX_MON_FSM_MS		160
+#define MAX_COARSE_MS		1000
 #define MAX_OFDM_RETRY_MS	600
 #define MAX_TMCC_RETRY_MS	3000
 
@@ -884,14 +892,13 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 	UINT dwChannelFreq;
 	int pwr_threshold = 0;
 	int peak_pwr = 0;
+	int peak_pwr2 = 0;
 	INT sucess_flag = RTV_CHANNEL_NOT_DETECTED;
 	INT scan_stage = RTV_CHANNEL_NOT_DETECTED;
 	U8 OFDM_L = 0, Mon_FSM = 0, TMCC_L = 0;
 	UINT i = MON_FSM_MS_CNT, j = COARSE_MS_CNT;
 	UINT nOFDM_LockCnt = OFDM_RETRY_MS_CNT, nTMCC_LockCnt = TMCC_RETRY_MS_CNT;
-	U8 CoarseCheck = 0;
-	UINT double_check = 0;
-	U8 dTime = 0;
+	U8 CoarseCheck = 0, CoarseCheckReTry=0;
 #if defined(__KERNEL__) /* Linux kernel */
 	unsigned long start_jiffies, end_jiffies;
 	unsigned long start_jiffies_TMCC, end_jiffies_TMCC;
@@ -918,15 +925,8 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 	dwChannelFreq = (nChNum * 6000) + 395143;
 
 	RTV_REG_MAP_SEL(OFDM_PAGE);
-	RTV_REG_SET(0x27, 0x6B);
-	RTV_REG_SET(0x37, 0x87);
-	RTV_REG_SET(0x75, 0x4B);
-	RTV_REG_SET(0x36, 0x00);
-	
-#if (RTV_SRC_CLK_FREQ_KHz == 19200)
-	if ((nChNum & 0x01) == 0x00)
-		RTV_REG_SET(0x8E, 0x58);
-#endif
+
+	RTV_REG_SET(0x75, 0x2B);
 
 	nRet = rtvRF_SetFrequency(RTV_TV_MODE_1SEG, nChNum, dwChannelFreq);
 	if (nRet != RTV_SUCCESS)
@@ -962,11 +962,6 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 		RTV_DELAY_MS(10);
 	} while (--i);
 
-#if (RTV_SRC_CLK_FREQ_KHz == 19200)
-	if ((nChNum & 0x01) == 0x00)
-		RTV_REG_SET(0x8E, 0x28);
-#endif
-
 	if ((peak_pwr >= pwr_threshold) ) {
 #if defined(__KERNEL__) /* Linux kernel */
 		start_jiffies = get_jiffies_64();
@@ -980,37 +975,27 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 			RTV_REG_MASK_SET(0x13, 0x80, 0x00);
 	
 			Mon_FSM = (RTV_REG_GET(0xC0)>>4) & 0x07;
+			peak_pwr2 = ((RTV_REG_GET(0xCA)&0x3f)<<16)
+				 | ((RTV_REG_GET(0xC9)&0xff)<<8)
+				 | (RTV_REG_GET(0xC8)&0xff);
 	
 			CoarseCheck = (RTV_REG_GET(0xC2) & 0x40) >> 6;
-			if (CoarseCheck == 1)
+
+			if ((Mon_FSM >=0x03) && (CoarseCheck == 1))
 				break;
 				
+            if (j == (COARSE_MS_CNT/2)) {
+				RTV_REG_MAP_SEL(OFDM_PAGE);
+				RTV_REG_MASK_SET(0x10, 0x01, 0x01);
+				RTV_REG_MASK_SET(0x10, 0x01, 0x00);
+                CoarseCheckReTry = 1;
+			}
 #if defined(__KERNEL__) /* Linux kernel */
 			end_jiffies = get_jiffies_64();
 			diff_time = jiffies_to_msecs(end_jiffies - start_jiffies);
 			if (diff_time >= MAX_COARSE_MS)
 				break;
-
-		   if ((diff_time >= (MAX_COARSE_MS/2)) && (double_check == 0)) {
-				dTime = (RTV_REG_GET(0xC1)<<1)|((RTV_REG_GET(0xC0)>>7) &0x01);
-
-				RTV_REG_SET(0x27, dTime);
-		   		RTV_REG_SET(0x36, 0x01);
-	RTV_REG_MASK_SET(0x10, 0x01, 0x01);
-	RTV_REG_MASK_SET(0x10, 0x01, 0x00);
-				double_check = 1;
-		   }
 #endif
-
-			if ((j < (COARSE_MS_CNT/2)) && (double_check == 0)) {
-				 dTime = (RTV_REG_GET(0xC1)<<1)|((RTV_REG_GET(0xC0)>>7) &0x01);
-
-				 RTV_REG_SET(0x27, dTime);
-				 RTV_REG_SET(0x36, 0x01);
-				 RTV_REG_MASK_SET(0x10, 0x01, 0x01);
-				 RTV_REG_MASK_SET(0x10, 0x01, 0x00);
-				 double_check = 1;
-			}
 
 			RTV_DELAY_MS(10);
 		} while (--j);
@@ -1032,6 +1017,13 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 
 			OFDM_L = RTV_REG_GET(0xC0) & 0x07;
 
+			if ((nOFDM_LockCnt == 1) && (CoarseCheckReTry == 0)) {
+				RTV_REG_MAP_SEL(OFDM_PAGE);
+				RTV_REG_MASK_SET(0x10, 0x01, 0x01);
+				RTV_REG_MASK_SET(0x10, 0x01, 0x00);
+				OFDM_L = 0x07;
+			}
+			
 			if (OFDM_L == 0x07) {
 		#if defined(__KERNEL__) /* Linux kernel */
 				start_jiffies_TMCC = get_jiffies_64();
@@ -1045,7 +1037,12 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 
 					TMCC_L = RTV_REG_GET(0x10) & 0x01;
 					if (TMCC_L)  {
-						U8 part_flag = RTV_REG_GET(0x7C);
+					    U8 part_flag = 0;
+					    RTV_REG_MAP_SEL(FEC_PAGE);
+					    RTV_REG_MASK_SET(0x11, 0x04, 0x04);
+					    RTV_REG_MASK_SET(0x11, 0x04, 0x00);
+
+						part_flag = RTV_REG_GET(0x7C);
 
 						if (part_flag & 0x80)
 							sucess_flag = RTV_SUCCESS;
@@ -1071,6 +1068,16 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 						goto ISDBT_SCAN_FREQ_EXIT;
 					}
 		#endif
+					if (nTMCC_LockCnt == (TMCC_RETRY_MS_CNT/2)) {
+						RTV_REG_MAP_SEL(OFDM_PAGE);
+						RTV_REG_MASK_SET(0x10, 0x01, 0x01);
+						RTV_REG_MASK_SET(0x10, 0x01, 0x00);
+
+						RTV_REG_MAP_SEL(FEC_PAGE);
+						RTV_REG_MASK_SET(0xFB, 0x01, 0x01);
+						RTV_REG_MASK_SET(0xFB, 0x01, 0x00);
+					}
+
 					RTV_DELAY_MS(10);
 				} while (--nTMCC_LockCnt);
 
@@ -1103,15 +1110,13 @@ ISDBT_SCAN_FREQ_EXIT:
 	g_fRtvChannelChange = FALSE;
  
  	RTV_REG_MAP_SEL(OFDM_PAGE);
-	RTV_REG_SET(0x27, 0x5B);
-	RTV_REG_SET(0x36, 0x00);
-	RTV_REG_SET(0x37, 0x86);
-	RTV_REG_SET(0x75, 0x8B);
+
+	RTV_REG_SET(0x75, 0x4B);
 
 	RTV_GUARD_FREE;
 
 #ifdef DEBUG_LOG_FOR_SCAN
-	RTV_DBGMSG3("[3 rtvISDBT_ScanFrequency: %u #(%u)] Power_Peak(%d)\n",
+	RTV_DBGMSG3("[14Y1017_REL rtvISDBT_ScanFrequency: %u #(%u)] Power_Peak(%d)\n",
 		 dwChannelFreq, nChNum, peak_pwr);
 	RTV_DBGMSG3("\t CNT(%d), COARSE = %d, CNT = %d\n", MON_FSM_MS_CNT - i, CoarseCheck, COARSE_MS_CNT - j);
 	RTV_DBGMSG3("\tOFDML = %d, OFDM_L_Cnt = %d SCAN Stage : %d\n", OFDM_L, OFDM_RETRY_MS_CNT - nOFDM_LockCnt,scan_stage);
@@ -1235,5 +1240,3 @@ INT rtvISDBT_Initialize(E_RTV_COUNTRY_BAND_TYPE eRtvCountryBandType,
 
 	return RTV_SUCCESS;
 }
-
-

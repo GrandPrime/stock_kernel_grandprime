@@ -282,18 +282,6 @@ config SND_SOC_MAX98090
 config SND_SOC_MAX98095
        tristate
 
-config SND_SOC_MAX98504
-	bool "Support MAX98504"
-	depends on I2C
-	help
-	MAX98504 driver
-
-config SND_SOC_MAXIM_DSM
-	bool "Support MAXIM DSM"
-	depends on SND_SOC_MAX98504 || SND_SOC_MAX98505
-	help
-	MAXIM DSM driver
-
 config SND_SOC_MAX9850
 	tristate
 

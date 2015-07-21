@@ -1619,7 +1619,11 @@ static int diag_process_dci_pkt_rsp(unsigned char *buf, int len)
 	/* Check the registration table for command entries */
 	for (i = 0; i < diag_max_reg && !found; i++) {
 		entry = driver->table[i];
+
+		/* qcom patch for command block issue
 		if (entry.process_id == NO_PROCESS)
+		*/
+		if (entry.client_id != 0)
 			continue;
 		if (entry.cmd_code == header->cmd_code &&
 			    entry.subsys_id == header->subsys_id &&

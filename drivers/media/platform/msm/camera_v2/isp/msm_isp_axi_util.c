@@ -24,11 +24,7 @@
 
 #define MSM_ISP_MIN_AB 450000000
 #define MSM_ISP_MIN_IB 900000000
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_MACH_ROSSA_CMCC) \
-	|| defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
-	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) \
-	|| defined(CONFIG_MACH_ROSSA_AUS)
+#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_GRANDMAX_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
 #define MIN_IB         1700000000
 #endif
 
@@ -437,7 +433,7 @@ void msm_isp_update_framedrop_reg(struct vfe_device *vfe_dev)
 	}
 }
 
-static void msm_isp_reset_framedrop(struct vfe_device *vfe_dev,
+void msm_isp_reset_framedrop(struct vfe_device *vfe_dev,
 			struct msm_vfe_axi_stream *stream_info)
 {
 	stream_info->runtime_init_frame_drop = stream_info->init_frame_drop;
@@ -449,7 +445,7 @@ static void msm_isp_reset_framedrop(struct vfe_device *vfe_dev,
 	vfe_dev->hw_info->vfe_ops.axi_ops.cfg_framedrop(vfe_dev, stream_info);
 }
 
-#if defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
 void msm_isp_sof_notify(struct vfe_device *vfe_dev,
 	enum msm_vfe_input_src frame_src, struct msm_isp_timestamp *ts) {
 	struct msm_isp_event_data sof_event;
@@ -463,17 +459,17 @@ void msm_isp_sof_notify(struct vfe_device *vfe_dev,
 	spin_unlock_irqrestore(&vfe_dev->sof_lock, flags);
 
 	if (!(session_mask & (1 << frame_src))) {
-		pr_err("%s: Ignoring the Sof for the source INTF %d\n",
-			__func__, (1 << frame_src));
+		/*pr_err("%s: Ignoring the Sof for the source INTF %d\n",
+			__func__, (1 << frame_src));*/
 		return;
 	}
 	vfe_dev->axi_data.current_frame_src_mask[session_id] |=
 		(1 << frame_src);
-	pr_debug("%s: current mask 0x%X , session mask 0x%X, session_id %d\n",
+	/*pr_debug("%s: current mask 0x%X , session mask 0x%X, session_id %d\n",
 		 __func__,
 		vfe_dev->axi_data.current_frame_src_mask[session_id],
 		session_mask,
-		session_id);
+		session_id);*/
 	if ((vfe_dev->axi_data.current_frame_src_mask[session_id] ==
 		session_mask)) {
 		vfe_dev->axi_data.current_frame_src_mask[session_id] = 0;
@@ -487,8 +483,8 @@ void msm_isp_sof_notify(struct vfe_device *vfe_dev,
 		sof_event.mono_timestamp = ts->buf_time;
 		msm_isp_send_event(vfe_dev,
 		ISP_EVENT_SOF + frame_src, &sof_event);
-		pr_debug("%s: frame id %d\n", __func__,
-			vfe_dev->axi_data.frame_id[session_id]);
+		/*pr_debug("%s: frame id %d\n", __func__,
+			vfe_dev->axi_data.frame_id[session_id]);*/
 	}
 }
 #else
@@ -518,8 +514,7 @@ void msm_isp_sof_notify(struct vfe_device *vfe_dev,
 		vfe_dev->axi_data.frame_id[session_id]++;
 		if (vfe_dev->axi_data.frame_id[session_id] == 0)
 			vfe_dev->axi_data.frame_id[session_id] = 1;
-		sof_event.input_intf =
-			vfe_dev->axi_data.session_frame_src_mask[session_id];
+		sof_event.input_intf = vfe_dev->axi_data.session_frame_src_mask[session_id];
 		sof_event.frame_id = vfe_dev->axi_data.frame_id[session_id];
 		sof_event.timestamp = ts->event_time;
 		sof_event.mono_timestamp = ts->buf_time;
@@ -598,7 +593,7 @@ void msm_isp_calculate_bandwidth(
 	}
 }
 
-#ifdef CONFIG_MSM_AVTIMER
+#if 0
 void msm_isp_start_avtimer(void)
 {
 	avcs_core_open();
@@ -677,19 +672,16 @@ int msm_isp_request_axi_stream(struct vfe_device *vfe_dev, void *arg)
 			vfe_dev->p_avtimer_ctl =
 				ioremap(AVTIMER_MODE_CTL_PHY_ADDR_8916, 4);
 			if (vfe_dev->p_avtimer_ctl) {
-				avtimer_scaler =
-					msm_camera_io_r(vfe_dev->p_avtimer_ctl);
+				avtimer_scaler = msm_camera_io_r(vfe_dev->p_avtimer_ctl);
 				/*If bit 2 is set, it indicates AVTimer
 				  ticks are scaled*/
 				if (avtimer_scaler & 0x00000002)
 					vfe_dev->avtimer_scaler =
-						AVTIMER_TICK_SCALER_8916;
+					AVTIMER_TICK_SCALER_8916;
 			}
 		} else {
-			vfe_dev->p_avtimer_lsw =
-				ioremap(AVTIMER_LSW_PHY_ADDR, 4);
-			vfe_dev->p_avtimer_msw =
-				ioremap(AVTIMER_MSW_PHY_ADDR, 4);
+			vfe_dev->p_avtimer_lsw = ioremap(AVTIMER_LSW_PHY_ADDR, 4);
+			vfe_dev->p_avtimer_msw = ioremap(AVTIMER_MSW_PHY_ADDR, 4);
 		}
 	}
 	if (stream_info->num_planes > 1) {
@@ -1230,11 +1222,7 @@ static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 	uint32_t num_rdi_streams = 0;
 	uint32_t total_streams   = 0;
 	uint64_t total_bandwidth = 0;
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_MACH_ROSSA_CMCC) \
-	|| defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
-	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) \
-	|| defined(CONFIG_MACH_ROSSA_AUS)
+#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_GRANDMAX_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
 	uint64_t ib_total_bandwidth = 0;
 #endif
 
@@ -1258,26 +1246,22 @@ static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 			pixel_clock) * ISP_DEFAULT_FORMAT_FACTOR / ISP_Q2;
 	total_bandwidth = total_pix_bandwidth + total_rdi_bandwidth;
 	total_streams = num_pix_streams + num_rdi_streams;
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_MACH_ROSSA_CMCC) \
-	|| defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
-	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) \
-	|| defined(CONFIG_MACH_ROSSA_AUS)
+#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_GRANDMAX_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
 	if (total_streams == 1) {
-	  ib_total_bandwidth = total_bandwidth *
-		ISP_BUS_UTILIZATION_FACTOR / ISP_Q2 - MSM_ISP_MIN_IB;
-	  if(ib_total_bandwidth < MIN_IB)
-	        ib_total_bandwidth = MIN_IB;
-          rc = msm_isp_update_bandwidth(ISP_VFE0 + vfe_dev->pdev->id,
-		(total_bandwidth - MSM_ISP_MIN_AB) , ib_total_bandwidth);
+		ib_total_bandwidth = total_bandwidth *
+			ISP_BUS_UTILIZATION_FACTOR / ISP_Q2 - MSM_ISP_MIN_IB;
+		if(ib_total_bandwidth < MIN_IB)
+			ib_total_bandwidth = MIN_IB;
+		rc = msm_isp_update_bandwidth(ISP_VFE0 + vfe_dev->pdev->id,
+			(total_bandwidth - MSM_ISP_MIN_AB) , ib_total_bandwidth);
 	}
 	else {
-	   ib_total_bandwidth = total_bandwidth *
-		ISP_BUS_UTILIZATION_FACTOR / ISP_Q2;
-	   if(ib_total_bandwidth < MIN_IB)
-	        ib_total_bandwidth = MIN_IB;
-	   rc = msm_isp_update_bandwidth(ISP_VFE0 + vfe_dev->pdev->id,
-		total_bandwidth, ib_total_bandwidth);
+		ib_total_bandwidth = total_bandwidth *
+			ISP_BUS_UTILIZATION_FACTOR / ISP_Q2;
+		if(ib_total_bandwidth < MIN_IB)
+			ib_total_bandwidth = MIN_IB;
+		rc = msm_isp_update_bandwidth(ISP_VFE0 + vfe_dev->pdev->id,
+			total_bandwidth, ib_total_bandwidth);
 	}
 #else
 	if (total_streams == 1) {
@@ -1305,11 +1289,7 @@ static int msm_isp_axi_wait_for_cfg_done(struct vfe_device *vfe_dev,
 	spin_lock_irqsave(&vfe_dev->shared_data_lock, flags);
 	init_completion(&vfe_dev->stream_config_complete);
 	vfe_dev->axi_data.pipeline_update = camif_update;
-#if defined(CONFIG_MACH_HEAT_EUR)
-	vfe_dev->axi_data.stream_update = 1;
-#else
 	vfe_dev->axi_data.stream_update = 2;
-#endif
 	spin_unlock_irqrestore(&vfe_dev->shared_data_lock, flags);
 	rc = wait_for_completion_timeout(
 		&vfe_dev->stream_config_complete,
@@ -1378,27 +1358,6 @@ static void msm_isp_get_stream_wm_mask(
 	for (i = 0; i < stream_info->num_planes; i++)
 		*wm_reload_mask |= (1 << stream_info->wm[i]);
 }
-#if defined(CONFIG_MACH_HEAT_EUR)
-static void msm_isp_axi_stream_update_new(struct vfe_device *vfe_dev, enum msm_isp_camif_update_state camif_update)
-{
-       int i;
-       struct msm_vfe_axi_shared_data *axi_data = &vfe_dev->axi_data;
-
-       for (i = 0; i < MAX_NUM_STREAM; i++) {
-		if (axi_data->stream_info[i].state == START_PENDING || axi_data->stream_info[i].state == STOP_PENDING) {
-			msm_isp_axi_stream_enable_cfg(vfe_dev, &axi_data->stream_info[i]);
-			axi_data->stream_info[i].state = axi_data->stream_info[i].state == START_PENDING ? STARTING : STOPPING;
-		} else if (axi_data->stream_info[i].state == STARTING || axi_data->stream_info[i].state == STOPPING) {
-			axi_data->stream_info[i].state = axi_data->stream_info[i].state == STARTING ? ACTIVE : INACTIVE;
-		}
-	}
-
-	if (camif_update == DISABLE_CAMIF) {
-		vfe_dev->hw_info->vfe_ops.stats_ops.enable_module(vfe_dev, 0xFF, 0);
-	        vfe_dev->axi_data.pipeline_update = NO_UPDATE;
-	 }
-}
-#endif
 
 static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 			struct msm_vfe_axi_stream_cfg_cmd *stream_cfg_cmd,
@@ -1474,19 +1433,14 @@ static int msm_isp_start_axi_stream(struct vfe_device *vfe_dev,
 		vfe_dev->axi_data.src_info[VFE_RAW_1].frame_id = 0;
 	else if (vfe_dev->axi_data.src_info[VFE_RAW_2].raw_stream_count > 0)
 		vfe_dev->axi_data.src_info[VFE_RAW_2].frame_id = 0;
-#if defined(CONFIG_MACH_HEAT_EUR)
-	if (wait_for_complete){
-		msm_isp_axi_stream_update_new(vfe_dev, camif_update);
-		rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
-	}
-#else
+
 	if (wait_for_complete)
 		rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
-#endif
+
 	return rc;
 }
 
-#if defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_SEC_ROSSA_PROJECT) ||defined(CONFIG_SEC_J1_PROJECT)
 static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 			struct msm_vfe_axi_stream_cfg_cmd *stream_cfg_cmd,
 			enum msm_isp_camif_update_state camif_update)
@@ -1540,12 +1494,7 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 	}
 
 	if (wait_for_complete) {
-#if defined(CONFIG_MACH_HEAT_EUR)
-	msm_isp_axi_stream_update_new(vfe_dev, DISABLE_CAMIF);
-	rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, NO_UPDATE);
-#else
-	rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
-#endif
+    rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
 		if (rc < 0) {
 			pr_err("%s: wait for config done failed\n", __func__);
 			for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
@@ -1633,7 +1582,7 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 			*/
 			wait_for_complete = 1;
 		} else if (stream_info->stream_type == BURST_STREAM &&
-				stream_info->runtime_num_burst_capture == 0) {
+		stream_info->runtime_num_burst_capture == 0) {
 			/* Configure AXI writemasters to stop immediately
 			 * since for burst case, write masters already skip
 			 * all frames.
@@ -1643,8 +1592,8 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 				stream_info->stream_src == RDI_INTF_2)
 				wait_for_complete = 1;
 			else {
-			msm_isp_axi_stream_enable_cfg(vfe_dev, stream_info);
-			stream_info->state = INACTIVE;
+				msm_isp_axi_stream_enable_cfg(vfe_dev, stream_info);
+				stream_info->state = INACTIVE;
 			}
 		} else {
 			wait_for_complete = 1;
@@ -1662,23 +1611,17 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 					session_mask &=
 						~(1 << SRC_TO_INTF(
 						stream_info->stream_src));
-					if (stream_info->stream_type ==
-						BURST_STREAM)
+					if (stream_info->stream_type == BURST_STREAM)
 						skip_session_mask_update = 1;
 				}
 		} else {
 			session_mask &=
 				~(1 << SRC_TO_INTF(stream_info->stream_src));
 		}
-
 	}
+
 	if (wait_for_complete) {
-#if defined(CONFIG_MACH_HEAT_EUR)
-	msm_isp_axi_stream_update_new(vfe_dev, DISABLE_CAMIF);
-	rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, NO_UPDATE);
-#else
-	rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
-#endif
+		rc = msm_isp_axi_wait_for_cfg_done(vfe_dev, camif_update);
 		if (rc < 0) {
 			pr_err("%s: wait for config done failed\n", __func__);
 			for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
@@ -1710,7 +1653,7 @@ static int msm_isp_stop_axi_stream(struct vfe_device *vfe_dev,
 	cur_stream_cnt = msm_isp_get_curr_stream_cnt(vfe_dev);
 	if (cur_stream_cnt == 0) {
 		if (camif_update == DISABLE_CAMIF_IMMEDIATELY)
-			vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev, 1);
+		vfe_dev->hw_info->vfe_ops.axi_ops.halt(vfe_dev, 1);
 		vfe_dev->hw_info->vfe_ops.core_ops.
 			reset_hw(vfe_dev, ISP_RST_HARD, 1);
 		vfe_dev->hw_info->vfe_ops.core_ops.init_hw_reg(vfe_dev);

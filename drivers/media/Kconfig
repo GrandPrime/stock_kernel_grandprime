@@ -203,4 +203,9 @@ source "drivers/media/dvb-frontends/Kconfig"
 #
 source "drivers/media/mtv/Kconfig"
 
+#
+# TDMB drivers
+#
+source "drivers/media/tdmb/Kconfig"
+
 endif # MEDIA_SUPPORT

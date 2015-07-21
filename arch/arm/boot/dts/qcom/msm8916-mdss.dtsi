@@ -38,7 +38,7 @@
 		/* VBIF QoS remapper settings*/
 		qcom,mdss-vbif-qos-rt-setting = <2 2 2 2>;
 		qcom,mdss-vbif-qos-nrt-setting = <1 1 1 1>;
-
+		qcom,max-mixer-width = <2048>;
 		qcom,mdss-mdp-reg-offset = <0x00001000>;
 		qcom,max-clk-rate = <320000000>;
 		qcom,mdss-pipe-vig-off = <0x00005000>;
@@ -100,6 +100,7 @@
 			cell-index = <0>;
 			compatible = "qcom,mdss-fb";
 			qcom,memblock-reserve = <0x83200000 0xfa0000>;
+			qcom,mdss-fb-splash-logo-enabled;
 		};
 
 		mdss_fb1: qcom,mdss_fb_wfd {
@@ -131,7 +132,7 @@
                                 "byte_clk", "pixel_clk", "core_clk";
 		qcom,platform-strength-ctrl = [ff 06];
 		qcom,platform-bist-ctrl = [00 00 b1 ff 00 00];
-		qcom,platform-regulator-settings = [07 09 03 00 20 00 01];
+		qcom,platform-regulator-settings = [03 08 07 00 20 07 01];
 		qcom,platform-lane-config = [00 00 00 00 00 00 00 01 97
 			00 00 00 00 05 00 00 01 97
 			00 00 00 00 0a 00 00 01 97

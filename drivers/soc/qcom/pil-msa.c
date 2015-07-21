@@ -243,7 +243,8 @@ int pil_mss_shutdown(struct pil_desc *pil)
 	return ret;
 }
 
-int pil_mss_deinit_image(struct pil_desc *pil) {
+int pil_mss_deinit_image(struct pil_desc *pil)
+{
 	struct modem_data *drv = dev_get_drvdata(pil->dev);
 	int ret = 0;
 
@@ -395,10 +396,6 @@ int pil_mss_reset_load_mba(struct pil_desc *pil)
 	if (!mba_virt) {
 		dev_err(pil->dev, "MBA metadata buffer allocation failed\n");
 		ret = -ENOMEM;
-#ifdef CONFIG_TRACE_MODEM_MEM_FAIL
-		/*Need ramdump on exact alloc failure case for MODEM_MBA_AUTH 1M*/
-                BUG_ON(1);
-#endif
 		goto err_dma_alloc;
 	}
 
@@ -444,11 +441,7 @@ static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
 	mdata_virt = dma_alloc_coherent(&drv->mba_mem_dev, size, &mdata_phys,
 					GFP_KERNEL);
 	if (!mdata_virt) {
-		dev_err(pil->dev, "MBA(mdt)metadata buffer allocation failed\n");
-#ifdef CONFIG_TRACE_MODEM_MEM_FAIL
-		/*Need ramdump on exact alloc failure case for MODEM_mdt_AUTH 38K*/
-                BUG_ON(1);
-#endif
+		dev_err(pil->dev, "MBA metadata buffer allocation failed\n");
 		return -ENOMEM;
 	}
 	memcpy(mdata_virt, metadata, size);

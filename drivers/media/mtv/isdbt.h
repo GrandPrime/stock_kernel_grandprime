@@ -61,14 +61,26 @@
 // If you use pinctrl (CONFIG_SEC_GPIO_SETTINGS),
 // you have to define isdbt_gpio_active, isdbt_gpio_suspend in dtsi files !!!
 
+#ifdef CONFIG_OF_GPIO
 #define ISDBT_DEVICE_TREE
+#endif
 //#define ISDBT_USE_PMIC
 
+#if defined(CONFIG_MTV_QUALCOMM) // check the following gpiochip base value. (cat /sys/class/gpio/gpiochipN/base)
+#define ISDBT_GPIO_BASE        902
+#elif defined(CONFIG_MTV_BROADCOM) // check this file (include/mach/chip_pinmux.h)
+#define ISDBT_GPIO_BASE        PN_GPIO00
+#else
+#define ISDBT_GPIO_BASE        0 // If you want to use this value in another project, fix it.
+#endif
+
+#define convert_gpio(x)        (ISDBT_GPIO_BASE + x)
 #define UNUSED_GPIO            -1 // If there is an unused gpio, use this definition.
+
 #define ISDBT_PWR_EN           36
 #define ISDBT_PWR_EN2          110
-#define ISDBT_RST          		67
-#define ISDBT_INT          		49
+#define ISDBT_RST              67
+#define ISDBT_INT              49
 #define ISDBT_SPI_MOSI         20
 #define ISDBT_SPI_MISO         21
 #define ISDBT_SPI_CS           22
@@ -137,6 +149,7 @@ struct spi_device *isdbt_get_spi_handle(void);
 
 bool isdbt_control_irq(bool set);
 void isdbt_control_gpio(bool poweron);
+void isdbt_gpio_config(bool poweron);
 
 struct spi_device *isdbt_get_if_handle(void);
 

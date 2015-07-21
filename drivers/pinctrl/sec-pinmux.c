@@ -22,6 +22,7 @@
 #include <linux/errno.h>
 #include <linux/secgpio_dvs.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #endif
 
 static DEFINE_SPINLOCK(gpiomux_lock);
@@ -31,8 +32,13 @@ static unsigned msm_gpiomux_ngpio;
 /* Define value in accordance with
 	the specification of each BB vendor. */
 #define AP_GPIO_COUNT   122
-/****************************************************************/#define GPIO_REG_BASE	0xC7000000/* GP PIN TYPE REG MASKS */#define GPIO_PULL_SHFT             0#define GPIO_PULL_MASK             0x3#define GPIO_DIR_SHFT              9#define GPIO_DIR_MASK              1#define GPIO_FUNC_SHFT             2#define GPIO_FUNC_MASK             0xF#define GPIO_OE_BIT	9
-/* config translations */#define dir_to_inout_val(dir)   (dir << 1)#define GPIO_NO_PULL          0#define GPIO_PULL_DOWN        1#define GPIO_PULL_UP          3/* GP pin type register offsets */#define GPIO_CFG_REG(base, pin)        (void __iomem *)(base + 0x0 + 0x1000 * (pin))#define GPIO_INOUT_REG(base, pin)      (void __iomem *)(base + 0x4 + 0x1000 * (pin))
+/****************************************************************/
+
+/* config translations */
+#define dir_to_inout_val(dir)   (dir << 1)
+#define GPIO_NO_PULL          0
+#define GPIO_PULL_DOWN        1
+#define GPIO_PULL_UP          3
 
 enum {
 	GPIO_IN_BIT  = 0,
@@ -40,7 +46,14 @@ enum {
 };
 
 #define GET_RESULT_GPIO(a, b, c)	\
-	((a<<4 & 0xF0) | (b<<1 & 0xE) | (c & 0x1))#define GET_GPIO_IO(value)	\	(unsigned char)((0xF0 & (value)) >> 4)#define GET_GPIO_PUPD(value)	\	(unsigned char)((0xE & (value)) >> 1)#define GET_GPIO_LH(value)	\	(unsigned char)(0x1 & (value))
+	((a<<4 & 0xF0) | (b<<1 & 0xE) | (c & 0x1))
+
+#define GET_GPIO_IO(value)	\
+	(unsigned char)((0xF0 & (value)) >> 4)
+#define GET_GPIO_PUPD(value)	\
+	(unsigned char)((0xE & (value)) >> 1)
+#define GET_GPIO_LH(value)	\
+	(unsigned char)(0x1 & (value))
 
 /****************************************************************/
 /* Pre-defined variables. (DO NOT CHANGE THIS!!) */
@@ -50,11 +63,10 @@ static struct gpiomap_result gpiomap_result = {
 	.sleep = checkgpiomap_result[PHONE_SLEEP]
 };
 /****************************************************************/
-#ifdef SECGPIO_SLEEP_DEBUGGINGstatic struct sleepdebug_gpiotable sleepdebug_table;#endifstatic int msm8916_set_gpio_status(uint pin_no, uint id, bool level){        unsigned int val, data, inout_val;        u32 mask = 0, shft = 0;        void __iomem *inout_reg = NULL;        void __iomem *cfg_reg = GPIO_CFG_REG(GPIO_REG_BASE, pin_no);		pr_info("[secgpio_dvs][%s] pin_no = %d, id = %d, level = %d\n",				__func__,pin_no,id,level);#ifdef ENABLE_SENSORS_FPRINT_SECURE		if (pin_no >= 23 && pin_no <= 26)			return 0;#endif        val = readl_relaxed(cfg_reg);        /* Get mask and shft values for this config type */        switch (id) {        case GPIO_DVS_CFG_PULL_DOWN:                mask = GPIO_PULL_MASK;                shft = GPIO_PULL_SHFT;                data = GPIO_PULL_DOWN;                break;        case GPIO_DVS_CFG_PULL_UP:                mask = GPIO_PULL_MASK;                shft = GPIO_PULL_SHFT;                data = GPIO_PULL_UP;                break;		case GPIO_DVS_CFG_PULL_NONE:                mask = GPIO_PULL_MASK;                shft = GPIO_PULL_SHFT;                data = GPIO_NO_PULL;                break;        case GPIO_DVS_CFG_OUTPUT:                mask = GPIO_DIR_MASK;                shft = GPIO_DIR_SHFT;                inout_reg = GPIO_INOUT_REG(GPIO_REG_BASE, pin_no);                data = level;                inout_val = dir_to_inout_val(data);                writel_relaxed(inout_val, inout_reg);                data = mask;                break;        default:                return -EINVAL;        };        val &= ~(mask << shft);        val |= (data << shft);		if(id == GPIO_DVS_CFG_OUTPUT)
-			val |= BIT(GPIO_OE_BIT);
-		else
-			val &= ~BIT(GPIO_OE_BIT);
-        writel_relaxed(val, cfg_reg);        return 0;}
+#ifdef SECGPIO_SLEEP_DEBUGGING
+static struct sleepdebug_gpiotable sleepdebug_table;
+#endif
+
 static unsigned __msm_gpio_get_inout_lh(unsigned gpio)
 {
 	return msm_tlmm_v4_get_gp_input_value(gpio);
@@ -121,9 +133,121 @@ static void msm8916_check_gpio_status(unsigned char phonestate)
 	pr_info("[secgpio_dvs][%s]-\n", __func__);
 
 	return;
-}#ifdef SECGPIO_SLEEP_DEBUGGING/****************************************************************//* Define this function in accordance with the specification of each BB vendor */void setgpio_for_sleepdebug(int gpionum, uint16_t  io_pupd_lh){	unsigned char temp_io, temp_pupd, temp_lh;	unsigned int temp_data;	pr_info("[secgpio_dvs][%s] gpionum=%d, io_pupd_lh=0x%x\n",		__func__, gpionum, io_pupd_lh);	temp_io = GET_GPIO_IO(io_pupd_lh);	temp_pupd = GET_GPIO_PUPD(io_pupd_lh);	temp_lh = GET_GPIO_LH(io_pupd_lh);	pr_info("[secgpio_dvs][%s] io=%d, pupd=%d, lh=%d\n",		__func__, temp_io, temp_pupd, temp_lh);	/* in case of 'INPUT', set PD/PU */	if (temp_io == GDVS_IO_IN) {		/* 0x0:NP, 0x1:PD, 0x2:PU */		if (temp_pupd == GDVS_PUPD_NP)			temp_data = GPIO_DVS_CFG_PULL_NONE;		else if (temp_pupd == GDVS_PUPD_PD)			temp_data = GPIO_DVS_CFG_PULL_DOWN;		else if (temp_pupd == GDVS_PUPD_PU)			temp_data = GPIO_DVS_CFG_PULL_UP;		else		/* It should be not runned */			temp_data = GPIO_DVS_CFG_PULL_NONE;		msm8916_set_gpio_status(gpionum, temp_data, 0);	}	/* in case of 'OUTPUT', set L/H */	else if (temp_io == GDVS_IO_OUT) {		pr_info("[secgpio_dvs][%s] %d gpio set %d\n",			__func__, gpionum, temp_lh);		temp_data = GPIO_DVS_CFG_OUTPUT;		msm8916_set_gpio_status(gpionum, temp_data, temp_lh);	}	else	{		pr_info("[secgpio_dvs][%s] %d gpio set %d NOT VALID\n",			__func__, gpionum, temp_lh);	}}/****************************************************************//****************************************************************//* Define this function in accordance with the specification of each BB vendor */static void undo_sleepgpio(void){	int i;	pr_info("[secgpio_dvs][%s] ++\n", __func__);	for (i = 0; i < sleepdebug_table.gpio_count; i++) {		int gpio_num;
-		gpio_num = sleepdebug_table.gpioinfo[i].gpio_num;		/*		 * << Caution >>		 * If it's necessary,		 * change the following function to another appropriate one		 * or delete it		 */		setgpio_for_sleepdebug(gpio_num, gpiomap_result.sleep[gpio_num]);	}	pr_info("[secgpio_dvs][%s] --\n", __func__);	return;}/****************************************************************/#endif/********************* Fixed Code Area !***************************/#ifdef SECGPIO_SLEEP_DEBUGGINGstatic void set_sleepgpio(void){	int i;	uint16_t set_data;	pr_info("[secgpio_dvs][%s] ++, cnt=%d\n",		__func__, sleepdebug_table.gpio_count);	for (i = 0; i < sleepdebug_table.gpio_count; i++) {		int gpio_num;
-		pr_info("[secgpio_dvs][%d] gpio_num(%d), io(%d), pupd(%d), lh(%d)\n",			i, sleepdebug_table.gpioinfo[i].gpio_num,			sleepdebug_table.gpioinfo[i].io,			sleepdebug_table.gpioinfo[i].pupd,			sleepdebug_table.gpioinfo[i].lh);		gpio_num = sleepdebug_table.gpioinfo[i].gpio_num;		// to prevent a human error caused by "don't care" value		if( sleepdebug_table.gpioinfo[i].io == GDVS_IO_IN)		/* IN */			sleepdebug_table.gpioinfo[i].lh =				GET_GPIO_LH(gpiomap_result.sleep[gpio_num]);		else if( sleepdebug_table.gpioinfo[i].io == GDVS_IO_OUT)		/* OUT */			sleepdebug_table.gpioinfo[i].pupd =				GET_GPIO_PUPD(gpiomap_result.sleep[gpio_num]);		set_data = GET_RESULT_GPIO(			sleepdebug_table.gpioinfo[i].io,			sleepdebug_table.gpioinfo[i].pupd,			sleepdebug_table.gpioinfo[i].lh);		setgpio_for_sleepdebug(gpio_num, set_data);	}	pr_info("[secgpio_dvs][%s] --\n", __func__);	return;}#endif
+}
+
+#ifdef SECGPIO_SLEEP_DEBUGGING
+/****************************************************************/
+/* Define this function in accordance with the specification of each BB vendor */
+void setgpio_for_sleepdebug(int gpionum, uint16_t  io_pupd_lh)
+{
+	unsigned char temp_io, temp_pupd, temp_lh;
+	unsigned int temp_data;
+
+	pr_info("[secgpio_dvs][%s] gpionum=%d, io_pupd_lh=0x%x\n",
+		__func__, gpionum, io_pupd_lh);
+
+	temp_io = GET_GPIO_IO(io_pupd_lh);
+	temp_pupd = GET_GPIO_PUPD(io_pupd_lh);
+	temp_lh = GET_GPIO_LH(io_pupd_lh);
+
+	pr_info("[secgpio_dvs][%s] io=%d, pupd=%d, lh=%d\n",
+		__func__, temp_io, temp_pupd, temp_lh);
+
+	/* in case of 'INPUT', set PD/PU */
+	if (temp_io == GDVS_IO_IN) {
+		/* 0x0:NP, 0x1:PD, 0x2:PU */
+		if (temp_pupd == GDVS_PUPD_NP)
+			temp_data = PIN_CONFIG_BIAS_DISABLE;
+		else if (temp_pupd == GDVS_PUPD_PD)
+			temp_data = PIN_CONFIG_BIAS_PULL_DOWN;
+		else if (temp_pupd == GDVS_PUPD_PU)
+			temp_data = PIN_CONFIG_BIAS_PULL_UP;
+		else		/* It should be not runned */
+			temp_data = PIN_CONFIG_BIAS_DISABLE;
+
+		msm_tlmm_v4_set_gp_cfg(gpionum, temp_data, 0);
+	}
+	/* in case of 'OUTPUT', set L/H */
+
+	else if (temp_io == GDVS_IO_OUT) {
+		pr_info("[secgpio_dvs][%s] %d gpio set %d\n",
+			__func__, gpionum, temp_lh);
+		temp_data = PIN_CONFIG_OUTPUT;
+		msm_tlmm_v4_set_gp_cfg(gpionum, temp_data, temp_lh);
+	}
+	else
+	{
+		pr_info("[secgpio_dvs][%s] %d gpio set %d NOT VALID\n",
+			__func__, gpionum, temp_lh);
+	}
+}
+/****************************************************************/
+
+/****************************************************************/
+/* Define this function in accordance with the specification of each BB vendor */
+static void undo_sleepgpio(void)
+{
+	int i;
+
+	pr_info("[secgpio_dvs][%s] ++\n", __func__);
+
+	for (i = 0; i < sleepdebug_table.gpio_count; i++) {
+		int gpio_num;
+		gpio_num = sleepdebug_table.gpioinfo[i].gpio_num;
+		/*
+		 * << Caution >>
+		 * If it's necessary,
+		 * change the following function to another appropriate one
+		 * or delete it
+		 */
+		setgpio_for_sleepdebug(gpio_num, gpiomap_result.sleep[gpio_num]);
+	}
+
+	pr_info("[secgpio_dvs][%s] --\n", __func__);
+	return;
+}
+/****************************************************************/
+#endif
+
+/********************* Fixed Code Area !***************************/
+#ifdef SECGPIO_SLEEP_DEBUGGING
+static void set_sleepgpio(void)
+{
+	int i;
+	uint16_t set_data;
+
+	pr_info("[secgpio_dvs][%s] ++, cnt=%d\n",
+		__func__, sleepdebug_table.gpio_count);
+
+	for (i = 0; i < sleepdebug_table.gpio_count; i++) {
+		int gpio_num;
+		pr_info("[secgpio_dvs][%d] gpio_num(%d), io(%d), pupd(%d), lh(%d)\n",
+			i, sleepdebug_table.gpioinfo[i].gpio_num,
+			sleepdebug_table.gpioinfo[i].io,
+			sleepdebug_table.gpioinfo[i].pupd,
+			sleepdebug_table.gpioinfo[i].lh);
+
+		gpio_num = sleepdebug_table.gpioinfo[i].gpio_num;
+
+		// to prevent a human error caused by "don't care" value
+		if( sleepdebug_table.gpioinfo[i].io == GDVS_IO_IN)		/* IN */
+			sleepdebug_table.gpioinfo[i].lh =
+				GET_GPIO_LH(gpiomap_result.sleep[gpio_num]);
+		else if( sleepdebug_table.gpioinfo[i].io == GDVS_IO_OUT)		/* OUT */
+			sleepdebug_table.gpioinfo[i].pupd =
+				GET_GPIO_PUPD(gpiomap_result.sleep[gpio_num]);
+
+		set_data = GET_RESULT_GPIO(
+			sleepdebug_table.gpioinfo[i].io,
+			sleepdebug_table.gpioinfo[i].pupd,
+			sleepdebug_table.gpioinfo[i].lh);
+
+		setgpio_for_sleepdebug(gpio_num, set_data);
+	}
+	pr_info("[secgpio_dvs][%s] --\n", __func__);
+	return;
+}
+#endif
 
 /****************************************************************/
 /* Define appropriate variable in accordance with
@@ -131,7 +255,13 @@ static void msm8916_check_gpio_status(unsigned char phonestate)
 static struct gpio_dvs msm8916_gpio_dvs = {
 	.result = &gpiomap_result,
 	.check_gpio_status = msm8916_check_gpio_status,
-	.count = AP_GPIO_COUNT,	.check_sleep = false,#ifdef SECGPIO_SLEEP_DEBUGGING	.sdebugtable = &sleepdebug_table,	.set_sleepgpio = set_sleepgpio,	.undo_sleepgpio = undo_sleepgpio,#endif
+	.count = AP_GPIO_COUNT,
+	.check_sleep = false,
+#ifdef SECGPIO_SLEEP_DEBUGGING
+	.sdebugtable = &sleepdebug_table,
+	.set_sleepgpio = set_sleepgpio,
+	.undo_sleepgpio = undo_sleepgpio,
+#endif
 };
 /****************************************************************/
 #endif

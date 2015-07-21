@@ -51,6 +51,7 @@
 static char NEGATIVE_MODE_ON_CMDS[] = {0x21, 0x00};
 static char NEGATIVE_MODE_OFF_CMDS[] = {0x20, 0x00};
 static int is_ldi_himax = 0;
+struct mutex mdnie_lock;
 
 int play_speed_1_5;
 
@@ -98,13 +99,14 @@ static struct dsi_cmd_desc mdni_tune_cmd[1]= {
 };
 
 #define SET_MDNIE_COMMAND(x) \
+		mutex_lock(&mdnie_lock);\
 		mdni_tune_cmd[0].dchdr.dlen =sizeof(x);	\
 		mdni_tune_cmd[0].payload =x;
 
 #define CLEAR_MDNIE_COMMAND() \
 		mdni_tune_cmd[0].dchdr.dlen =0;	\
-		mdni_tune_cmd[0].payload =NULL;
-
+		mdni_tune_cmd[0].payload =NULL;	\
+		mutex_unlock(&mdnie_lock);
 
 
 void sending_tuning_cmd(void)
@@ -214,35 +216,48 @@ void mDNIe_Set_Mode(enum Lcd_mDNIe_UI mode)
 	case mDNIe_DMB_MODE:
 		DPRINT(" = DMB MODE =\n");
 		DPRINT("no data for DMB MODE..\n");
-		break;
+		return;
+
 
 	case mDNIe_DMB_WARM_MODE:
 		DPRINT(" = DMB WARM MODE =\n");
 		DPRINT("no data for DMB  WARM MODE..\n");
-		break;
+		return;
+
 
 	case mDNIe_DMB_COLD_MODE:
 		DPRINT(" = DMB COLD MODE =\n");
 		DPRINT("no data for DMB COLD MODE..\n");
+		return;
+
+#endif
+
+#if defined(CONFIG_MTV)
+	case mDNIe_ISDBT_SOCCER_MODE:
+		DPRINT(" = ISDB SOCCER MODE =\n");
+		SET_MDNIE_COMMAND(mDNIe_ISDBT_SOCCER_MODE_CMD)
 		break;
 #endif
 
 	case mDNIe_BROWSER_MODE:
 		DPRINT(" = BROWSER MODE =\n");
 		DPRINT("no data for DMB MODE..\n");
-		break;
+		return;
+
 	case mDNIe_eBOOK_MODE:
 		DPRINT(" = eBOOK MODE =\n");
 		DPRINT("no data for DMB MODE..\n");
-		break;
+		return;
+
 	case mDNIe_EMAIL_MODE:
 		DPRINT(" = EMAIL MODE =\n");
 		DPRINT("no data for DMB MODE..\n");
-		break;
+		return;
+
 	case mDNIE_BLINE_MODE:
 		DPRINT(" = BLIND MODE =\n");
 		DPRINT("no data for DMB MODE..\n");
-		break;
+		return;
 	default:
 		DPRINT("[%s] no option (%d)\n", __func__, mode);
 		return;
@@ -468,6 +483,12 @@ static ssize_t scenario_store(struct device *dev,
 		break;
 	case SIG_MDNIE_DMB_COLD_MODE:
 		mdnie_tun_state.scenario = mDNIe_DMB_COLD_MODE;
+		break;
+#endif
+
+#if defined(CONFIG_MTV)
+	case SIG_MDNIE_ISDBT_SOCCERMODE:
+		mdnie_tun_state.scenario = mDNIe_ISDBT_SOCCER_MODE;
 		break;
 #endif
 
@@ -823,6 +844,7 @@ void mdnie_tft_init(struct mdss_samsung_driver_data *msd)
 {
 	mdnie_msd = msd;
 	mutex_init(&mdnie_msd->lock);
+	mutex_init(&mdnie_lock);
 	if(mdnie_msd->manufacture_id == 0x55c090)
 		is_ldi_himax = 1;
 }

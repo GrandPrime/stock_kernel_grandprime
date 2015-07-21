@@ -47,9 +47,12 @@
 #define REGS_OPMOD		0x4 /* Write Only */
 #define REGS_CON		0x6 /* Write Only */
 
-#if defined(CONFIG_SEC_FORTUNA_PROJECT)
+#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_MACH_ROSSA_AIO)
 #define PROX_NONDETECT			0x40
 #define PROX_DETECT				0x20
+#elif defined(CONFIG_MACH_ROSSA_EUR_OPEN)
+#define PROX_NONDETECT			0x2F
+#define PROX_DETECT				0x0D
 #else
 #define PROX_NONDETECT			0x2F
 #define PROX_DETECT				0x0F
@@ -160,6 +163,10 @@ static int gp2a_leda_onoff(struct gp2a_data *gp2a, int power)
 
 	if (ret < 0)
 		pr_err("%s, error for direction\n", __func__);
+
+#if defined(CONFIG_MACH_ROSSA_SPR)
+	mdelay(2);
+#endif
 
 	return 0;
 }
@@ -753,6 +760,7 @@ done:
 	return ret;
 }
 
+#if !defined(CONFIG_MACH_FORTUNA_EUR_OPEN)
 static void gp2a_i2c_shutdown(struct i2c_client *client)
 {
 	struct gp2a_data *gp2a = i2c_get_clientdata(client);
@@ -775,6 +783,7 @@ static void gp2a_i2c_shutdown(struct i2c_client *client)
 	wake_lock_destroy(&gp2a->prx_wake_lock);
 	kfree(gp2a);
 }
+#endif
 
 static const struct i2c_device_id gp2a_device_id[] = {
 	{"gp2a", 0},
@@ -797,7 +806,9 @@ static struct i2c_driver gp2a_i2c_driver = {
 
 	},
 	.probe		= gp2a_i2c_probe,
+#if !defined(CONFIG_MACH_FORTUNA_EUR_OPEN)
 	.shutdown	= gp2a_i2c_shutdown,
+#endif
 	.id_table	= gp2a_device_id,
 };
 

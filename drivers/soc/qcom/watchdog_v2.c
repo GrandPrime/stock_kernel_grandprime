@@ -370,6 +370,7 @@ static irqreturn_t wdog_bark_handler(int irq, void *dev_id)
 #ifdef CONFIG_SEC_DEBUG
 	sec_debug_prepare_for_wdog_bark_reset();
 #endif
+
 	nanosec_rem = do_div(wdog_dd->last_pet, 1000000000);
 	printk(KERN_INFO "Watchdog last pet at %lu.%06lu\n", (unsigned long)
 		wdog_dd->last_pet, nanosec_rem / 1000);
@@ -690,7 +691,6 @@ static int init_watchdog(void)
 	return platform_driver_register(&msm_watchdog_driver);
 }
 
-EXPORT_COMPAT("qcom,msm-watchdog");
 pure_initcall(init_watchdog);
 MODULE_DESCRIPTION("MSM Watchdog Driver");
 MODULE_LICENSE("GPL v2");

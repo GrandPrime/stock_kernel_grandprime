@@ -183,8 +183,6 @@ static void qpnp_vib_enable(struct timed_output_dev *dev, int value)
 	mutex_lock(&vib->lock);
 	hrtimer_cancel(&vib->vib_timer);
 
-	pr_info("%s value : %d ms\n", __func__, value);
-
 	if (value == 0)
 		vib->state = 0;
 	else {
@@ -323,8 +321,6 @@ static int qpnp_vib_parse_dt(struct qpnp_vib *vib)
 
 	vib->active_low = of_property_read_bool(spmi->dev.of_node,
 				"qcom,active-low");
-	pr_info("%s timeout[%d], vtg_level[%d],	mode[%d], active_low[%d]\n",
-			__func__, vib->timeout, vib->vtg_level, vib->mode, vib->active_low);
 
 	return 0;
 }

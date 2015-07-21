@@ -97,6 +97,10 @@ typedef volatile U32		VU32;
 #define RAONTV_CHIP_PKG_WLCSP	// MTV222
 //#define RAONTV_CHIP_PKG_QFN	// MTV818A
 
+/*============================================================================
+* Defines the Chip Configure Type
+*===========================================================================*/
+//#define RAONTV_CHIP_INTEGER_MODE_EN
 
 /*============================================================================
 * Defines the external source freqenecy in KHz.

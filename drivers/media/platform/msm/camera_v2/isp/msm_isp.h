@@ -19,7 +19,7 @@
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/delay.h>
-#include <linux/avtimer_kernel.h>
+#include <linux/avtimer.h>
 #include <media/v4l2-subdev.h>
 #include <media/msmb_isp.h>
 #include <linux/msm-bus.h>
@@ -32,6 +32,7 @@
 #define VFE40_8x26_VERSION 0x20000013
 #define VFE40_8x26V2_VERSION 0x20010014
 #define VFE40_8916_VERSION 0x10030000
+#define VFE40_8939_VERSION 0x10040000
 
 #define MAX_IOMMU_CTX 2
 #define MAX_NUM_WM 7
@@ -477,6 +478,12 @@ struct msm_vbif_cntrs {
 	int total_vbif_cnt_2;
 };
 
+struct msm_vfe_hw_init_parms {
+	const char *entries;
+	const char *regs;
+	const char *settings;
+};
+
 struct vfe_device {
 	struct platform_device *pdev;
 	struct msm_sd_subdev subdev;
@@ -491,7 +498,7 @@ struct vfe_device {
 	struct device *iommu_ctx[MAX_IOMMU_CTX];
 
 	struct regulator *fs_vfe;
-	struct clk *vfe_clk[7];
+	struct clk **vfe_clk;
 	uint32_t num_clk;
 
 	uint32_t bus_perf_client;
@@ -504,21 +511,16 @@ struct vfe_device {
 	struct mutex core_mutex;
 
 	atomic_t irq_cnt;
-	atomic_t reg_update_cnt;
 	uint8_t taskletq_idx;
-	uint8_t taskletq_reg_update_idx;
 	spinlock_t  tasklet_lock;
 	spinlock_t  shared_data_lock;
-#if defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
 	spinlock_t  sof_lock;
 #endif
 	struct list_head tasklet_q;
-	struct list_head tasklet_regupdate_q;
 	struct tasklet_struct vfe_tasklet;
 	struct msm_vfe_tasklet_queue_cmd
 	tasklet_queue_cmd[MSM_VFE_TASKLETQ_SIZE];
-	struct msm_vfe_tasklet_queue_cmd
-		tasklet_regupdate_queue_cmd[MSM_VFE_TASKLETQ_SIZE];
 	uint32_t vfe_hw_version;
 	struct msm_vfe_hardware_info *hw_info;
 	struct msm_vfe_axi_shared_data axi_data;
@@ -528,11 +530,11 @@ struct vfe_device {
 	int dump_reg;
 	int vfe_clk_idx;
 	uint32_t vfe_open_cnt;
-	uint8_t vt_enable;
 	void __iomem *p_avtimer_msw;
 	void __iomem *p_avtimer_lsw;
 	void __iomem *p_avtimer_ctl;
 	uint8_t avtimer_scaler;
+	uint8_t vt_enable;
 	uint8_t ignore_error;
 	struct msm_isp_statistics *stats;
 	struct msm_vbif_cntrs vbif_cntrs;

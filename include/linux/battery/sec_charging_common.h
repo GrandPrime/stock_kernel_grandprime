@@ -77,10 +77,11 @@ enum sec_battery_adc_channel {
 	SEC_BAT_ADC_CHANNEL_BAT_CHECK,
 	SEC_BAT_ADC_CHANNEL_TEMP,
 	SEC_BAT_ADC_CHANNEL_TEMP_AMBIENT,
+	SEC_BAT_ADC_CHANNEL_CHG_TEMP,
 	SEC_BAT_ADC_CHANNEL_FULL_CHECK,
 	SEC_BAT_ADC_CHANNEL_VOLTAGE_NOW,
-	SEC_BAT_ADC_CHANNEL_INBAT_VOLTAGE,
-	SEC_BAT_ADC_CHANNEL_NUM
+	SEC_BAT_ADC_CHANNEL_NUM,
+	SEC_BAT_ADC_CHANNEL_INBAT_VOLTAGE
 };
 
 /* charging mode */
@@ -290,10 +291,6 @@ enum sec_battery_temp_check {
  * by ADC
  */
 #define	SEC_BATTERY_CABLE_SOURCE_ADC		4
-/* SEC_BATTERY_CABLE_SOURCE_EXTENDED
- * use extended cable type
- */
-#define SEC_BATTERY_CABLE_SOURCE_EXTENDED	8
 
 /* capacity calculation type (can be used overlapped) */
 #define sec_fuelgauge_capacity_type_t int
@@ -434,6 +431,10 @@ struct sec_battery_platform_data {
 	bool use_LED;				/* use charging LED */
 
 	bool event_check;
+	bool chg_temp_check;
+	unsigned int chg_high_temp;
+	unsigned int chg_high_temp_recovery;
+	unsigned int chg_charging_limit_current;
 	/* sustaining event after deactivated (second) */
 	unsigned int event_waiting_time;
 
@@ -456,18 +457,30 @@ struct sec_battery_platform_data {
 	sec_battery_ovp_uvlo_t ovp_uvlo_check_type;
 
 	sec_battery_thermal_source_t thermal_source;
+
+	/*
+	 * inbat_adc_table
+	 * in-battery voltage check for table models:
+	 * To read real battery voltage with Jig cable attached,
+	 * dedicated hw pin & conversion table of adc-voltage are required
+	 */
 #ifdef CONFIG_OF
 	sec_bat_adc_table_data_t *temp_adc_table;
 	sec_bat_adc_table_data_t *temp_amb_adc_table;
+	sec_bat_adc_table_data_t *chg_temp_adc_table;
+	sec_bat_adc_table_data_t *inbat_adc_table;
 #else
 	const sec_bat_adc_table_data_t *temp_adc_table;
 	const sec_bat_adc_table_data_t *temp_amb_adc_table;
 #endif
 	unsigned int temp_adc_table_size;
 	unsigned int temp_amb_adc_table_size;
+	unsigned int chg_temp_adc_table_size;
+	unsigned int inbat_adc_table_size;
 
 	sec_battery_temp_check_t temp_check_type;
 	unsigned int temp_check_count;
+	unsigned int inbat_voltage;
 	/*
 	 * limit can be ADC value or Temperature
 	 * depending on temp_check_type
@@ -535,8 +548,11 @@ struct sec_battery_platform_data {
 	 * only for scaling
 	 */
 	int capacity_max;
+	int capacity_max_hv;
 	int capacity_max_margin;
 	int capacity_min;
+	int rcomp0;
+	int rcomp_charging;
 
 	/* charger */
 	char *charger_name;
@@ -610,12 +626,5 @@ static inline struct power_supply *get_power_supply_by_name(char *name)
 #define get_battery_data(driver)	\
 	(((struct battery_data_t *)(driver)->pdata->battery_data)	\
 	[(driver)->pdata->battery_type])
-
-#define GET_MAIN_CABLE_TYPE(extended)	\
-	((extended >> ONLINE_TYPE_MAIN_SHIFT)&0xf)
-#define GET_SUB_CABLE_TYPE(extended)	\
-	((extended >> ONLINE_TYPE_SUB_SHIFT)&0xf)
-#define GET_POWER_CABLE_TYPE(extended)	\
-	((extended >> ONLINE_TYPE_PWR_SHIFT)&0xf)
 
 #endif /* __SEC_CHARGING_COMMON_H */

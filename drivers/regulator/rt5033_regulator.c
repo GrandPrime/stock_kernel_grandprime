@@ -23,6 +23,7 @@
 
 #define ALIAS_NAME "rt5033-regulator"
 
+#define EN_DCDC_FORCE_PWM 1
 #define EN_BUCK_IRQ 1
 #define EN_VDDA_UV_IRQ 0
 #define EN_LDO_IRQ 0
@@ -114,7 +115,7 @@ static const unsigned int rt5033_safe_ldo_output_list[] = {
 #define RT5033_REGULATOR_DECL(_id, min, max,out_list)   \
 {								                        \
 	.desc	= {						                    \
-		.name	= "RT5033_REGULATOR" #_id,				\
+		.name	= "RT5033_REGULATOR_" #_id,				\
 		.ops	= &rt5033_regulator_ldo_dcdc_ops,		\
 		.type	= REGULATOR_VOLTAGE,			        \
 		.id	= RT5033_ID_##_id,			                \
@@ -261,9 +262,20 @@ static int rt5033_regulator_enable(struct regulator_dev *rdev)
 	struct rt5033_regulator_info *info = rdev_get_drvdata(rdev);
 	int ret;
 	pr_info("%s Enable regulator %s\n", ALIAS_NAME, rdev->desc->name);
+
+	rt5033_lock_regulator(info->i2c);
+	udelay(500);
+
+#if EN_DCDC_FORCE_PWM
+	/* Enable Force PWM for Buck */
+	if (info->desc.id == RT5033_ID_DCDC1)
+		rt5033_set_bits(info->i2c, 0x41, 0x01);
+#endif /* EN_DCDC_FORCE_PWM */
 	ret = rt5033_set_bits(info->i2c, info->enable_reg,
 			info->enable_bit);
 	pr_info("%s %s %s ret (%d)", ALIAS_NAME, rdev->desc->name, __func__, ret);
+
+	rt5033_unlock_regulator(info->i2c);
 
 	return ret;
 }
@@ -273,10 +285,22 @@ static int rt5033_regulator_disable(struct regulator_dev *rdev)
 	struct rt5033_regulator_info *info = rdev_get_drvdata(rdev);
 	int ret;
 
+	rt5033_lock_regulator(info->i2c);
+
+	udelay(500);
 	pr_info("%s Disable regulator %s\n", ALIAS_NAME, rdev->desc->name);
+#if EN_DCDC_FORCE_PWM
+	/* Disable Force PWM for Buck */
+	if (info->desc.id == RT5033_ID_DCDC1) {
+		rt5033_clr_bits(info->i2c, 0x41, 0x01);
+		usleep(100);
+	}
+#endif /* EN_DCDC_FORCE_PWM */
 	ret = rt5033_clr_bits(info->i2c, info->enable_reg,
 			info->enable_bit);
 	pr_info("%s %s ret (%d)", ALIAS_NAME, __func__, ret);
+
+	rt5033_unlock_regulator(info->i2c);
 
 	return ret;
 }
@@ -295,6 +319,67 @@ static int rt5033_regulator_is_enabled(struct regulator_dev *rdev)
 	return ret;
 }
 
+#ifdef CONFIG_MFD_RT5033_RESET_WA
+const static uint32_t rt5033_valid_pmic_status[] = {
+	0x1008,
+	0x0100,
+};
+
+static bool check_status_is_vaild(uint32_t sta)
+{
+	uint32_t i;
+	for (i = 0; i < ARRAY_SIZE(rt5033_valid_pmic_status); i++) {
+		if (rt5033_valid_pmic_status[i] == sta)
+			return true;
+	}
+	return false;
+}
+
+static int rt5033_regulator_get_status(struct regulator_dev *rdev)
+{
+	struct rt5033_regulator_info *info = rdev_get_drvdata(rdev);
+	/* REGULATOR_STATUS_OFF, REGULATOR_STATUS_ON, REGULATOR_STATUS_OFF */
+	int ret = REGULATOR_STATUS_ERROR;
+	int org_regval;
+	int sta1, sta2;
+
+	rt5033_lock_regulator(info->i2c);
+	/* First time to check it */
+	msleep(2);
+	org_regval = rt5033_reg_read(info->i2c, 0xf0);
+	rt5033_reg_write(info->i2c, 0xf0, 0x1e);
+	rt5033_assign_bits(info->i2c, 0xf3, 0x03 << 6, 0x2 << 6);
+	sta1 = rt5033_reg_read(info->i2c, 0xf6) & 0x1f;
+	rt5033_assign_bits(info->i2c, 0xf3, 0x03 << 6, 0x3 << 6);
+	sta2 = rt5033_reg_read(info->i2c, 0xf7) & 0x1f;
+	pr_err("%s status #1[0x%2x]\n", __func__, (sta2 << 8) | sta1);
+	if (check_status_is_vaild( (sta2 << 8) | sta1))
+		goto rt5033_reg_status_ok;
+
+	/* Failed case, we need to check again */
+	msleep(2);
+	org_regval = rt5033_reg_read(info->i2c, 0xf0);
+	rt5033_reg_write(info->i2c, 0xf0, 0x1e);
+	rt5033_assign_bits(info->i2c, 0xf3, 0x03 << 6, 0x2 << 6);
+	sta1 = rt5033_reg_read(info->i2c, 0xf6) & 0x1f;
+	rt5033_assign_bits(info->i2c, 0xf3, 0x03 << 6, 0x3 << 6);
+	sta2 = rt5033_reg_read(info->i2c, 0xf7) & 0x1f;
+	pr_err("%s status #2[0x%2x]\n", __func__, (sta2 << 8) | sta1);
+	if (!check_status_is_vaild( (sta2 << 8) | sta1))
+		goto rt5033_reg_status_exit;
+
+rt5033_reg_status_ok:
+	ret = rt5033_regulator_is_enabled(rdev) ?
+		REGULATOR_STATUS_ON :  REGULATOR_STATUS_OFF;
+
+rt5033_reg_status_exit:
+	rt5033_reg_write(info->i2c, 0xf0, org_regval);
+	rt5033_unlock_regulator(info->i2c);
+	pr_err("%s ret:%d\n", __func__, ret);
+	return ret;
+}
+#endif
+
 static struct regulator_ops rt5033_regulator_ldo_dcdc_ops = {
 	.list_voltage		= rt5033_regulator_list_voltage,
 #if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,39))
@@ -307,10 +392,13 @@ static struct regulator_ops rt5033_regulator_ldo_dcdc_ops = {
 	.enable			= rt5033_regulator_enable,
 	.disable		= rt5033_regulator_disable,
 	.is_enabled		= rt5033_regulator_is_enabled,
+#ifdef CONFIG_MFD_RT5033_RESET_WA
+	.get_status		= rt5033_regulator_get_status,
+#endif
 };
 
 static struct rt5033_regulator_info rt5033_regulator_infos[] = {
-//	RT5033_REGULATOR_DECL(LDO_SAFE, 3300, 4950, rt5033_safe_ldo_output_list),
+	RT5033_REGULATOR_DECL(LDO_SAFE, 3300, 4950, rt5033_safe_ldo_output_list),
 	RT5033_REGULATOR_DECL(LDO1, 1200, 3000, rt5033_ldo_output_list),
 	RT5033_REGULATOR_DECL(DCDC1, 1000, 3300, rt5033_dcdc_output_list),
 };
@@ -594,33 +682,53 @@ static int rt5033_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct regulator_init_data* init_data;
 	int ret;
+	int rev_id;
+
 	dev_info(&pdev->dev, "Richtek RT5033 regulator driver probing (id = %d)...\n", pdev->id);
+	rev_id = rt5033_reg_read(chip->i2c_client, 0x03) & 0x0f;
+
+	if (pdev->id == RT5033_ID_LDO_SAFE) {
+		dev_info(&pdev->dev, "Enable SafeLDO\n");
+		rt5033_set_bits(chip->i2c_client, 0x41, 1 << 6);
+	}
+
+#ifdef CONFIG_OF
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0))
+	if (pdev->dev.parent->of_node) {
+		pdev->dev.of_node = of_find_compatible_node(
+			of_node_get(pdev->dev.parent->of_node), NULL,
+			rt5033_regulator_match_table[pdev->id].compatible);
+	}
+#endif
+#endif
 	if (pdev->dev.of_node) {
 		dev_info(&pdev->dev, "Use DT...\n");
+#if (LINUX_VERSION_CODE>=KERNEL_VERSION(3,1,0))
 		init_data = of_get_regulator_init_data(&pdev->dev, pdev->dev.of_node);
+#else
+        init_data = of_get_regulator_init_data(&pdev->dev);
+#endif
 		if (init_data == NULL) {
 			dev_info(&pdev->dev, "Cannot find DTS data...\n");
 			init_data = default_rv_pdata.regulator[pdev->id];
 		}
-	} else {
+	}
+	else {
 		BUG_ON(mfd_pdata == NULL);
 		if (mfd_pdata->regulator_platform_data == NULL)
 			mfd_pdata->regulator_platform_data = &default_rv_pdata;
 		pdata = mfd_pdata->regulator_platform_data;
 		init_data = pdata->regulator[pdev->id];
 	}
-
-	if (init_data == NULL) {
-		dev_err(&pdev->dev, "no initializing data\n");
-		return -EINVAL;
-	}
 	ri = find_regulator_info(pdev->id);
 	if (ri == NULL) {
 		dev_err(&pdev->dev, "invalid regulator ID specified\n");
 		return -EINVAL;
 	}
-
-	ri->desc.name = init_data->constraints.name;
+	if (init_data == NULL) {
+		dev_err(&pdev->dev, "no initializing data\n");
+		return -EINVAL;
+	}
 	ri->i2c = chip->i2c_client;
 	ri->chip = chip;
 	chip->regulator_info[pdev->id] = ri;

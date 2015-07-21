@@ -73,11 +73,14 @@ struct voice_rec_route_state {
 	u16 dl_flag;
 };
 
+#ifdef CONFIG_SAMSUNG_AUDIO
 struct voice_dha_data {
 	short dha_mode;
 	short dha_select;
 	short dha_params[12];
 };
+#endif /* CONFIG_SAMSUNG_AUDIO */
+
 enum {
 	VOC_INIT = 0,
 	VOC_RUN,
@@ -106,7 +109,6 @@ struct mem_map_table {
 	struct ion_handle	*handle;
 	struct ion_client	*client;
 };
-#define VSS_ICOMMON_CMD_DHA_SET 0x0001128A
 
 /* Common */
 #define VSS_ICOMMON_CMD_SET_UI_PROPERTY 0x00011103
@@ -772,6 +774,8 @@ struct vss_icommon_cmd_set_ui_property_enable_t {
 #define VOICEPROC_MODULE_VENC          0x00010F07
 #define VOICE_PARAM_LOOPBACK_ENABLE  0x00010E18
 
+#define VSS_ICOMMON_CMD_DHA_SET 0x0001128A
+
 struct vss_icommon_cmd_set_loopback_enable_t {
 	uint32_t module_id;
 	/* Unique ID of the module. */
@@ -807,7 +811,7 @@ struct oem_dha_parm_send_cmd {
 	uint32_t mem_size;
 	struct oem_dha_parm_send_t dha_send;
 } __packed;
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
 
 /*
  * Event sent by the stream to the client that enables Rx DTMF
@@ -857,6 +861,7 @@ struct cvs_set_rx_dtmf_detection_cmd {
 	struct apr_hdr hdr;
 	struct vss_istream_cmd_set_rx_dtmf_detection cvs_dtmf_det;
 } __packed;
+
 
 struct cvs_create_passive_ctl_session_cmd {
 	struct apr_hdr hdr;
@@ -946,7 +951,7 @@ struct cvs_set_loopback_enable_cmd {
 	uint32_t mem_size;
 	struct vss_icommon_cmd_set_loopback_enable_t vss_set_loopback;
 } __packed;
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
 
 struct vss_istream_cmd_set_oob_packet_exchange_config_t {
 	struct apr_hdr hdr;
@@ -1473,6 +1478,8 @@ struct voice_data {
 
 	struct mutex lock;
 
+	bool disable_topology;
+
 	uint16_t sidetone_gain;
 	uint8_t tty_mode;
 	/* slowtalk enable value */
@@ -1492,9 +1499,10 @@ struct voice_data {
 	struct voice_rec_route_state rec_route_state;
 
 	struct power_supply *psy;
+
 #ifdef CONFIG_SAMSUNG_AUDIO
 	struct voice_dha_data sec_dha_data;
-#endif	
+#endif /* CONFIG_SAMSUNG_AUDIO */
 };
 
 struct cal_mem {
@@ -1608,7 +1616,7 @@ enum {
 #ifdef CONFIG_SAMSUNG_AUDIO
 int voice_sec_set_dha_data(uint32_t session_id, short mode,
 					short select, short *parameters);
-#endif					
+#endif /* CONFIG_SAMSUNG_AUDIO */
 
 #define APP_ID_MASK         0x3F000
 #define APP_ID_SHIFT		12
@@ -1680,9 +1688,10 @@ int voc_disable_device(uint32_t session_id);
 int voc_enable_device(uint32_t session_id);
 void voc_set_destroy_cvd_flag(bool is_destroy_cvd);
 void voc_set_vote_bms_flag(bool is_vote_bms);
+int voc_disable_topology(uint32_t session_id, uint32_t disable);
 
 #ifdef CONFIG_SAMSUNG_AUDIO
 int voc_get_loopback_enable(void);
 void voc_set_loopback_enable(int loopback_enable);
-#endif
+#endif /* CONFIG_SAMSUNG_AUDIO */
 #endif

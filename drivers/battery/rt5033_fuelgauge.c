@@ -1230,6 +1230,7 @@ bool sec_hal_fg_fuelalert_init(struct i2c_client *client, int soc)
 	ret = rt5033_fg_i2c_read_word(client, RT5033_FG_IRQ_CTRL);
 	/* enable volt, soc and battery presence alert irq; clear volt and soc alert status via i2c */
 	ret |= 0x1f00;
+	ret &= 0xfffc;
 	rt5033_fg_i2c_write_word(client,RT5033_FG_IRQ_CTRL,ret);
     fuelgauge->info.irq_ctrl = ret;
 	/* set volt and soc alert threshold */
@@ -1428,16 +1429,16 @@ bool sec_hal_fg_set_property(struct i2c_client *client,
 			     enum power_supply_property psp,
 			     const union power_supply_propval *val)
 {
-    struct sec_fuelgauge_info *fuelgauge = i2c_get_clientdata(client);
+	struct sec_fuelgauge_info *fuelgauge = i2c_get_clientdata(client);
 	switch (psp) {
 		/* Battery Temperature */
-	case POWER_SUPPLY_PROP_TEMP:
-                fuelgauge->info.temperature = val->intval;
-                break;
-	case POWER_SUPPLY_PROP_TEMP_AMBIENT:
-                break;
-	default:
-		return false;
+		case POWER_SUPPLY_PROP_TEMP:
+			fuelgauge->info.temperature = val->intval;
+			break;
+		case POWER_SUPPLY_PROP_TEMP_AMBIENT:
+			break;
+		default:
+			return false;
 	}
 	return true;
 }
@@ -1513,3 +1514,4 @@ ssize_t sec_hal_fg_store_attrs(struct device *dev,
 
 	return ret;
 }
+

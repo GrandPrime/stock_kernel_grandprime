@@ -170,3 +170,4 @@ obj-$(CONFIG_VEXPRESS_CONFIG)	+= vexpress-config.o vexpress-sysreg.o
 obj-$(CONFIG_MFD_RETU)		+= retu-mfd.o
 obj-$(CONFIG_MFD_AS3711)	+= as3711.o
 obj-$(CONFIG_MFD_RT5033) += rt5033_core.o rt5033_irq.o
+obj-$(CONFIG_MFD_SM5701) 	+= sm5701_core.o sm5701_irq.o

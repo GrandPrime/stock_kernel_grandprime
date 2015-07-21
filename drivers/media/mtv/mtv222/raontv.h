@@ -27,7 +27,7 @@ extern "C"{
 
 #include "raontv_port.h"
 
-#define RAONTV_CHIP_ID		0x8A
+#define RAONTV_CHIP_ID		0xC6
 #define MTV222_SPI_CMD_SIZE		3
 
 /*==============================================================================

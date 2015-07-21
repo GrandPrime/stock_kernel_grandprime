@@ -19,7 +19,7 @@
 
 DEFINE_MSM_MUTEX(msm_actuator_mutex);
 
-
+/*#define MSM_ACUTUATOR_DEBUG*/
 #undef CDBG
 #ifdef MSM_ACUTUATOR_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
@@ -212,27 +212,27 @@ static int32_t msm_actuator_vcm_init_focus(struct msm_actuator_ctrl_t *a_ctrl,
   uint16_t status = 0;
   uint16_t delay_count = 0;
   uint16_t delay_count_limit = 0;
-  
+
   CDBG("%s Enter, size %d\n", __func__, size);
 
   for (i = 0; i < size; i++) {
     if (settings[i].reg_addr == MSM_ACTUATOR_INIT_FOCUS_DELAY) {
       delay = settings[i].reg_data;
       usleep_range(delay, delay + 1000);
-      CDBG("%s %d settings[%d].reg_addr = %d, settings[%d].reg_data = %d\n", 
+      CDBG("%s %d settings[%d].reg_addr = %d, settings[%d].reg_data = %d\n",
         __func__, __LINE__,i, settings[i].reg_addr, i, settings[i].reg_data);
     }
     else if (settings[i].reg_addr == MSM_ACTUATOR_INIT_FOCUS_READ_STATUS) {
       /* reg_data[i] = limitation for delay count for read status */
-      delay_count_limit = settings[i].reg_data; 
-      CDBG("%s %d settings[%d].reg_addr = %d, settings[%d].reg_data = %d\n", 
+      delay_count_limit = settings[i].reg_data;
+      CDBG("%s %d settings[%d].reg_addr = %d, settings[%d].reg_data = %d\n",
         __func__, __LINE__,i, settings[i].reg_addr, i, settings[i].reg_data);
       i++;
       /*reg_addr[i+1] = addr for status register*/
-      status_addr = settings[i].reg_addr; 
+      status_addr = settings[i].reg_addr;
       /*reg_data[i+1] = value for stopping to read the status register*/
-      status_data = settings[i].reg_data; 
-      CDBG("%s %d settings[%d].reg_addr = %d, settings[%d].reg_data = %d\n", 
+      status_data = settings[i].reg_data;
+      CDBG("%s %d settings[%d].reg_addr = %d, settings[%d].reg_data = %d\n",
         __func__, __LINE__,i, settings[i].reg_addr, i, settings[i].reg_data);
       delay_count = 0;
       do {
@@ -251,7 +251,7 @@ static int32_t msm_actuator_vcm_init_focus(struct msm_actuator_ctrl_t *a_ctrl,
       } while (status != status_data);
     }
     else {
-      CDBG("%s %d settings[%d].reg_addr = %d, settings[%d].reg_data = %d\n", 
+      CDBG("%s %d settings[%d].reg_addr = %d, settings[%d].reg_data = %d\n",
            __func__, __LINE__,i, settings[i].reg_addr, i, settings[i].reg_data);
 
       rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
@@ -572,7 +572,7 @@ static int32_t msm_actuator_power_down(struct msm_actuator_ctrl_t *a_ctrl)
 }
 
 static void msm_actuator_set_position_tbl(
-  struct msm_actuator_ctrl_t *a_ctrl, 
+  struct msm_actuator_ctrl_t *a_ctrl,
   uint16_t pos, uint16_t delay)
 {
   uint16_t msb, lsb, reg_addr;
@@ -587,7 +587,7 @@ static void msm_actuator_set_position_tbl(
   a_ctrl->i2c_reg_tbl[a_ctrl->i2c_tbl_index].reg_data = msb;
   a_ctrl->i2c_reg_tbl[a_ctrl->i2c_tbl_index].delay = 0;
   a_ctrl->i2c_tbl_index++;
-  
+
   a_ctrl->i2c_reg_tbl[a_ctrl->i2c_tbl_index].reg_addr = reg_addr+1;
   a_ctrl->i2c_reg_tbl[a_ctrl->i2c_tbl_index].reg_data = lsb;
   a_ctrl->i2c_reg_tbl[a_ctrl->i2c_tbl_index].delay = delay;
@@ -599,25 +599,23 @@ static int32_t msm_actuator_vcm_set_position(
     struct msm_actuator_ctrl_t *a_ctrl,
     struct msm_actuator_set_position_t *set_pos)
 {
- 
    int32_t rc = 0;
    int32_t index;
    uint16_t pos, delay;
    struct msm_camera_i2c_reg_setting reg_setting;
- 
    CDBG("%s Enter : steps = %d\n", __func__, set_pos->number_of_steps);
- 
+
    if (set_pos->number_of_steps  == 0)
      return rc;
- 
+
    a_ctrl->i2c_tbl_index = 0;
- 
+
    for (index = 0; index < set_pos->number_of_steps; index++) {
       pos = a_ctrl->step_position_table[set_pos->pos[index]];
       delay = set_pos->delay[index];
-      msm_actuator_set_position_tbl(a_ctrl, pos, delay); 
+      msm_actuator_set_position_tbl(a_ctrl, pos, delay);
    }
- 
+
    reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
    reg_setting.data_type = a_ctrl->i2c_data_type;
    reg_setting.size = a_ctrl->i2c_tbl_index;
@@ -627,7 +625,7 @@ static int32_t msm_actuator_vcm_set_position(
      pr_err("%s Failed I2C write Line %d\n", __func__, __LINE__);
      return rc;
    }
- 
+
    CDBG("%s exit %d\n", __func__, __LINE__);
    return rc;
 }
@@ -803,14 +801,14 @@ static int32_t msm_actuator_vcm_sw_landing(
    CDBG("%s %d set the landing position in the table\n", __func__, __LINE__);
    a_ctrl->i2c_tbl_index = 0;
    do{
-       if(lens_pos <= Second_damping_lens_pos) break; 
+       if(lens_pos <= Second_damping_lens_pos) break;
        else{
            lens_pos -= damp_step;
            msm_actuator_set_position_tbl(a_ctrl, lens_pos, damp_delay);
        }
    }while(lens_pos > Second_damping_lens_pos);
 
-   /*set final position*/ 
+   /*set final position*/
    CDBG("%s %d set the final position in the table\n", __func__, __LINE__);
    lens_pos = 0;
    msm_actuator_set_position_tbl(a_ctrl, lens_pos, damp_delay);
@@ -900,12 +898,12 @@ static int32_t msm_actuator_config(struct msm_actuator_ctrl_t *a_ctrl,
 			pr_err("actuator_set_position failed %d\n", rc);
 		break;
 
- 	case CFG_SET_ACTUATOR_SW_LANDING:
- 		if (a_ctrl && a_ctrl->func_tbl && a_ctrl->func_tbl->actuator_sw_landing) {
+	case CFG_SET_ACTUATOR_SW_LANDING:
+		if (a_ctrl && a_ctrl->func_tbl && a_ctrl->func_tbl->actuator_sw_landing) {
 		  rc = a_ctrl->func_tbl->actuator_sw_landing(a_ctrl, &cdata->cfg.move);
- 		  if (rc < 0)
- 			  pr_err("actuator_sw_landing failed %d\n", rc);
- 		}
+		if (rc < 0)
+			pr_err("actuator_sw_landing failed %d\n", rc);
+		}
 
 	case CFG_ACTUATOR_POWERUP:
 		rc = msm_actuator_power_up(a_ctrl);

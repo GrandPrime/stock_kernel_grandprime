@@ -55,7 +55,6 @@
 #define ABOV_RAWDATA		0x0E
 #define ABOV_VENDORID		0x12
 #define ABOV_GLOVE			0x13
-#define ABOV_MD_VER		0x14
 
 /* command */
 #define CMD_LED_ON			0x10
@@ -72,28 +71,11 @@
 
 static struct device *sec_touchkey;
 
-#ifdef CONFIG_SEC_KLEOS_PROJECT
-#define TK_FW_PATH_BIN "abov/abov_tk.fw"
-#define FW_VERSION 0x15
-#define FW_CHECKSUM_H 0x5F
-#define FW_CHECKSUM_L 0xF2
-
-#elif defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT)\
-	|| defined(CONFIG_SEC_A33G_EUR_PROJECT)
-#define TK_FW_PATH_BIN "abov/abov_tk_a3.fw"
-#define FW_VERSION 0x4
-#define FW_CHECKSUM_H 0x3D
-#define FW_CHECKSUM_L 0x52
-#define FORCE_FW_UPDATE_DIFF_MODULE
-#define MD_VERSION 0x89
-
-#else
-#define TK_FW_PATH_BIN "abov/abov_tk.fw"
 #define FW_VERSION 0x1
-#define FW_CHECKSUM_H 0x99
-#define FW_CHECKSUM_L 0xF8
-#endif
+#define FW_CHECKSUM_H 0x90
+#define FW_CHECKSUM_L 0xc
 
+#define TK_FW_PATH_BIN "abov/abov_tk.fw"
 #define TK_FW_PATH_SDCARD "/sdcard/abov_fw.bin"
 
 #define I2C_M_WR 0		/* for i2c */
@@ -140,7 +122,6 @@ struct abov_tk_info {
 	int touchkey_count;
 	u8 fw_update_state;
 	u8 fw_ver;
-	u8 md_ver;
 	u8 checksum_h;
 	u8 checksum_l;
 	bool enabled;
@@ -537,27 +518,7 @@ int get_tk_fw_version(struct abov_tk_info *info, bool bootmode)
 	}
 
 	info->fw_ver = buf;
-
-	retry = 3;
-	ret = abov_tk_i2c_read(client, ABOV_MD_VER, &buf, 1);
-	if (ret < 0) {
-		while (retry--) {
-			dev_err(&client->dev, "%s read fail(%d)\n",
-				__func__, retry);
-			if (!bootmode)
-				abov_tk_reset(info);
-			else
-				return -1;
-			ret = abov_tk_i2c_read(client, ABOV_MD_VER, &buf, 1);
-			if (ret == 0)
-				break;
-		}
-		if (retry == 0)
-			return -1;
-	}
-
-	info->md_ver = buf;
-	dev_notice(&client->dev, "%s : fw = 0x%x, md = 0x%x\n", __func__, info->fw_ver, info->md_ver);
+	dev_notice(&client->dev, "%s : 0x%x\n", __func__, buf);
 	return 0;
 }
 
@@ -1307,7 +1268,6 @@ static int abov_tk_fw_check(struct abov_tk_info *info)
 {
 	struct i2c_client *client = info->client;
 	int ret;
-	bool force = false;
 
 	ret = get_tk_fw_version(info, true);
 	if (0/*ret*/) {
@@ -1322,17 +1282,8 @@ static int abov_tk_fw_check(struct abov_tk_info *info)
 	if (!info->fw_update_possible)
 		return ret;
 
-#ifdef FORCE_FW_UPDATE_DIFF_MODULE
-	if (info->md_ver != MD_VERSION) {
-		dev_err(&client->dev,
-			"MD version is different.(IC %x, BN %x). Do force FW update\n",
-			info->md_ver, MD_VERSION);
-		force = true;
-	}
-#endif
-
-	if (info->fw_ver < FW_VERSION || info->fw_ver > 0xf0 || force == true) {
-		dev_err(&client->dev, "excute tk firmware update (0x%x -> 0x%x)\n",
+	if (info->fw_ver < FW_VERSION) {
+	dev_err(&client->dev, "excute tk firmware update (0x%x -> 0x%x\n",
 			info->fw_ver, FW_VERSION);
 		ret = abov_flash_fw(info, true, BUILT_IN);
 		if (ret) {
@@ -1344,6 +1295,11 @@ static int abov_tk_fw_check(struct abov_tk_info *info)
 		}
 	}
 
+	else {
+		dev_err(&client->dev, "IC's firmware version is the latest 0x%x",
+			info->fw_ver);
+	}
+
 	return ret;
 }
 
@@ -1353,21 +1309,11 @@ int abov_power(struct abov_touchkey_platform_data *pdata, bool on)
 
 	if(pdata->vdd_io_vreg)
 		ret = regulator_enable(pdata->vdd_io_vreg);
-	else
-		pr_err("[TKEY] %s: iovdd reg NULL!! \n", __func__);
 	if(ret){
 		pr_err("[TKEY] %s: iovdd reg enable fail\n", __func__);
 		return ret;
 	}
 
-#if 0// !defined (CONFIG_SEC_GNOTE_PROJECT)
-	if(pdata->avdd_vreg)
-		ret = regulator_enable(pdata->avdd_vreg);
-	if(ret){
-		pr_err("[TKEY] %s: avdd reg enable fail\n", __func__);
-		return ret;
-	}
-#endif
 	msleep(50);
 	return ret;
 }
@@ -1435,24 +1381,15 @@ int abov_gpio_reg_init(struct device *dev,
 		dev_err(dev, "unable to request gpio_tkey_led_en..Tkey led will not work...ignoring\n");
 		ret = 0;
 	}
-	#if !defined CONFIG_MACH_A3_CHN_CTC
+
 	pdata->vdd_io_vreg = regulator_get(dev, "vddo");
 	//pdata->vdd_io_vreg = regulator_get(dev, "8226_l6");
 	if (IS_ERR(pdata->vdd_io_vreg)){
 		pdata->vdd_io_vreg = NULL;
 		dev_err(dev, "pdata->vdd_io_vreg get error, ignoring\n");
-	} else
-		regulator_set_voltage(pdata->vdd_io_vreg, 1800000, 1800000);
-	#endif
-#if 0// !defined (CONFIG_SEC_GNOTE_PROJECT)
-	//pdata->avdd_vreg = regulator_get(dev, "8226_l19");
-	pdata->avdd_vreg = regulator_get(dev, "avdd");
-	if (IS_ERR(pdata->avdd_vreg)){
-		pdata->avdd_vreg = NULL;
-		dev_err(dev, "pdata->avdd_vreg get error, ignoring\n");
 	}
-	regulator_set_voltage(pdata->avdd_vreg, 2850000, 2850000);
-#endif
+	regulator_set_voltage(pdata->vdd_io_vreg, 1800000, 1800000);
+
 	pdata->power = abov_power;
 
 	return ret;
@@ -1464,15 +1401,10 @@ static int abov_parse_dt(struct device *dev,
 {
 	struct device_node *np = dev->of_node;
 
-	pdata->gpio_rst = of_get_named_gpio(np, "abov,rst-gpio", 0);
-	if(pdata->gpio_rst < 0){
-		dev_err(dev, "unable to get gpio_rst\n");
-	}
-
 	pdata->gpio_en = of_get_named_gpio(np, "abov,tkey_en-gpio", 0);
-	if(pdata->gpio_en < 0){
-		dev_err(dev, "unable to get gpio_en\n");
-		return pdata->gpio_en;
+	if(pdata->gpio_int < 0){
+		dev_err(dev, "unable to get gpio_int\n");
+		return pdata->gpio_int;
 	}
 
 	of_property_read_u32(np, "abov,gpio_seperated", &pdata->gpio_seperated);
@@ -1525,8 +1457,6 @@ static int abov_tk_probe(struct i2c_client *client,
 #endif
 	int ret = 0;
 
-	pr_err("%s++\n", __func__);
-
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev,
 			"i2c_check_functionality fail\n");
@@ -1557,13 +1487,12 @@ static int abov_tk_probe(struct i2c_client *client,
 			sizeof(struct abov_touchkey_platform_data), GFP_KERNEL);
 		if (!pdata) {
 			dev_err(&client->dev, "Failed to allocate memory\n");
-			ret = -ENOMEM;
-			goto err_config;
+			return -ENOMEM;
 		}
 
 		ret = abov_parse_dt(&client->dev, pdata);
 		if (ret)
-			goto err_config;
+			return ret;
 
 		info->pdata = pdata;
 	} else
@@ -1686,7 +1615,7 @@ static int abov_tk_probe(struct i2c_client *client,
 			__func__);
 	}
 
-	dev_err(&client->dev, "%s done\n", __func__);
+	dev_dbg(&client->dev, "%s done\n", __func__);
 
 	gpio_direction_output(info->pdata->gpio_tkey_led_en, 0);
 	return 0;
@@ -1740,9 +1669,7 @@ static int abov_tk_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct abov_tk_info *info = i2c_get_clientdata(client);
-#if !defined(CONFIG_SEC_GPEN_PROJECT)
 	int ret;
-#endif
 
 	if (!info->enabled)
 		return 0;
@@ -1754,14 +1681,10 @@ static int abov_tk_suspend(struct device *dev)
 	info->enabled = false;
 	release_all_fingers(info);
 
-#if defined(CONFIG_SEC_GPEN_PROJECT)
-	if (info->pdata->power)
-		info->pdata->power(info->pdata, false);
-#else
 	ret = gpio_get_value(info->pdata->gpio_en);
 	if (ret)
 		gpio_direction_output(info->pdata->gpio_en, 0);
-#endif
+	
 	return 0;
 #if 1
 	/*if (info->pdata->power)
@@ -1910,7 +1833,7 @@ static struct i2c_driver abov_tk_driver = {
 static int __init touchkey_init(void)
 {
 	pr_err("%s: abov,mc96ft16xx\n", __func__);
-#if defined(CONFIG_SAMSUNG_LPM_MODE)
+#ifdef CONFIG_SAMSUNG_LPM_MODE
 	if (poweroff_charging) {
 		pr_notice("%s : LPM Charging Mode!!\n", __func__);
 		return 0;

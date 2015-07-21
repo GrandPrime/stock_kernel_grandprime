@@ -99,6 +99,15 @@ struct mdss_prefill_data {
 	u32 fbc_lines;
 };
 
+enum mdss_hw_index {
+	MDSS_HW_MDP,
+	MDSS_HW_DSI0,
+	MDSS_HW_DSI1,
+	MDSS_HW_HDMI,
+	MDSS_HW_EDP,
+	MDSS_MAX_HW_BLK
+};
+
 struct mdss_data_type {
 	u32 mdp_rev;
 	struct clk *mdp_clk[MDSS_MAX_CLK];
@@ -122,12 +131,15 @@ struct mdss_data_type {
 	u32 irq_buzy;
 	u32 has_bwc;
 	u32 has_decimation;
+	bool has_fixed_qos_arbiter_enabled;
+	bool has_panic_ctrl;
 	u32 wfd_mode;
 	u32 has_no_lut_read;
 	u8 has_wb_ad;
 	u8 has_non_scalar_rgb;
 	bool has_src_split;
 	bool idle_pc_enabled;
+	bool has_dst_split;
 
 	u32 rotator_ot_limit;
 	u32 mdp_irq_mask;
@@ -181,6 +193,7 @@ struct mdss_data_type {
 	struct mdss_mdp_mixer *mixer_wb;
 	u32 nmixers_intf;
 	u32 nmixers_wb;
+	u32 max_mixer_width;
 
 	struct mdss_mdp_ctl *ctl_off;
 	u32 nctl;
@@ -213,17 +226,13 @@ struct mdss_data_type {
 	struct mdss_perf_tune perf_tune;
 	bool traffic_shaper_en;
 	int iommu_ref_cnt;
+	u32 latency_buff_per;
+
+	u64 ab_rt[MDSS_MAX_HW_BLK];
+	u64 ab_nrt[MDSS_MAX_HW_BLK];
+	u64 ib[MDSS_MAX_HW_BLK];
 };
 extern struct mdss_data_type *mdss_res;
-
-enum mdss_hw_index {
-	MDSS_HW_MDP,
-	MDSS_HW_DSI0,
-	MDSS_HW_DSI1,
-	MDSS_HW_HDMI,
-	MDSS_HW_EDP,
-	MDSS_MAX_HW_BLK
-};
 
 struct mdss_hw {
 	u32 hw_ndx;
@@ -237,6 +246,8 @@ void mdss_disable_irq(struct mdss_hw *hw);
 void mdss_disable_irq_nosync(struct mdss_hw *hw);
 void mdss_bus_bandwidth_ctrl(int enable);
 int mdss_iommu_ctrl(int enable);
+int mdss_bus_scale_set_quota(int client, u64 ab_quota_rt, u64 ab_quota_nrt,
+		u64 ib_quota);
 
 static inline struct ion_client *mdss_get_ionclient(void)
 {
@@ -262,8 +273,4 @@ static inline int mdss_get_iommu_domain(u32 type)
 
 	return mdss_res->iommu_map[type].domain_idx;
 }
-
-#ifdef CONFIG_SAMSUNG_LPM_MODE
-extern int poweroff_charging;
-#endif /* CONFIG_SAMSUNG_LPM_MODE */
 #endif /* MDSS_H */

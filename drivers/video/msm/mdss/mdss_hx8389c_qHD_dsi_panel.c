@@ -33,7 +33,7 @@
 static int lcd_brightness = -1;
 static DEFINE_SPINLOCK(bg_gpio_lock);
 #define DT_CMD_HDR 6
-
+unsigned int lcd_id=0;
 DEFINE_LED_TRIGGER(bl_led_trigger);
 static struct mdss_samsung_driver_data msd;
 
@@ -305,6 +305,8 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 			struct dsi_panel_cmds *pcmds)
 {
 	struct dcs_cmd_req cmdreq;
+	if(!get_lcd_attached())
+		return;
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = pcmds->cmds;
@@ -338,7 +340,7 @@ static unsigned char get_brightness_mapped(int bl_level)
 	case 232 ...233 : backlightlevel = 230 ; break;
 	case 229 ...231 : backlightlevel = 227 ; break;
 	case 227 ...228 : backlightlevel = 224 ; break;
-	case 225 ...226 : backlightlevel = 221 ; break;
+	case 224 ...226 : backlightlevel = 221 ; break;
 	case 222 ...223 : backlightlevel = 218 ; break;
 	case 219 ...221 : backlightlevel = 215 ; break;
 	case 217 ...218 : backlightlevel = 212 ; break;
@@ -394,7 +396,7 @@ static unsigned char get_brightness_mapped(int bl_level)
 	case 91 ...92 : backlightlevel = 75 ; break;
 	case 88 ...90 : backlightlevel = 73 ; break;
 	case 86 ...87 : backlightlevel = 71 ; break;
-	case 84 ...85 : backlightlevel = 69 ; break;
+	case 83 ...85 : backlightlevel = 69 ; break;
 	case 81 ...82 : backlightlevel = 67 ; break;
 	case 78 ...80 : backlightlevel = 65 ; break;
 	case 76 ...77 : backlightlevel = 63 ; break;
@@ -792,6 +794,8 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 
 	if (ctrl->off_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->off_cmds);
+
+	mdss_dsi_panel_bl_ctrl(pdata, 0);
 
 	pr_debug("%s:-\n", __func__);
 	return 0;
@@ -1326,21 +1330,14 @@ static int mdss_panel_parse_dt(struct device_node *np,
 				__func__);
 		pinfo->pdest = DISPLAY_1;
 	}
-#if defined(CONFIG_MACH_FORTUNA3G_EUR)
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch-3g", &tmp);
-	pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-3g", &tmp);
-	pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-3g", &tmp);
-	pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
-#else
+
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch", &tmp);
 	pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch", &tmp);
 	pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width", &tmp);
 	pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
-#endif
+
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-sync-skew", &tmp);
 	pinfo->lcdc.hsync_skew = (!rc ? tmp : 0);
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch", &tmp);
@@ -1515,17 +1512,15 @@ static int mdss_panel_parse_dt(struct device_node *np,
 
 	mdss_dsi_parse_reset_seq(np, pinfo->rst_seq, &(pinfo->rst_seq_len),
 		"qcom,mdss-dsi-reset-sequence");
-
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
 		"qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
-
-	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
 		"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
-
-	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->status_cmds,
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->status_cmds,
 			"qcom,mdss-dsi-panel-status-command",
 				"qcom,mdss-dsi-panel-status-command-state");
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-status-value", &tmp);
+
 	ctrl_pdata->status_value = (!rc ? tmp : 0);
 
 #if defined(CONFIG_CABC_TUNING)
@@ -1590,9 +1585,9 @@ static ssize_t mdss_disp_lcdtype_show(struct device *dev,
 {
 	char temp[12] = {0,};
 
-	if (msd.manufacture_id)
-		snprintf(temp, 12, "INH_%x\n",msd.manufacture_id);
-	else
+	if (msd.manufacture_id) {
+			snprintf(temp, 12, "INH_%x\n",msd.manufacture_id);
+	} else
 		snprintf(temp, 12, "NOT_DEFINED");
 
 	strncat(buf, temp, 12);
@@ -1609,9 +1604,10 @@ static struct lcd_ops mdss_disp_props = {
 static int __init detect_lcd_manufacture_id(char* read_id)
 {
 
-	int lcd_id = simple_strtol(read_id, NULL, 16);
+	//int lcd_id = simple_strtol(read_id, NULL, 16);
+	lcd_id = simple_strtol(read_id, NULL, 16);
 	msd.manufacture_id = lcd_id;
-	gv_manufacture_id = msd.manufacture_id; 
+	gv_manufacture_id = msd.manufacture_id;
 	pr_info("%s: detected panel ID --> [0x%x]\n", __func__, lcd_id);
 	return 1;
 }
@@ -1638,7 +1634,7 @@ static ssize_t mdss_siop_enable_store(struct device *dev,
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 						panel_data);
-	
+
 	if (sysfs_streq(buf, "0")) {
 		msd.dstat.siop_status = 0;
 		pr_info("%s :CABC: OFF\n", __func__);
@@ -1701,7 +1697,6 @@ int mdss_dsi_panel_init(struct device_node *node,
 	}
 
 	pinfo = &ctrl_pdata->panel_data.panel_info;
-
 	pr_debug("%s:%d\n", __func__, __LINE__);
 	panel_name = of_get_property(node, "qcom,mdss-dsi-panel-name", NULL);
 	if (!panel_name)

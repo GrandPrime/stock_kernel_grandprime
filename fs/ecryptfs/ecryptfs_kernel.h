@@ -243,7 +243,6 @@ struct ecryptfs_crypt_stat {
 #ifdef CONFIG_WTL_ENCRYPTION_FILTER
 #define ECRYPTFS_ENCRYPTED_OTHER_DEVICE 0x00008000
 #endif
-
 	u32 flags;
 	unsigned int file_version;
 	size_t iv_bytes;
@@ -358,7 +357,6 @@ struct ecryptfs_mount_crypt_stat {
 #ifdef CONFIG_CRYPTO_FIPS
 #define ECRYPTFS_ENABLE_CC                     0x00000400
 #endif
-
 	u32 flags;
 	struct list_head global_auth_tok_list;
 	struct mutex global_auth_tok_list_mutex;
@@ -376,7 +374,6 @@ struct ecryptfs_mount_crypt_stat {
 	char enc_filter_ext[ENC_EXT_FILTER_MAX_INSTANCE]
 				[ENC_EXT_FILTER_MAX_LEN + 1];
 #endif
-
 };
 
 /* superblock private data. */

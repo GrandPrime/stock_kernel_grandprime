@@ -29,35 +29,6 @@
 #define BL_DIM_BRIGHTNESS_LEVEL		13
 #define BL_DEFAULT_BRIGHTNESS		BL_MID_BRIGHTNESS_LEVEL
 
-enum mipi_samsung_cmd_list {
-	PANEL_READY_TO_ON_FAST,
-	PANEL_READY_TO_ON,
-	PANEL_READY_TO_OFF,
-	PANEL_ON,
-	PANEL_OFF,
-	PANEL_LATE_ON,
-	PANEL_EARLY_OFF,
-	PANEL_GAMMA_UPDATE,
-	PANEL_ELVSS_UPDATE,
-	PANEL_ACL_ON,
-	PANEL_ACL_OFF,
-	PANEL_ACL_UPDATE,
-	MTP_READ_ENABLE,
-	PANEL_BRIGHT_CTRL,
-};
-
-enum {
-	MIPI_RESUME_STATE,
-	MIPI_SUSPEND_STATE,
-};
-
- struct display_status{
-	unsigned char auto_brightness;
-	int bright_level;
-	int siop_status;
-	unsigned char acl_on;
- };
-
  struct mdss_samsung_driver_data{
 	struct dsi_buf samsung_tx_buf;
 	struct msm_fb_data_type *mfd;

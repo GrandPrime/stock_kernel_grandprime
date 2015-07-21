@@ -44,24 +44,6 @@ config FB_MSM_MDSS_MDP3
 	The MDP3 provides support for an older version display controller
 	included in latest display sub-system, known as MDSS.
 
-config BACKLIGHT_KTD2801
-	bool "Backlight IC KTD2801"
-	default n
-
-config FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL
-	depends on FB_MSM_MDSS
-	bool "Support SAMSUNG QHD VIDEO (s6e88a) Panel"
-	default n
-
-config FB_MSM_MIPI_SAMSUNG_WVGA_VIDEO_PT_PANEL
-	depends on FB_MSM_MDSS
-	bool "Support SAMSUNG WVGA VIDEO (s6e88a0) Panel"
-	default n
-
-config ESD_RECOVERY
-	bool "ESD feature"
-	default n
-
 config FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL
 	depends on FB_MSM_MDSS
 	bool "Support BOE WVGA VIDEO (hx8369b) Panel"
@@ -71,35 +53,15 @@ config FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL
 	depends on FB_MSM_MDSS
 	bool "Support qHD VIDEO (HX8389C) Panel"
 	default n
-	
-config FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL_FORTUNACTC
+
+config FB_MSM_MIPI_S6D2AA0X_HD_VIDEO_PANEL
 	depends on FB_MSM_MDSS
-	bool "Support qHD VIDEO (hx8389c) Panel"
+	bool "Support Sharp Panel"
 	default n
 
-config FB_MSM_MIPI_HX8369B_WVGA_VIDEO_PANEL
-	depends on FB_MSM_MDSS
-	bool "Support qHD VIDEO (hx8389c) Panel"
+config BL_ISL98611
+	bool "Support Backlight ISL98611"
 	default n
-
-config FB_MSM_MIPI_NT35502_WVGA_VIDEO_PANEL
-	depends on FB_MSM_MDSS
-	bool "Support WVGA VIDEO (nt35502) Panel"
-	default n
-
-config ESD_ERR_FG_RECOVERY
-	bool "Support ESD ERR FG RECOVERY"
-	default n
-
-config MDNIE_LITE_TUNING
-	bool "MDNIe lite panel tuning"
-	default n
-	
-config FB_MSM_CAMERA_CSC
-	default n
-	bool "Support SAMSUNG CAMERA CSC"
-	---help---
-		Support for camera CSC tuning
 
 config MDNIE_TFT_MSM8X16
 	bool "MDNIe tft panel tuning"
@@ -113,7 +75,4 @@ config MDNIE_TFT_HIMAX
 config CABC_TUNING
 	bool "CABC panel tuning"
 	default n
-config SAMSUNG_DEBUG_DISPLAY
-        bool "Add Samsung Debugging code"
-        default n
 

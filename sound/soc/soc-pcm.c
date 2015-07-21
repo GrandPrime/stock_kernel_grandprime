@@ -2009,6 +2009,7 @@ static int dpcm_fe_dai_open(struct snd_pcm_substream *fe_substream)
 		mutex_unlock(&fe->card->mutex);
 		return ret;
 	}
+
 	/* calculate valid and active FE <-> BE dpcms */
 	dpcm_process_paths(fe, stream, &list, 1);
 

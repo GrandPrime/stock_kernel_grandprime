@@ -25,7 +25,6 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/exception.h>
-#include <linux/coresight.h>
 #ifdef CONFIG_SEC_DEBUG
 #include <mach/sec_debug.h>
 #endif
@@ -91,7 +90,6 @@ void panic(const char *fmt, ...)
 	emerg_pet_watchdog(); /*To prevent watchdog reset during panic handling. */
 #endif
 
-	coresight_abort();
 	/*
 	 * Disable local interrupts. This will prevent panic_smp_self_stop
 	 * from deadlocking the first cpu that invokes the panic, since

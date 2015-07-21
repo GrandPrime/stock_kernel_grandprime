@@ -2525,7 +2525,7 @@ static int lkmauth(Elf_Ehdr *hdr, int len)
 	qseecom_set_bandwidth(qhandle, true);
 	pid_from_lkm = current->pid;
 	qsee_ret = qseecom_send_command(qhandle, kreq, req_len, krsp, rsp_len);
-	pid_from_lkm = -1;
+    pid_from_lkm = -1;
 	qseecom_set_bandwidth(qhandle, false);
 
 	if (qsee_ret) {
@@ -2717,7 +2717,6 @@ static int elf_header_check(struct load_info *info)
 	}
 success:
 #endif
-
 	return 0;
 }
 

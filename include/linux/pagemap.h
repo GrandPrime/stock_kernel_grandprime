@@ -229,6 +229,7 @@ static inline struct page *__page_cache_alloc(gfp_t gfp)
 		__free_page(page);
 		page = alloc_pages(gfp & ~__GFP_MOVABLE, 0);
 	}
+
 	return page;
 }
 #endif

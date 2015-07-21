@@ -35,6 +35,7 @@
 #include <linux/notifier.h>
 #include <linux/ftrace.h>
 #endif
+
 #define EMERGENCY_DLOAD_MAGIC1    0x322A4F99
 #define EMERGENCY_DLOAD_MAGIC2    0xC67E4350
 #define EMERGENCY_DLOAD_MAGIC3    0x77777777
@@ -50,7 +51,6 @@ static int restart_mode;
 #ifndef CONFIG_SEC_DEBUG
 void *restart_reason;
 #endif
-
 static bool scm_pmic_arbiter_disable_supported;
 /* Download mode master kill-switch */
 static void __iomem *msm_ps_hold;
@@ -105,7 +105,7 @@ void set_dload_mode(int on)
 #endif
 }
 EXPORT_SYMBOL(set_dload_mode);
-#if 0
+#if 0 /*  Always WARM Reset */
 static bool get_dload_mode(void)
 {
 	return dload_mode_enabled;
@@ -196,7 +196,8 @@ static void halt_spmi_pmic_arbiter(void)
 
 static void msm_restart_prepare(const char *cmd)
 {
-    unsigned long value;
+	unsigned long value;
+	unsigned int warm_reboot_set = 0;
 #ifndef CONFIG_SEC_DEBUG
 #ifdef CONFIG_MSM_DLOAD_MODE
 
@@ -226,20 +227,13 @@ static void msm_restart_prepare(const char *cmd)
 #endif
 #endif
 	pr_info("preparing for restart now\n");
-
-#if 0 /*  Always WARM Reset */
-	/* Hard reset the PMIC unless memory contents must be maintained. */
-	if (get_dload_mode() || (cmd != NULL && cmd[0] != '\0'))
-		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
-	else
-		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
-#else
-		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
-#endif
+	warm_reboot_set = 0;
 
 	if (cmd != NULL) {
+		printk(KERN_NOTICE " Reboot cmd=%s\n",cmd);
 		if (!strncmp(cmd, "bootloader", 10)) {
 			__raw_writel(0x77665500, restart_reason);
+			warm_reboot_set = 1;
 		} else if (!strncmp(cmd, "recovery", 8)) {
 			__raw_writel(0x77665502, restart_reason);
 		} else if (!strcmp(cmd, "rtc")) {
@@ -254,17 +248,23 @@ static void msm_restart_prepare(const char *cmd)
 #ifdef CONFIG_SEC_DEBUG
 		} else if (!strncmp(cmd, "sec_debug_hw_reset", 18)) {
 			__raw_writel(0x776655ee, restart_reason);
+			warm_reboot_set = 1;
 #endif
         } else if (!strncmp(cmd, "download", 8)) {
 		    __raw_writel(0x12345671, restart_reason);
+			warm_reboot_set = 1;
 		} else if (!strncmp(cmd, "nvbackup", 8)) {
 				__raw_writel(0x77665511, restart_reason);
+				warm_reboot_set = 1;
 		} else if (!strncmp(cmd, "nvrestore", 9)) {
 				__raw_writel(0x77665512, restart_reason);
+				warm_reboot_set = 1;
 		} else if (!strncmp(cmd, "nverase", 7)) {
 				__raw_writel(0x77665514, restart_reason);
+				warm_reboot_set = 1;
 		} else if (!strncmp(cmd, "nvrecovery", 10)) {
 				__raw_writel(0x77665515, restart_reason);
+				warm_reboot_set = 1;
 		} else if (!strncmp(cmd, "sud", 3)) {
 				__raw_writel(0xabcf0000 | (cmd[3] - '0'),
 								restart_reason);
@@ -281,9 +281,15 @@ static void msm_restart_prepare(const char *cmd)
 #endif
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
+			warm_reboot_set = 1;
 		} else if (strlen(cmd) == 0) {
 		    printk(KERN_NOTICE "%s : value of cmd is NULL.\n", __func__);
 		        __raw_writel(0x12345678, restart_reason);
+#ifdef CONFIG_SEC_PERIPHERAL_SECURE_CHK
+		} else if (!strncmp(cmd, "peripheral_hw_reset", 19)) {
+			__raw_writel(0x77665507, restart_reason);
+			warm_reboot_set = 1;
+#endif
 		} else {
 			__raw_writel(0x77665501, restart_reason);
 		}
@@ -297,8 +303,29 @@ static void msm_restart_prepare(const char *cmd)
 		printk(KERN_NOTICE "%s: clear reset flag\n", __func__);
 
 		__raw_writel(0x12345678, restart_reason);
+		warm_reboot_set = 1;
 	}
 #endif
+	printk(KERN_NOTICE "%s : restart_reason = 0x%x\n",
+			__func__, __raw_readl(restart_reason));
+	printk(KERN_NOTICE "%s : warm_reboot_set = %d\n",
+			__func__, warm_reboot_set);
+
+#ifdef CONFIG_RESTART_REASON_SEC_PARAM
+	//fixme : Enabling Hard reset
+	/* Memory contents will be lost when when PMIC is configured for HARD RESET */
+	if (warm_reboot_set == 1) {
+		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
+		printk(KERN_NOTICE "Configure as WARM RESET\n");
+	}
+	else {
+		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
+		printk(KERN_NOTICE "Configure as HARD RESET\n");
+	}
+#else
+		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
+#endif
+
 	flush_cache_all();
 
 	/*outer_flush_all is not supported by 64bit kernel*/

@@ -13,9 +13,6 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/gfp.h>
-#if defined(CONFIG_DEBUG_CMA_TRACE)
-#include <linux/debugfs.h>
-#endif
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/init.h>
@@ -41,16 +38,7 @@
 #include <asm/dma-contiguous.h>
 
 #include "mm.h"
-#ifdef CONFIG_TIMA_RKP_DMA_MVA_TO_SETWAY
 
-#define L1_NWAY 4
-#define L2_NWAY 8
-#define L1_WAY_OFFSET 30
-#define L2_WAY_OFFSET 29
-#define TIMA_L1_SETMASK 0xfc0
-#define TIMA_L2_SETMASK 0x3ff80
-
-#endif/*CONFIG_TIMA_RKP_DMA_MVA_TO_SETWAY*/
 /*
  * The DMA API is built upon the notion of "buffer ownership".  A buffer
  * is either exclusively owned by the CPU (and therefore may be accessed
@@ -63,20 +51,6 @@
  * before transfers and delay cache invalidation until transfer completion.
  *
  */
-#if defined(CONFIG_DEBUG_CMA_TRACE)
-unsigned long dma_requested_allocation;
-unsigned long dma_actual_allocation;
-unsigned long dma_last_actual_allocation;
-unsigned long dma_peak_allocation;
-DEFINE_MUTEX(allocation_lock);
-
-EXPORT_SYMBOL(dma_peak_allocation);
-EXPORT_SYMBOL(dma_requested_allocation);
-EXPORT_SYMBOL(dma_actual_allocation);
-EXPORT_SYMBOL(dma_last_actual_allocation);
-EXPORT_SYMBOL(allocation_lock);
-#endif
-
 static void __dma_page_cpu_to_dev(struct page *, unsigned long,
 		size_t, enum dma_data_direction);
 static void __dma_page_dev_to_cpu(struct page *, unsigned long,
@@ -636,8 +610,6 @@ static int __free_from_pool(void *start, size_t size)
 	return 1;
 }
 
-#define DMA_CMA_RETRY_COUNT	5
-
 #define NO_KERNEL_MAPPING_DUMMY	0x2222
 static void *__alloc_from_contiguous(struct device *dev, size_t size,
 				     pgprot_t prot, struct page **ret_page,
@@ -652,23 +624,9 @@ static void *__alloc_from_contiguous(struct device *dev, size_t size,
 	bool no_kernel_mapping = dma_get_attr(DMA_ATTR_NO_KERNEL_MAPPING,
 							attrs);
 
-#ifdef DMA_CMA_RETRY_COUNT
-	int tries = 0;
-retry:
-	pfn = dma_alloc_from_contiguous(dev, count, order);
-	if (!pfn) {
-		if (tries++ < DMA_CMA_RETRY_COUNT) {
-			pr_err("DMA CMA allocation failed - %d/%d\n",
-				tries, DMA_CMA_RETRY_COUNT);
-			goto retry;
-		}
-		return NULL;
-	}
-#else
 	pfn = dma_alloc_from_contiguous(dev, count, order);
 	if (!pfn)
 		return NULL;
-#endif
 
 	page = pfn_to_page(pfn);
 
@@ -685,7 +643,7 @@ retry:
 			 * Something non-NULL needs to be returned here. Give
 			 * back a dummy address that is unmapped to catch
 			 * clients trying to use the address incorrectly
-				 */
+			 */
 			ptr = (void *)NO_KERNEL_MAPPING_DUMMY;
 		} else {
 			ptr = __dma_alloc_remap(page, size, GFP_KERNEL, prot,
@@ -722,9 +680,7 @@ static inline pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot)
 	/* if non-consistent just pass back what was given */
 	else if (!dma_get_attr(DMA_ATTR_NON_CONSISTENT, attrs))
 		prot = pgprot_dmacoherent(prot);
-#ifdef CONFIG_TIMA_RKP
-	 prot = __pgprot_modify(prot, 0, L_PTE_XN);
-#endif
+
 	return prot;
 }
 
@@ -821,10 +777,6 @@ void *arm_dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 
 	if (dma_alloc_from_coherent(dev, size, handle, &memory))
 		return memory;
-
-	if (dev && dma_contiguous_def_area && dma_contiguous_def_area==dev_get_cma_area(dev)) {
-		pr_info("cma monitering: %s:%s %u/from %d[%s]\n", __func__, dev->kobj.name, size, current->pid, current->comm);
-	}
 
 	return __dma_alloc(dev, size, handle, gfp, prot, false,
 			   __builtin_return_address(0), attrs);
@@ -930,82 +882,6 @@ int arm_dma_get_sgtable(struct device *dev, struct sg_table *sgt,
 	return 0;
 }
 
-#ifdef CONFIG_TIMA_RKP_DMA_MVA_TO_SETWAY
-
-void tima_cache_invalidate_setway(unsigned int reg_c7)
-{
-          __asm__ __volatile__ (
-                        "mov    r0, %0\n"
-                        "mcr	p15, 0, r0, c7, c14, 2\n"
-                        ::"r"(reg_c7):"r0");
-}
-void tima_cache_clean_setway(unsigned int reg_c7)
-{
-        __asm__ __volatile__ (
-                        "mov    r0, %0\n"
-                        "mcr	p15, 0, r0, c7, c10, 2\n"		 
-                        ::"r"(reg_c7):"r0");
-}
-
-void tima_flush_cache_setway_func(unsigned int reg_c7,enum dma_data_direction dir)
-{
-        __asm__ __volatile__ (
-                        "mov    r0, %0\n"
-                        "mov    r1, %1\n"
-                        "teq	r1, #2\n"
-                        "beq	tima_cache_invalidate_setway\n"
-                        "mov    r0, %0\n"
-                        "b	tima_cache_clean_setway\n"
-                        ::"r"(reg_c7),"r"(dir));
-}
-static void tima_cache_isb_dsb(void)
-{
-        __asm__ __volatile__ (
-                        "dsb\n"
-                        "isb\n"
-                        );
-}
-/**
- *    tima_flush_cache- Flush Nonsecure side caches using set/way mechanism
- */
-
-static void tima_flush_cache(unsigned int phy_addr,enum dma_data_direction dir)
-{
-        unsigned int l1_set_mask = TIMA_L1_SETMASK;
-        unsigned int l2_set_mask = TIMA_L2_SETMASK;
-        unsigned int way;
-        unsigned int reg_c7;
-        unsigned int addr_offset;
-
-        for (way = 0; way < L1_NWAY; way++) {
-                for (addr_offset=0;addr_offset<l1_set_mask;addr_offset+=0x40) {
-                        reg_c7 = 0x00 | ((phy_addr+addr_offset) & l1_set_mask) | (way << L1_WAY_OFFSET);
-                        tima_flush_cache_setway_func(reg_c7,dir);
-                }
-        }
-
-        for (way = 0; way < L2_NWAY; way++) {
-                for (addr_offset=0;addr_offset<0x1000;addr_offset+=0x80) {
-                        reg_c7 = 0x02 | ((phy_addr+addr_offset) & l2_set_mask) | (way << L2_WAY_OFFSET);
-                        tima_flush_cache_setway_func(reg_c7,dir);
-                }
-        }
-        tima_cache_isb_dsb();
-}
-
-/*
- *    tima_cache_maint_page- Tima Equivalent of dma_cache_maint_page().
- *    Here we flush cache based on physical address+set/way mechanism
- */
-static void tima_cache_maint_page(struct page *page,enum dma_data_direction dir)
-{
-    unsigned long paddr;
-
-    paddr = page_to_phys(page);
-    tima_flush_cache(paddr,dir);
-}
-#endif/*CONFIG_TIMA_RKP_DMA_MVA_TO_SETWAY*/
-
 static void dma_cache_maint_page(struct page *page, unsigned long offset,
 	size_t size, enum dma_data_direction dir,
 	void (*op)(const void *, size_t, int))
@@ -1033,14 +909,9 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 				len = PAGE_SIZE - offset;
 
 			if (cache_is_vipt_nonaliasing()) {
-#ifdef CONFIG_TIMA_RKP_DMA_MVA_TO_SETWAY
-                tima_cache_maint_page(page,dir);
-#else
-				/* unmapped pages might still be cached */
 				vaddr = kmap_atomic(page);
 				op(vaddr + offset, len, dir);
 				kunmap_atomic(vaddr);
-#endif/*CONFIG_TIMA_RKP_DMA_MVA_TO_SETWAY*/
 			} else {
 				vaddr = kmap_high_get(page);
 				if (vaddr) {
@@ -1223,48 +1094,9 @@ int arm_dma_set_mask(struct device *dev, u64 dma_mask)
 
 #define PREALLOC_DMA_DEBUG_ENTRIES	4096
 
-#if defined(CONFIG_DEBUG_CMA_TRACE)
-static int peak_dma_allocation_get(void *data, u64 *val)
-{
-	*val = dma_peak_allocation;
-	return 0;
-}
-
-static int dma_actual_allocation_get(void *data, u64 *val)
-{
-	*val = dma_actual_allocation;
-	return 0;
-}
-
-DEFINE_SIMPLE_ATTRIBUTE(peak_dma_allocation_ops,
-	peak_dma_allocation_get, NULL, "%llu\n");
-
-DEFINE_SIMPLE_ATTRIBUTE(dma_actual_allocation_ops,
-	dma_actual_allocation_get, NULL, "%llu\n");
-
-static void dma_prof_init(void)
-{
-	struct dentry *dent;
-
-	pr_err("%s called \n", __func__);
-
-	dent = debugfs_create_dir("dma", 0);
-	if (IS_ERR(dent))
-		return;
-
-	debugfs_create_file("dma_peak_allocation", 0444, dent, NULL,
-		&peak_dma_allocation_ops);
-
-	debugfs_create_file("dma_actual_allocation", 0444, dent, NULL,
-		&dma_actual_allocation_ops);
-}
-#endif
 static int __init dma_debug_do_init(void)
 {
 	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-#if defined(CONFIG_DEBUG_CMA_TRACE)
-	dma_prof_init();
-#endif
 	return 0;
 }
 fs_initcall(dma_debug_do_init);

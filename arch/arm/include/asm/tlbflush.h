@@ -203,10 +203,6 @@
 
 #include <linux/sched.h>
 
-#ifdef CONFIG_TIMA_RKP_LAZY_MMU
-extern void flush_tlb_l2_page(pmd_t *pmd);
-#endif
-
 struct cpu_tlb_fns {
 	void (*flush_user_range)(unsigned long, unsigned long, struct vm_area_struct *);
 	void (*flush_kern_range)(unsigned long, unsigned long);
@@ -340,6 +336,14 @@ static inline void local_flush_tlb_all(void)
 		dsb();
 		isb();
 	}
+}
+
+static inline void local_flush_tlb_all_non_is(void)
+{
+	dsb();
+	asm("mcr p15, 0, %0, c8, c7, 0" : : "r" (0));
+	dsb();
+	isb();
 }
 
 static inline void local_flush_tlb_mm(struct mm_struct *mm)
@@ -511,6 +515,7 @@ static inline void clean_pmd_entry(void *pmd)
 
 #ifndef CONFIG_SMP
 #define flush_tlb_all		local_flush_tlb_all
+#define flush_tlb_all_non_is	local_flush_tlb_all_non_is
 #define flush_tlb_mm		local_flush_tlb_mm
 #define flush_tlb_page		local_flush_tlb_page
 #define flush_tlb_kernel_page	local_flush_tlb_kernel_page

@@ -1146,11 +1146,11 @@ ssize_t ist30xx_fw_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&ist30xx_mutex);
 	ist30xx_fw_update(ts_data->client, fw, fw_size, true);
-	mutex_unlock(&ist30xx_mutex);
 
 	if (calib)
 		ist30xx_calibrate(1);
 
+	mutex_unlock(&ist30xx_mutex);    
 	ist30xx_start(ts_data);
 
 	if (request_fw != NULL)

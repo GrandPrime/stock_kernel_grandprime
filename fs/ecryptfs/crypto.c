@@ -1052,7 +1052,8 @@ int ecryptfs_compute_root_iv(struct ecryptfs_crypt_stat *crypt_stat)
 		rc = ecryptfs_calculate_sha256(dst, crypt_stat, crypt_stat->key, crypt_stat->key_size);
 	else
 #endif
-		rc = ecryptfs_calculate_md5(dst, crypt_stat, crypt_stat->key, crypt_stat->key_size);
+		rc = ecryptfs_calculate_md5(dst, crypt_stat, crypt_stat->key,
+					    crypt_stat->key_size);
 	if (rc) {
 		ecryptfs_printk(KERN_WARNING, "Error attempting to compute "
 				"MD5 while generating root IV\n");
@@ -1983,7 +1984,7 @@ ecryptfs_process_key_cipher(struct crypto_blkcipher **key_tfm,
 						    "cbc");
 	else
 #endif
-		rc = ecryptfs_crypto_api_algify_cipher_name(&full_alg_name, cipher_name,
+	rc = ecryptfs_crypto_api_algify_cipher_name(&full_alg_name, cipher_name,
 						    "ecb");
 	if (rc)
 		goto out;

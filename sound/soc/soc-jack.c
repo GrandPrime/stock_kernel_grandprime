@@ -20,21 +20,6 @@
 #include <linux/export.h>
 #include <trace/events/asoc.h>
 
-#include <linux/switch.h>
-
-#define SEC_JACK_NO_DEVICE		0
-#define SEC_HEADSET_4POLE		1
-#define SEC_HEADSET_3POLE		2
-
-#define WCD9XXX_JACK_MASK (SND_JACK_HEADSET | SND_JACK_OC_HPHL | \
-			   SND_JACK_OC_HPHR | SND_JACK_LINEOUT | \
-			   SND_JACK_UNSUPPORTED)
-
-/* Android jack detection */
-struct switch_dev android_switch = {
-	.name = "h2w",
-};
-
 /**
  * snd_soc_jack_new - Create a new jack
  * @codec: ASoC codec
@@ -56,10 +41,6 @@ int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
 	INIT_LIST_HEAD(&jack->pins);
 	INIT_LIST_HEAD(&jack->jack_zones);
 	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
-
-	if(!strcmp(id, "Headset Jack")) {
-		switch_dev_register(&android_switch);
-	}
 
 	return snd_jack_new(codec->card->snd_card, id, type, &jack->jack);
 }
@@ -85,7 +66,6 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 	struct snd_soc_dapm_context *dapm;
 	struct snd_soc_jack_pin *pin;
 	int enable;
-	int oldstatus;
 
 	trace_snd_soc_jack_report(jack, mask, status);
 
@@ -97,15 +77,8 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 
 	mutex_lock(&jack->mutex);
 
-	oldstatus = jack->status;
-
 	jack->status &= ~mask;
 	jack->status |= status & mask;
-
-	/* The DAPM sync is expensive enough to be worth skipping.
-	 * However, empty mask means pin synchronization is desired. */
-	if (mask && (jack->status == oldstatus))
-		goto out;
 
 	trace_snd_soc_jack_notify(jack, status);
 
@@ -128,7 +101,6 @@ void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask)
 
 	snd_jack_report(jack->jack, jack->status);
 
-out:
 	mutex_unlock(&jack->mutex);
 }
 EXPORT_SYMBOL_GPL(snd_soc_jack_report);
@@ -145,15 +117,6 @@ void snd_soc_jack_report_no_dapm(struct snd_soc_jack *jack, int status,
 {
 	jack->status &= ~mask;
 	jack->status |= status & mask;
-
-	if (mask & WCD9XXX_JACK_MASK) {
-		if (status == SEC_JACK_NO_DEVICE)
-			switch_set_state(&android_switch, SEC_JACK_NO_DEVICE);
-		else if (status == SND_JACK_HEADPHONE)
-			switch_set_state(&android_switch, SEC_HEADSET_3POLE);
-		else if (status == SND_JACK_HEADSET)
-			switch_set_state(&android_switch, SEC_HEADSET_4POLE);
-	}
 
 	snd_jack_report(jack->jack, jack->status);
 }

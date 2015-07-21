@@ -393,56 +393,45 @@ err_firstread:
 	return err;
 }
 
-static int k303c_mag_regulator_onoff(struct k303c_mag_p *data, bool onoff)
+static int sensor_regulator_onoff(struct k303c_mag_p *data, bool onoff)
 {
-	int ret = 0;
+	int ret = -1;
 
-	pr_info("%s\n", __func__);
-
-	data->reg_vdd = devm_regulator_get(&data->client->dev, "k303c_mag,vdd");
-	if (IS_ERR(data->reg_vdd)) {
-		pr_err("could not get vdd, %ld\n", PTR_ERR(data->reg_vdd));
-		ret = -EINVAL;
-		goto err_vdd;
-	} else if (!regulator_get_voltage(data->reg_vdd)) {
-		ret = regulator_set_voltage(data->reg_vdd, 2850000, 2850000);
-	}
-
-	data->reg_vio = devm_regulator_get(&data->client->dev, "k303c_mag,vio");
-	if (IS_ERR(data->reg_vio)) {
-		pr_err("could not get vio, %ld\n", PTR_ERR(data->reg_vio));
-		ret = -EINVAL;
-		goto err_vio;
-	} else if (!regulator_get_voltage(data->reg_vio)) {
-		ret = regulator_set_voltage(data->reg_vio, 1800000, 1800000);
+	if (IS_ERR_OR_NULL(data->reg_vdd) || IS_ERR_OR_NULL(data->reg_vio)) {
+		pr_err("[SENSOR]: %s: Failed to enable regulator.\n", __func__);
+		return -ENODEV;
 	}
 
 	if (onoff) {
 		ret = regulator_enable(data->reg_vdd);
 		if (ret) {
-			pr_err("%s: Failed to enable vdd.\n", __func__);
+			pr_err("[SENSOR]: %s: Failed to enable regulator vdd.\n",
+				__func__);
+			return ret;
 		}
 		ret = regulator_enable(data->reg_vio);
 		if (ret) {
-			pr_err("%s: Failed to enable vio.\n", __func__);
+			pr_err("[SENSOR]: %s: Failed to enable regulator vio.\n",
+				__func__);
+			return ret;
 		}
 		msleep(30);
 	} else {
 		ret = regulator_disable(data->reg_vdd);
 		if (ret) {
-			pr_err("%s: Failed to disable vdd.\n", __func__);
+			pr_err("[SENSOR]: %s: Failed to disable regulatorvdd.\n",
+				__func__);
+			return ret;
 		}
 		ret = regulator_disable(data->reg_vio);
 		if (ret) {
-			pr_err("%s: Failed to disable vio.\n", __func__);
+			pr_err("[SENSOR]: %s: Failed to disable regulator vio.\n",
+				__func__);
+			return ret;
 		}
 	}
 
-	devm_regulator_put(data->reg_vio);
-err_vio:
-	devm_regulator_put(data->reg_vdd);
-err_vdd:
-	return ret;
+	return 0;
 }
 
 static int k303c_mag_device_power_off(struct k303c_mag_p *data)
@@ -461,7 +450,7 @@ static int k303c_mag_device_power_off(struct k303c_mag_p *data)
 		dev_err(&data->client->dev,
 			"magnetometer soft power off failed: %d\n", err);
 
-	err = k303c_mag_regulator_onoff(data, false);
+	err = sensor_regulator_onoff(data, false);
 	if (err < 0)
 		return err;
 
@@ -477,7 +466,7 @@ static int k303c_mag_device_power_on(struct k303c_mag_p *data)
 
 	pr_info("%s\n", __func__);
 
-	err = k303c_mag_regulator_onoff(data, true);
+	err = sensor_regulator_onoff(data, true);
 	if (err < 0)
 		return err;
 
@@ -1249,6 +1238,31 @@ static int k303c_mag_parse_dt(struct k303c_mag_p *data, struct device *dev)
 		data->pdata->negate_z = (u8)temp;
 	}
 
+	data->reg_vdd = devm_regulator_get(dev, "k303c_mag,vdd");
+	if (IS_ERR(data->reg_vdd)) {
+		pr_err("[SENSOR] could not get vdd, %ld\n",
+			PTR_ERR(data->reg_vdd));
+	} else {
+		ret = regulator_set_voltage(data->reg_vdd, 2850000, 2850000);
+		if (ret) {
+			pr_err("[SENSOR]: %s: set voltage failed on vdd, rc=%d\n",
+				__func__, ret);
+			return ret;
+		}
+	}
+
+	data->reg_vio = devm_regulator_get(dev, "k303c_mag,vio");
+	if (IS_ERR(data->reg_vio)) {
+		pr_err("[SENSOR] could not get vio, %ld\n",
+			PTR_ERR(data->reg_vio));
+	} else {
+		ret = regulator_set_voltage(data->reg_vio, 1800000, 1800000);
+		if (ret) {
+			pr_err("[SENSOR]: %s: set voltage failed on vio rc=%d\n",
+				__func__, ret);
+			return ret;
+		}
+	}
 	return 0;
 }
 

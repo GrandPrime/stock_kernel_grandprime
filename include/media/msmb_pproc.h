@@ -13,7 +13,8 @@
 
 #define MAX_NUM_CPP_STRIPS 8
 #define MSM_CPP_MAX_NUM_PLANES 3
-#define MSM_CPP_MAX_FRAME_LENGTH 1024
+#define MSM_CPP_MIN_FRAME_LENGTH 13
+#define MSM_CPP_MAX_FRAME_LENGTH 2048
 #define MSM_CPP_MAX_FW_NAME_LEN 32
 #define MAX_FREQ_TBL 10
 
@@ -242,6 +243,12 @@ struct msm_pproc_queue_buf_info {
 #define VIDIOC_MSM_CPP_POP_STREAM_BUFFER \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 17, struct msm_camera_v4l2_ioctl_t)
 
+#define VIDIOC_MSM_CPP_IOMMU_ATTACH \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 18, struct msm_camera_v4l2_ioctl_t)
+
+#define VIDIOC_MSM_CPP_IOMMU_DETACH \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 19, struct msm_camera_v4l2_ioctl_t)
+
 #define V4L2_EVENT_CPP_FRAME_DONE  (V4L2_EVENT_PRIVATE_START + 0)
 #define V4L2_EVENT_VPE_FRAME_DONE  (V4L2_EVENT_PRIVATE_START + 1)
 
@@ -251,5 +258,105 @@ struct msm_camera_v4l2_ioctl_t {
 	int32_t trans_code;
 	void __user *ioctl_ptr;
 };
+
+#ifdef CONFIG_COMPAT
+struct msm_cpp_frame_info32_t {
+	int32_t frame_id;
+	struct compat_timeval timestamp;
+	uint32_t inst_id;
+	uint32_t identity;
+	uint32_t client_id;
+	enum msm_cpp_frame_type frame_type;
+	uint32_t num_strips;
+	compat_caddr_t strip_info;
+	uint32_t msg_len;
+	compat_uint_t cpp_cmd_msg;
+	int src_fd;
+	int dst_fd;
+	struct compat_timeval in_time, out_time;
+	compat_caddr_t cookie;
+	compat_int_t status;
+	int32_t duplicate_output;
+	uint32_t duplicate_identity;
+	struct msm_cpp_buffer_info_t input_buffer_info;
+	struct msm_cpp_buffer_info_t output_buffer_info[2];
+	struct msm_cpp_buffer_info_t tnr_scratch_buffer_info[2];
+};
+
+struct msm_cpp_stream_buff_info32_t {
+	uint32_t identity;
+	uint32_t num_buffs;
+	compat_caddr_t buffer_info;
+};
+
+struct msm_pproc_queue_buf_info32_t {
+	struct msm_buf_mngr_info32_t buff_mgr_info;
+	uint8_t is_buf_dirty;
+};
+
+#define VIDIOC_MSM_CPP_CFG32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_GET_EVENTPAYLOAD32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 1, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_GET_INST_INFO32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 2, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_LOAD_FIRMWARE32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 3, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_GET_HW_INFO32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 4, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_FLUSH_QUEUE32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 5, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_ENQUEUE_STREAM_BUFF_INFO32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 6, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_DEQUEUE_STREAM_BUFF_INFO32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 7, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_VPE_CFG32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 8, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_VPE_TRANSACTION_SETUP32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 9, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_VPE_GET_EVENTPAYLOAD32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 10, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_VPE_GET_INST_INFO32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 11, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_VPE_ENQUEUE_STREAM_BUFF_INFO32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 12, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_VPE_DEQUEUE_STREAM_BUFF_INFO32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 13, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_QUEUE_BUF32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 14, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_SET_CLOCK32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 16, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_POP_STREAM_BUFFER32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 17, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_IOMMU_ATTACH32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 18, struct msm_camera_v4l2_ioctl32_t)
+
+#define VIDIOC_MSM_CPP_IOMMU_DETACH32 \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 19, struct msm_camera_v4l2_ioctl32_t)
+
+struct msm_camera_v4l2_ioctl32_t {
+	uint32_t id;
+	uint32_t len;
+	int32_t trans_code;
+	compat_caddr_t ioctl_ptr;
+};
+#endif
 
 #endif /* __MSMB_PPROC_H */

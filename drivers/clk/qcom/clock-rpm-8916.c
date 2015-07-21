@@ -86,17 +86,9 @@ static DEFINE_CLK_VOTER(bimc_acpu_a_clk,    &bimc_a_clk.c,  LONG_MAX);
 static DEFINE_CLK_VOTER(pcnoc_keepalive_a_clk, &pcnoc_a_clk.c, LONG_MAX);
 static DEFINE_CLK_VOTER(pcnoc_sps_clk,        &pcnoc_a_clk.c, LONG_MAX);
 
-#ifdef CONFIG_MSM_BUSPM_DEV
-static DEFINE_CLK_VOTER(pnoc_buspm_clk, &pcnoc_clk.c, LONG_MAX);
-static DEFINE_CLK_VOTER(snoc_buspm_clk, &snoc_clk.c, LONG_MAX);
-//static DEFINE_CLK_VOTER(cnoc_buspm_clk, &pcnoc_clk.c, LONG_MAX);
-static DEFINE_CLK_VOTER(pnoc_buspm_a_clk, &pcnoc_a_clk.c, LONG_MAX);
-static DEFINE_CLK_VOTER(snoc_buspm_a_clk, &snoc_a_clk.c, LONG_MAX);
-//static DEFINE_CLK_VOTER(cnoc_buspm_a_clk, &pcnoc_a_clk.c, LONG_MAX);
-
-static DEFINE_CLK_VOTER(bimc_buspm_clk, &bimc_clk.c, LONG_MAX);
-static DEFINE_CLK_VOTER(bimc_buspm_a_clk, &bimc_a_clk.c, LONG_MAX);
-#endif
+static DEFINE_CLK_VOTER(pcnoc_usb_a_clk, &pcnoc_a_clk.c,  LONG_MAX);
+static DEFINE_CLK_VOTER(snoc_usb_a_clk,  &snoc_a_clk.c,  LONG_MAX);
+static DEFINE_CLK_VOTER(bimc_usb_a_clk,  &bimc_a_clk.c,  LONG_MAX);
 
 /* Branch Voter clocks */
 static DEFINE_CLK_BRANCH_VOTER(xo_gcc, &xo_clk_src.c);
@@ -148,17 +140,9 @@ static struct clk_lookup msm_clocks_rpm[] = {
 	CLK_LIST(bimc_acpu_a_clk),
 	CLK_LIST(pcnoc_keepalive_a_clk),
 
-#ifdef CONFIG_MSM_BUSPM_DEV
-	CLK_LOOKUP("snoc_clk", snoc_buspm_clk.c, "msm-buspm"),
-	CLK_LOOKUP("pnoc_clk", pnoc_buspm_clk.c, "msm-buspm"),
-	//CLK_LOOKUP("cnoc_clk", cnoc_buspm_clk.c, "msm-buspm"),
-	CLK_LOOKUP("bimc_clk", bimc_buspm_clk.c, "msm-buspm"),
-
-	CLK_LOOKUP("snoc_a_clk", snoc_buspm_a_clk.c, "msm-buspm"),
-	CLK_LOOKUP("pnoc_a_clk", pnoc_buspm_a_clk.c, "msm-buspm"),
-	//CLK_LOOKUP("cnoc_a_clk", cnoc_buspm_a_clk.c, "msm-buspm"),
-	CLK_LOOKUP("bimc_a_clk", bimc_buspm_a_clk.c, "msm-buspm"),
-#endif
+	CLK_LIST(pcnoc_usb_a_clk),
+	CLK_LIST(snoc_usb_a_clk),
+	CLK_LIST(bimc_usb_a_clk),
 
 	/* CoreSight clocks */
 	CLK_LIST(qdss_clk),

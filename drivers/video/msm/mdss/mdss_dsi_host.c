@@ -27,10 +27,11 @@
 #include "mdss_dsi.h"
 #include "mdss_panel.h"
 #include "mdss_debug.h"
+
 #define VSYNC_PERIOD 17
 
 struct mdss_dsi_ctrl_pdata *ctrl_list[DSI_CTRL_MAX];
-unsigned char *dsi_ctrl_base;
+
 struct mdss_hw mdss_dsi0_hw = {
 	.hw_ndx = MDSS_HW_DSI0,
 	.ptr = NULL,
@@ -245,7 +246,7 @@ void mdss_dsi_host_init(struct mdss_panel_data *pdata)
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
-	dsi_ctrl_base = ctrl_pdata->ctrl_base;
+
 	pinfo = &pdata->panel_info.mipi;
 
 	pinfo->rgb_swap = DSI_RGB_SWAP_RGB;
@@ -325,8 +326,7 @@ void mdss_dsi_host_init(struct mdss_panel_data *pdata)
 	if (mdss_dsi_broadcast_mode_enabled())
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x94000000);
 	else
-#if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL)\
-	|| defined(CONFIG_FB_MSM_MIPI_SAMSUNG_WVGA_VIDEO_PT_PANEL)
+#if defined(CONFIG_FB_MSM_MIPI_S6D2AA0X_HD_VIDEO_PANEL)
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x10000000);
 #else
 		MIPI_OUTP(ctrl_pdata->ctrl_base + 0x3C, 0x14000000);
@@ -625,7 +625,7 @@ static int mdss_dsi_read_status(struct mdss_dsi_ctrl_pdata *ctrl)
 	cmdreq.cmds = ctrl->status_cmds.cmds;
 	cmdreq.cmds_cnt = ctrl->status_cmds.cmd_cnt;
 	cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL | CMD_REQ_RX;
-	cmdreq.rlen = 0;
+	cmdreq.rlen = ctrl->status_cmds_rlen;
 	cmdreq.cb = NULL;
 	cmdreq.rbuf = ctrl->status_buf.data;
 
@@ -665,14 +665,7 @@ int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		mdss_dsi_set_tx_power_mode(1, &ctrl_pdata->panel_data);
 
 	if (ret == 0) {
-		if (ctrl_pdata->status_buf.data[0] !=
-						ctrl_pdata->status_value) {
-			pr_err("%s: Read back value from panel is incorrect\n",
-								__func__);
-			ret = -EINVAL;
-		} else {
-			ret = 1;
-		}
+		ret = ctrl_pdata->check_read_status(ctrl_pdata);
 	} else {
 		pr_err("%s: Read status register returned error\n", __func__);
 	}
@@ -1096,51 +1089,6 @@ end:
 	return rp->len;
 }
 
-
-void dumpreg(void)
-{
-	u32 tmp0x0,tmp0x4,tmp0x8,tmp0xc;
-	int i;
-
-	if (dsi_ctrl_base == NULL) {
-		pr_err("%s : dsi_ctrl_base is null!!..\n",__func__);
-		return;
-	}		
-
-	pr_err("%s: =============DSI Reg DUMP==============\n", __func__);
-#if defined (CONFIG_FB_MSM_MIPI_SAMSUNG_OCTA_CMD_WQHD_PT_PANEL)
-	if (left_ctrl_pdata) {
-		for (i=0; i< 91; i++) {
-			tmp0x0 = MIPI_INP(left_ctrl_pdata->ctrl_base+(i*16)+0x0);
-			tmp0x4 = MIPI_INP(left_ctrl_pdata->ctrl_base+(i*16)+0x4);
-			tmp0x8 = MIPI_INP(left_ctrl_pdata->ctrl_base+(i*16)+0x8);
-			tmp0xc = MIPI_INP(left_ctrl_pdata->ctrl_base+(i*16)+0xc);
-
-			pr_err("[DSI0][%04x] : %08x %08x %08x %08x\n",i*16, tmp0x0,tmp0x4,tmp0x8,tmp0xc);
-		}
-	}
-	for (i=0; i< 91; i++) {
-		tmp0x0 = MIPI_INP(dsi_ctrl_base+(i*16)+0x0);
-		tmp0x4 = MIPI_INP(dsi_ctrl_base+(i*16)+0x4);
-		tmp0x8 = MIPI_INP(dsi_ctrl_base+(i*16)+0x8);
-		tmp0xc = MIPI_INP(dsi_ctrl_base+(i*16)+0xc);
-
-		pr_err("[DSI1][%04x] : %08x %08x %08x %08x\n",i*16, tmp0x0,tmp0x4,tmp0x8,tmp0xc);
-	}
-#else
-	for(i=0; i< 91; i++){
-		tmp0x0 = MIPI_INP(dsi_ctrl_base+(i*16)+0x0);
-		tmp0x4 = MIPI_INP(dsi_ctrl_base+(i*16)+0x4);
-		tmp0x8 = MIPI_INP(dsi_ctrl_base+(i*16)+0x8);
-		tmp0xc = MIPI_INP(dsi_ctrl_base+(i*16)+0xc);
-
-		pr_err("[%04x] : %08x %08x %08x %08x\n",i*16, tmp0x0,tmp0x4,tmp0x8,tmp0xc);
-	}
-#endif
-	pr_err("%s: ============= END ==============\n", __func__);
-}
-
-
 #define DMA_TX_TIMEOUT 200
 
 static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
@@ -1166,7 +1114,7 @@ static int mdss_dsi_cmd_dma_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 
 	len = ALIGN(tp->len, 4);
 	size = ALIGN(tp->len, SZ_4K);
-	
+
 
 	if (is_mdss_iommu_attached()) {
 		ret = msm_iommu_map_contig_buffer(tp->dmap,
@@ -1402,6 +1350,8 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	 * fetch dcs commands from axi bus
 	 */
 	mdss_bus_bandwidth_ctrl(1);
+	mdss_bus_scale_set_quota(MDSS_HW_DSI0, SZ_1M, 0, SZ_1M);
+
 	pr_debug("%s:  from_mdp=%d pid=%d\n", __func__, from_mdp, current->pid);
 	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
 
@@ -1417,8 +1367,8 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 		ret = mdss_dsi_cmdlist_tx(ctrl, req);
 	mdss_iommu_ctrl(0);
 	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
+	mdss_bus_scale_set_quota(MDSS_HW_DSI0, 0, 0, 0);
 	mdss_bus_bandwidth_ctrl(0);
-
 need_lock:
 
 	if (from_mdp) /* from pipe_commit */
@@ -1489,6 +1439,9 @@ static int dsi_event_thread(void *data)
 				ctrl->recovery->fxn(ctrl->recovery->data);
 			}
 		}
+
+		if (todo & DSI_EV_DSI_FIFO_EMPTY)
+			mdss_dsi_sw_reset_restore(ctrl);
 
 		if (todo & DSI_EV_MDP_BUSY_RELEASE) {
 			spin_lock_irqsave(&ctrl->mdp_lock, flag);
@@ -1562,7 +1515,7 @@ void mdss_dsi_fifo_status(struct mdss_dsi_ctrl_pdata *ctrl)
 
 	status = MIPI_INP(base + 0x000c);/* DSI_FIFO_STATUS */
 
-	/* fifo underflow, overflow */
+	/* fifo underflow, overflow and empty*/
 	if (status & 0xcccc4489) {
 		MIPI_OUTP(base + 0x000c, status);
 		pr_err("%s: status=%x\n", __func__, status);
@@ -1570,6 +1523,8 @@ void mdss_dsi_fifo_status(struct mdss_dsi_ctrl_pdata *ctrl)
 			dsi_send_events(ctrl, DSI_EV_MDP_FIFO_UNDERFLOW);
 			MDSS_XLOG_TOUT_HANDLER("mdp", "dsi0", "dsi1",
 						"edp", "hdmi", "panic");
+		if (status & 0x11110000) /* DLN_FIFO_EMPTY */
+			dsi_send_events(ctrl, DSI_EV_DSI_FIFO_EMPTY);
 	}
 }
 

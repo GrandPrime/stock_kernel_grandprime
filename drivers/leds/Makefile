@@ -5,6 +5,7 @@ obj-$(CONFIG_LEDS_CLASS)		+= led-class.o
 obj-$(CONFIG_LEDS_TRIGGERS)		+= led-triggers.o
 
 # LED Platform Drivers
+obj-$(CONFIG_LEDS_KTD2026)              += leds-ktd2026.o
 obj-$(CONFIG_LEDS_88PM860X)		+= leds-88pm860x.o
 obj-$(CONFIG_LEDS_ATMEL_PWM)		+= leds-atmel-pwm.o
 obj-$(CONFIG_LEDS_BD2802)		+= leds-bd2802.o
@@ -57,9 +58,9 @@ obj-$(CONFIG_LEDS_BLINKM)		+= leds-blinkm.o
 obj-$(CONFIG_LEDS_MSM_GPIO_FLASH)	+= leds-msm-gpio-flash.o
 obj-$(CONFIG_FLASHLIGHT)		+= flashlight.o
 obj-$(CONFIG_RT_FLASH_LED)		+= rtfled.o
-obj-$(CONFIG_FLED_RT5033)       	+= rt5033_fled.o
-obj-$(CONFIG_LEDS_SEC_BACKLIGHT)	+= leds-sec-backlight.o
-
+obj-$(CONFIG_FLED_RT5033)		+= rt5033_fled.o
+#SiliconMitus
+obj-$(CONFIG_FLED_SM5701)       += leds-sm5701.o
 # LED SPI Drivers
 obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o
 

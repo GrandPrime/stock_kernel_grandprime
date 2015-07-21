@@ -55,7 +55,7 @@ enum gpiomux_pull {
 	GPIOMUX_PULL_DOWN,
 	GPIOMUX_PULL_KEEPER,
 	GPIOMUX_PULL_UP,
-};enum gpio_cfg_set{	GPIO_DVS_CFG_PULL_NONE = 0,	GPIO_DVS_CFG_PULL_DOWN,	GPIO_DVS_CFG_PULL_UP,	GPIO_DVS_CFG_OUTPUT,	GPIO_DVS_CFG_ERROR,};
+};
 
 /* Direction settings are only meaningful when GPIOMUX_FUNC_GPIO is selected.
  * This element is ignored for all other FUNC selections, as the output-
@@ -80,6 +80,7 @@ void msm_gpio_print_enabled(void);
 #endif
 
 void msm_tlmm_v4_get_gp_cfg(uint pin_no, struct gpiomux_setting *val);
+int msm_tlmm_v4_set_gp_cfg(uint pin_no, uint id, bool level);
 int msm_tlmm_v4_get_gp_value(uint pin_no);
 int msm_tlmm_v4_get_gp_input_value(uint pin_no);
 int msm_tlmm_v4_get_gp_num(void);

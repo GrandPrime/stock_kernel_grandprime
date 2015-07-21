@@ -37,6 +37,9 @@
 
 static DEFINE_MUTEX(scm_lock);
 
+#define SCM_EBUSY_WAIT_MS 30
+#define SCM_EBUSY_MAX_RETRY 400
+
 #define SCM_BUF_LEN(__cmd_size, __resp_size)	\
 	(sizeof(struct scm_command) + sizeof(struct scm_response) + \
 		__cmd_size + __resp_size)
@@ -157,7 +160,7 @@ static int scm_remap_error(int err)
 	case SCM_ENOMEM:
 		return -ENOMEM;
 	case SCM_EBUSY:
-		return -EBUSY;
+		return SCM_EBUSY;
 	}
 	return -EINVAL;
 }
@@ -187,7 +190,7 @@ static u32 smc(u32 cmd_addr)
 }
 
 #ifdef CONFIG_TIMA_LKMAUTH
-#if defined CONFIG_ARCH_MSM8916
+#if defined(CONFIG_ARCH_MSM8916) || defined(CONFIG_ARCH_MSM8939)
 static void __wrap_flush_cache_all(void* vp)
 {
 	flush_cache_all();
@@ -221,13 +224,14 @@ static int __scm_call(const struct scm_command *cmd)
 	if (flush_all_need && (pid_from_lkm == current_thread_info()->task->pid)) {
 		flush_cache_all();
 
-#if defined CONFIG_ARCH_MSM8916
+#if defined(CONFIG_ARCH_MSM8916) || defined(CONFIG_ARCH_MSM8939)
 		smp_call_function((void (*)(void *))__wrap_flush_cache_all, NULL, 1);
 #endif
 
 		outer_flush_all();
 	}
 #endif
+
 	ret = smc(cmd_addr);
 	if (ret < 0)
 		ret = scm_remap_error(ret);
@@ -328,6 +332,33 @@ static int scm_call_common(u32 svc_id, u32 cmd_id, const void *cmd_buf,
 	return ret;
 }
 
+/*
+ * Sometimes the secure world may be busy waiting for a particular resource.
+ * In those situations, it is expected that the secure world returns a special
+ * error code (SCM_EBUSY). Retry any scm_call that fails with this error code,
+ * but with a timeout in place. Also, don't move this into scm_call_common,
+ * since we want the first attempt to be the "fastpath".
+ */
+static int _scm_call_retry(u32 svc_id, u32 cmd_id, const void *cmd_buf,
+				size_t cmd_len, void *resp_buf, size_t resp_len,
+				struct scm_command *cmd,
+				size_t len)
+{
+	int ret, retry_count = 0;
+
+	do {
+		ret = scm_call_common(svc_id, cmd_id, cmd_buf, cmd_len,
+					resp_buf, resp_len, cmd, len);
+		if (ret == SCM_EBUSY)
+			msleep(SCM_EBUSY_WAIT_MS);
+	} while (ret == SCM_EBUSY && (retry_count++ < SCM_EBUSY_MAX_RETRY));
+
+	if (ret == SCM_EBUSY)
+		pr_err("scm: secure world busy (rc = SCM_EBUSY)\n");
+
+	return ret;
+}
+
 /**
  * scm_call_noalloc - Send an SCM command
  *
@@ -375,15 +406,11 @@ int scm_call_noalloc(u32 svc_id, u32 cmd_id, const void *cmd_buf,
  * response buffers is taken care of by scm_call; however, callers are
  * responsible for any other cached buffers passed over to the secure world.
  */
- 
-#define SCM_EBUSY_WAIT_MS	30
-#define SCM_EBUSY_MAX_RETRY	400
-
 int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 		void *resp_buf, size_t resp_len)
 {
 	struct scm_command *cmd;
-	int ret, retry_count = 0;
+	int ret;
 	size_t len = SCM_BUF_LEN(cmd_len, resp_len);
 
 	if (cmd_len > len || resp_len > len)
@@ -393,18 +420,11 @@ int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 	if (!cmd)
 		return -ENOMEM;
 
-	do {
-		memset(cmd, 0x0, PAGE_ALIGN(len));
-		ret = scm_call_common(svc_id, cmd_id, cmd_buf, cmd_len, resp_buf,
+	ret = scm_call_common(svc_id, cmd_id, cmd_buf, cmd_len, resp_buf,
 				resp_len, cmd, len);
-			if (ret == -EBUSY)
-			msleep(SCM_EBUSY_WAIT_MS);
-			
-		} while (ret == -EBUSY && (retry_count++ < SCM_EBUSY_MAX_RETRY));
-
-	if (ret == -EBUSY)
-		panic("scm_call timeout with SCM_EBUSY, retry_count = %d, delay = %d ms", retry_count, SCM_EBUSY_WAIT_MS);
-		
+	if (unlikely(ret == SCM_EBUSY))
+		ret = _scm_call_retry(svc_id, cmd_id, cmd_buf, cmd_len,
+				      resp_buf, resp_len, cmd, PAGE_ALIGN(len));
 	kfree(cmd);
 	return ret;
 }
