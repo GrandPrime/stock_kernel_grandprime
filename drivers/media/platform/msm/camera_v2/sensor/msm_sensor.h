@@ -48,10 +48,8 @@ struct msm_sensor_fn_t {
 	int (*sensor_power_down) (struct msm_sensor_ctrl_t *);
 	int (*sensor_power_up) (struct msm_sensor_ctrl_t *);
 	int (*sensor_match_id) (struct msm_sensor_ctrl_t *);
-#if defined(CONFIG_MSM_OTP)
-	int (*sensor_read_otp) (struct msm_sensor_ctrl_t *);
-#endif
-#if   defined(CONFIG_MACH_HEAT_EUR) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_CTC) ||  defined(CONFIG_MACH_ROSSA_SPR) ||  defined(CONFIG_MACH_ROSSA_TFN)\
+	|| defined(CONFIG_MACH_HEAT_EUR) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_MACH_ROSSA_AUS)
 	int (*sensor_native_control) (struct msm_sensor_ctrl_t *, void __user *);
 #endif
 };
@@ -92,9 +90,7 @@ int msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl);
 int msm_sensor_check_id(struct msm_sensor_ctrl_t *s_ctrl);
 
 int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl);
-#if defined(CONFIG_MSM_OTP)
-int msm_sensor_read_otp(struct msm_sensor_ctrl_t *s_ctrl);
-#endif
+
 int32_t msm_sensor_platform_probe(struct platform_device *pdev,
 	const void *data);
 int msm_sensor_update_cfg(struct msm_sensor_ctrl_t *s_ctrl);

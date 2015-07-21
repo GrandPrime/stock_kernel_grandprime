@@ -27,6 +27,11 @@
 #include <mach/sec_debug.h>
 #endif
 
+#define WAKELOCK_ON_PWRKEY_PRESS
+#ifdef WAKELOCK_ON_PWRKEY_PRESS
+#include <linux/wakelock.h>
+#endif
+
 #define PMIC_VER_8941           0x01
 #define PMIC_VERSION_REG        0x0105
 #define PMIC_VERSION_REV4_REG   0x0103
@@ -151,6 +156,9 @@ struct qpnp_pon {
 	u16 base;
 	struct delayed_work bark_work;
 	u32 dbc;
+#ifdef WAKELOCK_ON_PWRKEY_PRESS
+	struct wake_lock wakelock;
+#endif
 };
 
 static struct qpnp_pon *sys_reset_dev;
@@ -529,6 +537,18 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 					cfg->key_code, pon_rt_sts);
 	key_status = pon_rt_sts & pon_rt_bit;
 
+#ifdef WAKELOCK_ON_PWRKEY_PRESS
+	if (cfg->pon_type == PON_KPDPWR) {
+	       if (key_status) {
+			wake_lock(&pon->wakelock);
+			pr_debug("++ kpdpwr wake lock\n");
+		} else {
+			wake_unlock(&pon->wakelock);
+			pr_debug("-- kpdpwr wake unlock\n");
+		}
+	}
+#endif
+
 	/* simulate press event in case release event occured
 	 * without a press event
 	 */
@@ -890,6 +910,19 @@ qpnp_control_s2_reset(struct qpnp_pon *pon, struct qpnp_pon_config *cfg, int on)
 }
 #endif
 
+#if defined (CONFIG_SEC_DEBUG) || defined (WAKELOCK_ON_PWRKEY_PRESS)
+static int qpnp_pon_kpdpwr_force_scan(void)
+{
+#ifdef WAKELOCK_ON_PWRKEY_PRESS
+	return 1;
+#elif defined (CONFIG_SEC_DEBUG)
+	return sec_debug_is_enabled();
+#else
+	return 0;
+#endif
+}
+#endif
+
 static int
 qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 {
@@ -897,11 +930,11 @@ qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 
 	switch (cfg->pon_type) {
 	case PON_KPDPWR:
-#ifdef CONFIG_SEC_DEBUG
-		if (sec_debug_is_enabled()) {
+#if defined (CONFIG_SEC_DEBUG) || defined (WAKELOCK_ON_PWRKEY_PRESS)
+		if (qpnp_pon_kpdpwr_force_scan()) {
 			rc = qpnp_pon_input_dispatch(pon, PON_KPDPWR);
 			if (rc)
-				dev_err(&pon->spmi->dev, "Fail to first check to send input event\n");
+				dev_err(&pon->spmi->dev, "PON_KPDPWR input dispatch failed!\n");
 		}
 #endif
 		rc = devm_request_irq(&pon->spmi->dev, cfg->state_irq,
@@ -1330,6 +1363,10 @@ static int qpnp_pon_config_init(struct qpnp_pon *pon)
 		}
 	}
 
+#ifdef WAKELOCK_ON_PWRKEY_PRESS
+	wake_lock_init(&pon->wakelock, WAKE_LOCK_SUSPEND, "kpdpwr");
+#endif
+
 	for (i = 0; i < pon->num_pon_config; i++) {
 		cfg = &pon->pon_cfg[i];
 		/* Configure the pull-up */
@@ -1674,6 +1711,10 @@ static int qpnp_pon_probe(struct spmi_device *spmi)
 static int qpnp_pon_remove(struct spmi_device *spmi)
 {
 	struct qpnp_pon *pon = dev_get_drvdata(&spmi->dev);
+
+#ifdef WAKELOCK_ON_PWRKEY_PRESS
+	wake_lock_destroy(&pon->wakelock);
+#endif
 
 	device_remove_file(&spmi->dev, &dev_attr_debounce_us);
 

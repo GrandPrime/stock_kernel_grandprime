@@ -488,7 +488,7 @@ static int flashlight_match_device_by_name(struct device *dev, const void *data)
 
 struct flashlight_device *find_flashlight_by_name(char *name)
 {
-	struct device *dev = NULL;
+	struct device *dev;
 	if (!name)
 		return (struct flashlight_device *)NULL;
 #if defined(CONFIG_SEC_FORTUNA_PROJECT)

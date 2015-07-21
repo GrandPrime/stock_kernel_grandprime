@@ -11,14 +11,6 @@ elif [ "$BUILD_COMMAND" == "rossa_cmcc" ]; then
         PRODUCT_NAME=rossalte;
 elif [ "$BUILD_COMMAND" == "rossa_ctc" ]; then
         PRODUCT_NAME=rossaltectc;
-elif [ "$BUILD_COMMAND" == "rossa_spr" ]; then
-        PRODUCT_NAME=rossaltespr;
-elif [ "$BUILD_COMMAND" == "rossa_tfn" ]; then
-        PRODUCT_NAME=rossaltetfn;
-elif [ "$BUILD_COMMAND" == "rossa_vzw" ]; then
-        PRODUCT_NAME=rossaltevzw;
-elif [ "$BUILD_COMMAND" == "rossa_aio" ]; then
-        PRODUCT_NAME=rossalteaio;
 elif [ "$BUILD_COMMAND" == "rossa_aus" ]; then
         PRODUCT_NAME=rossaltedv;
 elif [ "$BUILD_COMMAND" == "fortuna_cmcc" ]; then
@@ -44,11 +36,9 @@ elif [ "$BUILD_COMMAND" == "a3_chnctc" ]; then
 elif [ "$BUILD_COMMAND" == "a3_eur" ]; then
         PRODUCT_NAME=a3ltexx;
 elif [ "$BUILD_COMMAND" == "a3_ltn" ]; then
-        PRODUCT_NAME=a3lteub;
+        PRODUCT_NAME=a3lteub;          
 elif [ "$BUILD_COMMAND" == "a33g_eur" ]; then
         PRODUCT_NAME=a33gxx;
-elif [ "$BUILD_COMMAND" == "o1_chnopen" ]; then
-        PRODUCT_NAME=o1ltechn;
 elif [ "$BUILD_COMMAND" == "vivalto_aus" ]; then
         PRODUCT_NAME=vivaltolte;
 elif [ "$BUILD_COMMAND" == "vivalto_mea" ]; then
@@ -144,9 +134,9 @@ case $1 in
 		echo "Not support... remove kernel out directory by yourself"
 		exit 1
 		;;
-
+		
 		*)
-
+		
 		BOARD_KERNEL_BASE=0x80000000
 		BOARD_KERNEL_PAGESIZE=2048
 		BOARD_KERNEL_TAGS_OFFSET=0x01E00000
@@ -183,7 +173,7 @@ FUNC_BUILD_DTIMAGE_TARGET()
 	echo "================================="
 	echo ""
 	echo "DT image target : $INSTALLED_DTIMAGE_TARGET"
-
+	
 	if ! [ -e $DTBTOOL ] ; then
 		if ! [ -d $BUILD_ROOT_DIR/android/out/host/linux-x86/bin ] ; then
 			mkdir -p $BUILD_ROOT_DIR/android/out/host/linux-x86/bin
@@ -236,7 +226,7 @@ FUNC_BUILD_KERNEL()
 			CROSS_COMPILE=$BUILD_CROSS_COMPILE || exit -1
 
 	FUNC_BUILD_DTIMAGE_TARGET
-
+	
 	echo ""
 	echo "================================="
 	echo "END   : FUNC_BUILD_KERNEL"
@@ -270,7 +260,7 @@ FUNC_MKBOOTIMG()
 			--ramdisk_offset $BOARD_RAMDISK_OFFSET \
 			--tags_offset $BOARD_KERNEL_TAGS_OFFSET \
 			--dt $INSTALLED_DTIMAGE_TARGET"
-
+			
 	$MKBOOTIMGTOOL --kernel $KERNEL_ZIMG \
 			--ramdisk $PRODUCT_OUT/ramdisk.img \
 			--output $PRODUCT_OUT/boot.img \
@@ -338,10 +328,6 @@ SECFUNC_PRINT_HELP()
 	echo " for KLEOS EUR OPEN use kleos_eur"
 	echo " for ROSSA CHN CMCC use rossa_cmcc"
 	echo " for ROSSA CHN CTC use rossa_ctc"
-	echo " for ROSSA CHN CTC use rossa_spr"
-	echo " for ROSSA CHN CTC use rossa_tfn"
-	echo " for ROSSA CHN CTC use rossa_vzw"
-	echo " for ROSSA USA AIO use rossa_aio"
 	echo " for ROSSA AUS XSA use rossa_aus"
 	echo " for FORTUNA CHN CMCC use fortuna_cmcc"
 	echo " for FORTUNA CHN CTC use fortuna_ctc"
@@ -355,7 +341,6 @@ SECFUNC_PRINT_HELP()
 	echo " for A3 CHN CTC use a3_chnctc"
 	echo " for A3 EUR OPEN use a3lte_eur"
 	echo " for A33G EUR OPEN use a33g_eur"
-	echo " for O1 CHN OPEN use o1_chnopen"
 	echo " for VIVALTO_AUS_XSA use vivalto_aus"
 	echo " for VIVALTO_MEA use vivalto_mea"
 	echo "  \$2 : "

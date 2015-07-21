@@ -577,6 +577,9 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
 	} else {
+#if defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL)
+		mdelay(20);
+#endif
 		if (gpio_is_valid(msd.bl_ap_pwm_gpio)) {
 			gpio_set_value((msd.bl_ap_pwm_gpio), 0);
 			gpio_free(msd.bl_ap_pwm_gpio);

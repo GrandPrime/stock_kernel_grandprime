@@ -35,6 +35,7 @@
 #include <linux/gpio.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
+#include <linux/i2c/zinitix_i2c.h>
 #include <linux/input/mt.h>
 #include <linux/regulator/machine.h>
 #include <linux/of_device.h>
@@ -48,6 +49,17 @@
 #endif
 
 #include "zinitix_bt541_ts.h"
+
+#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+#include <linux/cpufreq.h>
+
+#define TOUCH_BOOSTER_DVFS
+
+#define DVFS_STAGE_TRIPLE       3
+#define DVFS_STAGE_DUAL         2
+#define DVFS_STAGE_SINGLE       1
+#define DVFS_STAGE_NONE         0
+#endif
 
 #if (TSP_TYPE_COUNT == 1)
 u8 *m_pFirmware [TSP_TYPE_COUNT] = {(u8*)m_firmware_data,};
@@ -73,6 +85,11 @@ extern char *saved_command_line;
 #endif
 
 #define MAX_SUPPORTED_FINGER_NUM	5 /* max 10 */
+
+#ifdef TOUCH_BOOSTER_DVFS
+#define TOUCH_BOOSTER_OFF_TIME	500
+#define TOUCH_BOOSTER_CHG_TIME	130
+#endif
 
 #ifdef SUPPORTED_TOUCH_KEY
 #define NOT_SUPPORTED_TOUCH_DUMMY_KEY
@@ -526,7 +543,7 @@ struct bt541_ts_info {
 	bool stay_awake;
 #endif
 
-#ifdef USE_TSP_TA_CALLBACKS
+#ifndef CONFIG_EXTCON
 	void (*register_cb) (struct tsp_callbacks *tsp_cb);
 	struct tsp_callbacks callbacks;
 #endif
@@ -548,7 +565,6 @@ struct bt541_ts_info {
 	struct regulator *vddo_vreg;
 	struct regulator *vdd_en;
 	bool device_enabled;
-	bool checkUMSmode;
 };
 /* Dummy touchkey code */
 #define KEY_DUMMY_HOME1		249
@@ -1818,7 +1834,7 @@ retry_init:
 #if TOUCH_ONESHOT_UPGRADE
 	if ((checkMode == NULL) &&(ts_check_need_upgrade(info, cap->fw_version,
 			cap->fw_minor_version, cap->reg_data_version,
-			cap->hw_id) == true) && (info->checkUMSmode == false)) {
+								cap->hw_id) == true)) {
 		zinitix_printk("start upgrade firmware\n");
 
 		if (ts_upgrade_firmware(info, m_pFirmware[m_FirmwareIdx],
@@ -2972,9 +2988,8 @@ static void fw_update(void *device_data)
 		filp_close(fp, current->files);
 		set_fs(old_fs);
 		dev_info(&client->dev, "ums fw is loaded!!\n");
-		info->checkUMSmode = true;
+
 		ret = ts_upgrade_sequence((u8 *)buff);
-		info->checkUMSmode = false;
 		if(ret<0) {
 			kfree(buff);
 			info->factory_info->cmd_state = 3;
@@ -4607,7 +4622,7 @@ static int bt541_ts_probe_dt(struct device_node *np,
 
 }
 
-#ifdef USE_TSP_TA_CALLBACKS
+#ifndef CONFIG_EXTCON
 void bt541_register_callback(struct tsp_callbacks *cb)
 {
 	charger_callbacks = cb;
@@ -4643,7 +4658,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 			goto err_no_platform_data;
 		}
 
-#ifdef USE_TSP_TA_CALLBACKS
+#ifndef CONFIG_EXTCON
 		pdata->register_cb = bt541_register_callback;
 #endif
 		
@@ -4699,7 +4714,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 		goto err_alloc;
 	}
 	
-#ifdef USE_TSP_TA_CALLBACKS
+#ifndef CONFIG_EXTCON
 	info->register_cb = info->pdata->register_cb;
 #endif
 
@@ -4737,7 +4752,6 @@ static int bt541_ts_probe(struct i2c_client *client,
 	/* init touch mode */
 	info->touch_mode = TOUCH_POINT_MODE;
 	misc_info = info;
-	info->checkUMSmode = false;
 
 	if (init_touch(info) == false) {
 		ret = -EPERM;
@@ -4749,7 +4763,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 		info->button[i] = ICON_BUTTON_UNCHANGE;
 #endif
 
-#ifdef USE_TSP_TA_CALLBACKS
+#ifndef CONFIG_EXTCON
 	info->callbacks.inform_charger = bt541_charger_status_cb;
 		if (info->register_cb)
 			info->register_cb(&info->callbacks);

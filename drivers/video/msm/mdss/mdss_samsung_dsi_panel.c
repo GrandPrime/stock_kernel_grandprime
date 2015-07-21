@@ -54,15 +54,11 @@ static struct dsi_cmd_desc mdni_tune_cmd[] = {
 		sizeof(mdni_tuning1)}, mdni_tuning1},
 };
 #endif
-int lcd_attached;
-int get_samsung_lcd_attached(void);
 
 #define DT_CMD_HDR 6
 #if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL)
 #define HBM_RE
 #define TEMPERATURE_ELVSS
-/* #define CMD_DEBUG */
-
 static int is_panel_ams485dl01_revA;
 static int is_panel_ams485dl01_revC;
 static int is_panel_ams485dl01_revD;
@@ -103,9 +99,6 @@ static struct dsi_cmd nv_mtp_hbm3_read_cmds;
 static struct dsi_cmd hbm_gamma_cmds_list;
 static struct dsi_cmd hbm_etc_cmds_list;
 static struct dsi_cmd hbm_off_cmds;
-#if defined(TEMPERATURE_ELVSS)
-static struct dsi_cmd elvss_temp_cmds_hbm;
-#endif
 #endif
 #if defined(TEMPERATURE_ELVSS)
 #if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL)
@@ -406,7 +399,6 @@ int mdss_dsi_samsung_panel_reset(struct mdss_panel_data *pdata, int enable)
 #if !defined(CONFIG_FB_MSM_MIPI_SAMSUNG_WVGA_VIDEO_PT_PANEL)
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
-		usleep_range(5000, 5000);
 #endif
 		if (gpio_is_valid(ctrl_pdata->bklt_en_gpio))
 			gpio_set_value((ctrl_pdata->bklt_en_gpio), 1);
@@ -615,7 +607,9 @@ end:
 static struct dsi_cmd get_elvss_control_set(int cd_idx)
 {
 	struct dsi_cmd elvss_control = {0,};
-	int cmd_idx = 0;
+	int cmd_idx = 0, payload_size = 0;
+	char *p_payload, *c_payload;
+	int p_idx = msd.dstat.curr_elvss_idx;
 
 	if (!elvss_map_table.size || !(cd_idx < elvss_map_table.size))
 	{
@@ -623,8 +617,21 @@ static struct dsi_cmd get_elvss_control_set(int cd_idx)
 		goto end;
 	}
 
+
 	/* Get index in the acl command list*/
 	cmd_idx = elvss_map_table.cmd_idx[cd_idx];
+
+	c_payload = elvss_cmds_list.cmd_desc[cmd_idx].payload;
+
+	/* Check if current & previous commands are same */
+	if (p_idx >= 0) {
+		p_payload = elvss_cmds_list.cmd_desc[p_idx].payload;
+		payload_size = elvss_cmds_list.cmd_desc[p_idx].dchdr.dlen;
+
+		if (msd.dstat.curr_elvss_idx == cmd_idx ||
+			!memcmp(p_payload, c_payload, payload_size))
+			goto end;
+	}
 
 	/* Get the command desc */
 
@@ -633,6 +640,12 @@ static struct dsi_cmd get_elvss_control_set(int cd_idx)
 	elvss_control.num_of_cmds = 1;
 	msd.dstat.curr_elvss_idx = cmd_idx;
 
+	switch (msd.panel) {
+	case PANEL_SAMSUNG_QHD_VIDEO:
+	case PANEL_SAMSUNG_WVGA_VIDEO:
+		/* Do any panel specfific customization here */
+		break;
+	}
 end:
 	return elvss_control;
 }
@@ -644,20 +657,15 @@ static struct dsi_cmd get_elvss_temprature_set(void)
 
     if (msd.dstat.temper_need_update) {
         msd.dstat.temper_need_update = 0;
-		if (is_panel_ams452ef01_revA || is_panel_ams452ef01_revC) {
-			elvss_temp_cmds.cmd_desc[2].payload[1] =
+        elvss_temp_cmds.cmd_desc[2].payload[1] =
                 msd.dstat.temperature_value;
-		} else {
-			elvss_temp_cmds.cmd_desc[1].payload[1] =
-                msd.dstat.temperature_value;
-		}
     }
     elvss_temperature.cmd_desc = &(elvss_temp_cmds.cmd_desc[0]);
     elvss_temperature.num_of_cmds = elvss_temp_cmds.num_of_cmds;
 #if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL)
 	if(is_panel_ams485dl01_revD){
 		if(msd.dstat.temperature_value >= 0x94){
-			elvss_temp_cmds_revD.cmd_desc[1].payload[1] =
+			elvss_temp_cmds_revD.cmd_desc[2].payload[1] =
 				msd.dstat.temperature_value;
 			elvss_temperature.cmd_desc = &(elvss_temp_cmds_revD.cmd_desc[0]);
 			elvss_temperature.num_of_cmds = elvss_temp_cmds_revD.num_of_cmds;
@@ -946,7 +954,7 @@ static int samsung_nv_read(struct dsi_cmd_desc *desc, char *destBuffer,
 
 		for (i = 0; i < read_count; i++, show_cnt++) {
 			show_buffer_pos += snprintf(show_buffer +
-						show_buffer_pos, 255, "%02x ",
+						show_buffer_pos, 256, "%02x ",
 						msd.ctrl_pdata->rx_buf.data[i]);
 			if (destBuffer != NULL && show_cnt < srcLength) {
 					destBuffer[show_cnt] =
@@ -1135,7 +1143,6 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
-		return;
 	}
 
 	if (msd.mfd->resume_state != MIPI_RESUME_STATE)
@@ -1198,8 +1205,7 @@ static int mipi_samsung_disp_send_cmd(
 #ifdef CMD_DEBUG
 	int i,j;
 #endif
-	if (!get_samsung_lcd_attached())
-		return 0;
+
 	if (lock)
 		mutex_lock(&msd.lock);
 
@@ -1308,21 +1314,21 @@ static int mipi_samsung_disp_send_cmd(
 		case HBM_ELVSS_TEMPER:
 			if (msd.dstat.temper_need_update) {
 				msd.dstat.temper_need_update = 0;
-				if (is_panel_ams452ef01_revA || is_panel_ams452ef01_revC) {
-					elvss_temp_cmds.cmd_desc[2].payload[1] =
+				elvss_temp_cmds.cmd_desc[2].payload[1] =
+					msd.dstat.temperature_value;
+			}
+			cmd_desc = elvss_temp_cmds.cmd_desc;
+			cmd_size = elvss_temp_cmds.num_of_cmds;
+#if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL)
+			if(is_panel_ams485dl01_revD){
+				if(msd.dstat.temperature_value >= 0x94){
+					elvss_temp_cmds_revD.cmd_desc[2].payload[1] =
 						msd.dstat.temperature_value;
-				} else {
-					elvss_temp_cmds.cmd_desc[1].payload[1] =
-						msd.dstat.temperature_value;
+					cmd_desc = elvss_temp_cmds_revD.cmd_desc;
+					cmd_size = elvss_temp_cmds_revD.num_of_cmds;
 				}
 			}
-			if (is_panel_ams452ef01_revA || is_panel_ams452ef01_revC) {
-				cmd_desc = elvss_temp_cmds.cmd_desc;
-				cmd_size = elvss_temp_cmds.num_of_cmds;
-			} else {
-				cmd_desc = elvss_temp_cmds_hbm.cmd_desc;
-				cmd_size = elvss_temp_cmds_hbm.num_of_cmds;
-			}
+#endif
 			break;
 #endif
 		default:
@@ -1420,18 +1426,6 @@ static void mipi_samsung_manufacture_date_read(struct mdss_panel_data *pdata)
 
 static int mdss_dsi_panel_dimming_init(struct mdss_panel_data *pdata)
 {
-#if defined(TEMPERATURE_ELVSS)
-#if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL)
-	struct mdss_dsi_ctrl_pdata *ctrl_pdata;
-	if (pdata == NULL) {
-		pr_err("%s: Invalid input data\n", __func__);
-		return -EINVAL;
-	}
-
-	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
-				panel_data);
-#endif
-#endif
 	mipi_samsung_disp_send_cmd(PANEL_MTP_ENABLE, true);
 
 	/* If the ID is not read yet, then read it*/
@@ -1440,7 +1434,7 @@ static int mdss_dsi_panel_dimming_init(struct mdss_panel_data *pdata)
 
 	if (!msd.dstat.is_smart_dim_loaded) {
 #if defined(HBM_RE)
-		char hbm_buffer[20] = {0,};
+		char hbm_buffer[20];
 #endif
 		switch (msd.panel) {
 			case PANEL_SAMSUNG_QHD_VIDEO:
@@ -1488,31 +1482,6 @@ static int mdss_dsi_panel_dimming_init(struct mdss_panel_data *pdata)
 	memcpy(&hbm_gamma_cmds_list.cmd_desc[0].payload[10], hbm_buffer+2, 12);
 #endif
 #endif
-#if defined(TEMPERATURE_ELVSS)
-#if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL)
-	if ((is_panel_ams452ef01_revC) || (is_panel_ams485dl01_revD)){
-		memcpy(&elvss_temp_cmds.cmd_desc[3].payload[1], hbm_buffer, 1);
-		memcpy(&elvss_temp_cmds_revD.cmd_desc[3].payload[1], hbm_buffer, 1);
-		elvss_temp_cmds_revD.cmd_desc[3].payload[1] =
-			elvss_temp_cmds_revD.cmd_desc[3].payload[1] - 0x02;
-	} else {
-		memcpy(&elvss_temp_cmds.cmd_desc[3].payload[1], hbm_buffer+16, 1);
-	}
-	if(is_panel_ams485dl01_revD){
-		memcpy(&ctrl_pdata->on_cmds.cmds[10].payload[1], hbm_buffer, 1);
-		if(msd.dstat.temperature_value >= 0x94)
-			ctrl_pdata->on_cmds.cmds[10].payload[1] =
-				ctrl_pdata->on_cmds.cmds[10].payload[1] - 0x02;
-		ctrl_pdata->on_cmds.cmds[7].payload[1] = msd.dstat.temperature_value;
-	} else if((is_panel_ams485dl01_revA) || (is_panel_ams485dl01_revC)) {
-		memcpy(&ctrl_pdata->on_cmds.cmds[10].payload[1], hbm_buffer+16, 1);
-		ctrl_pdata->on_cmds.cmds[7].payload[1] = msd.dstat.temperature_value;
-	} else {
-		memcpy(&ctrl_pdata->on_cmds.cmds[9].payload[1], hbm_buffer+16, 1);
-		ctrl_pdata->on_cmds.cmds[6].payload[1] = msd.dstat.temperature_value;
-	}
-#endif
-#endif
 		/*
 		 * Since dimming is loaded, we can assume that device is out of suspend state
 		 * and can accept backlight commands.
@@ -1522,7 +1491,7 @@ static int mdss_dsi_panel_dimming_init(struct mdss_panel_data *pdata)
 #if defined(CONFIG_MDNIE_LITE_TUNING)
 	/* MDNIe tuning initialisation*/
 	if (!msd.dstat.is_mdnie_loaded) {
-		char temp[4] = {0, };
+		char temp[4];
 		int	x, y;
 		mipi_samsung_read_nv_mem(pdata, &nv_mdnie_read_cmds, temp);
 		x =  temp[0] << 8 | temp[1];	/* X */
@@ -1585,14 +1554,11 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 #if defined(CONFIG_MDNIE_LITE_TUNING)
 	is_negative_on();
 #endif
-	if (msd.dstat.auto_brightness) {
-		/* nothing to do if auto brightness enable */
-	} else if (msd.dstat.recent_bright_level) {
+	if(msd.dstat.recent_bright_level) {
 		msd.dstat.bright_level = msd.dstat.recent_bright_level;
 		mipi_samsung_disp_send_cmd(PANEL_BRIGHT_CTRL, true);
 	} else
 		mipi_samsung_disp_send_cmd(PANEL_GAMMA_UPDATE, true);
-	
 	/* To fix flicker issue during power on*/
 	if(first_power_on == 0) {
 		msd.dstat.bright_level = -1;
@@ -2573,7 +2539,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		mdss_samsung_parse_panel_table(np, &aid_map_table,
 			"samsung,panel-aid-map-table-350");
 		mdss_samsung_parse_panel_table(np, &elvss_map_table,
-			"samsung,panel-elvss-map-table-350-revC");
+			"samsung,panel-elvss-map-table-350");
 	}
 #else
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
@@ -2651,7 +2617,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		mdss_samsung_parse_panel_cmd(np, &hbm_etc_cmds_list,
 			"samsung,panel-etc-hbm-cmds-revD");
 		mdss_samsung_parse_panel_cmd(np, &hbm_off_cmds,
-			"samsung,panel-hbm-off-cmds-revD");
+			"samsung,panel-hbm-off-cmds");
 	} else {
 		mdss_samsung_parse_panel_cmd(np, &nv_mtp_hbm3_read_cmds,
 			"samsung,panel-nv-mtp-read-hbm3-cmds");
@@ -2667,10 +2633,6 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		"samsung,panel-etc-hbm-cmds");
 	mdss_samsung_parse_panel_cmd(np, &hbm_off_cmds,
 		"samsung,panel-hbm-off-cmds");
-#endif
-#if defined(TEMPERATURE_ELVSS)
-	mdss_samsung_parse_panel_cmd(np, &elvss_temp_cmds_hbm,
-		"samsung,panel-elvss-temp-cmds-hbm");
 #endif
 #endif
 #if defined(TEMPERATURE_ELVSS)
@@ -3032,8 +2994,7 @@ static ssize_t mipi_samsung_disp_acl_store(struct device *dev,
 	else
 		pr_info("%s: Invalid argument!!", __func__);
 
-	if ((mfd->panel_power_on)&&(msd.manufacture_id)) {
-		//pr_info("%s: msd.manufacture_id is %d", __func__,msd.manufacture_id);
+	if (mfd->panel_power_on) {
 		if (acl_set && !(msd.dstat.acl_on||msd.dstat.siop_status)) {
 			msd.dstat.acl_on = true;
 			pr_info("%s: acl on  : acl %d, siop %d", __func__,
@@ -3583,41 +3544,6 @@ int mdss_dsi_panel_init(struct device_node *node,
 #endif
 	return 0;
 }
-int get_samsung_lcd_attached(void)
-{
-	return lcd_attached;
-
-}
-EXPORT_SYMBOL(get_samsung_lcd_attached);
-static int __init get_lcd_id_cmdline(char *mode)
-{
-	char *pt;
-
-	int lcd_id = 0;
-	if( mode == NULL ) return 1;
-	for( pt = mode; *pt != 0; pt++ )
-	{
-		lcd_id <<= 4;
-		switch(*pt)
-		{
-			case '0' ... '9' :
-				lcd_id += *pt -'0';
-			break;
-			case 'a' ... 'f' :
-				lcd_id += 10 + *pt -'a';
-			break;
-			case 'A' ... 'F' :
-				lcd_id += 10 + *pt -'A';
-			break;
-		}
-	}
-	lcd_attached = ((lcd_id&0xFFFFFF)!=0x000000);
-
-	pr_info( "%s: LCD_ID = 0x%X, lcd_attached =%d", __func__, lcd_id, lcd_attached);
-
-	return 0;
-}
-__setup( "lcd_id=0x", get_lcd_id_cmdline );
 MODULE_DESCRIPTION("Samsung DSI panel driver");
 MODULE_AUTHOR("Raghu J <raghu.j@samsung.com>");
 MODULE_LICENSE("GPL");

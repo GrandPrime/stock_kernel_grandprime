@@ -2332,7 +2332,7 @@ static int eeprom_config_read_data(struct msm_eeprom_ctrl_t *e_ctrl,
 				&data, MSM_CAMERA_I2C_BYTE_DATA);
 		if (rc < 0) {
 			pr_err("%s:(%d) read failed\n", __func__, __LINE__);
-			goto POWER_DOWN;
+			return rc;
 		}
 		buf[i]=data;
 	}
@@ -2393,7 +2393,7 @@ static int eeprom_config_read_compressed_data(struct msm_eeprom_ctrl_t *e_ctrl,
 				&data, MSM_CAMERA_I2C_BYTE_DATA);
 		if (rc < 0) {
 			pr_err("%s:(%d) read failed\n", __func__, __LINE__);
-			goto POWER_DOWN;
+			return rc;
 		}
 		buf_comp[i]=data;
 	}
@@ -2517,7 +2517,7 @@ static int eeprom_config_write_data(struct msm_eeprom_ctrl_t *e_ctrl,
 					compressed_buf[i], MSM_CAMERA_I2C_BYTE_DATA);
 			if (rc < 0) {
 				pr_err("%s:(%d) write failed\n", __func__, __LINE__);
-				goto POWER_DOWN;
+				return rc;
 			}
 		}
 
@@ -2537,7 +2537,7 @@ static int eeprom_config_write_data(struct msm_eeprom_ctrl_t *e_ctrl,
 					((uint8_t *)crc)[i], MSM_CAMERA_I2C_BYTE_DATA);
 			if (rc < 0) {
 				pr_err("%s:(%d) write failed\n", __func__, __LINE__);
-				goto POWER_DOWN;
+				return rc;
 			}
 		}
 	} else {
@@ -2556,7 +2556,7 @@ static int eeprom_config_write_data(struct msm_eeprom_ctrl_t *e_ctrl,
 					buf[i], MSM_CAMERA_I2C_BYTE_DATA);
 			if (rc < 0) {
 				pr_err("%s:(%d) write failed\n", __func__, __LINE__);
-				goto POWER_DOWN;
+				return rc;
 			}
 		}
 	}

@@ -98,6 +98,9 @@ static const char longname[] = "Gadget Android";
 
 #ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 static int composite_string_index;
+static inline void check_streaming_func(struct usb_gadget *gadget,
+		struct android_usb_platform_data *pdata,
+		char *name);
 #endif
 /* Default vendor and product IDs, overridden by userspace */
 #define VENDOR_ID		0x18D1
@@ -2916,6 +2919,10 @@ android_bind_enabled_functions(struct android_dev *dev,
 	struct android_usb_function_holder *f_holder;
 	struct android_configuration *conf =
 		container_of(c, struct android_configuration, usb_config);
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+	struct android_usb_platform_data *pdata = dev->pdata;
+	struct usb_gadget *gadget = dev->cdev->gadget;
+#endif
 	int ret;
 
 	list_for_each_entry(f_holder, &conf->enabled_functions, enabled_list) {
@@ -2935,6 +2942,13 @@ android_bind_enabled_functions(struct android_dev *dev,
 				c->unbind(c);
 			return ret;
 		}
+#ifdef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
+		/*
+		 * compare enabled function with streaming func
+		 * list and based on the same request streaming.
+		 */
+		check_streaming_func(gadget, pdata, f_holder->f->name);
+#endif
 	}
 	return 0;
 }
@@ -2973,11 +2987,13 @@ static int android_enable_function(struct android_dev *dev,
 	struct android_usb_function **functions = dev->functions;
 	struct android_usb_function *f;
 	struct android_usb_function_holder *f_holder;
+#ifndef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 	struct android_usb_platform_data *pdata = dev->pdata;
 	struct usb_gadget *gadget;
 
 	if(dev->cdev != NULL)
 		gadget = dev->cdev->gadget;
+#endif
 
 	while ((f = *functions++)) {
 		if (!strcmp(name, f->name)) {
@@ -2997,13 +3013,14 @@ static int android_enable_function(struct android_dev *dev,
 				list_add_tail(&f_holder->enabled_list,
 					      &conf->enabled_functions);
 				pr_debug("func:%s is enabled.\n", f->name);
+#ifndef CONFIG_USB_ANDROID_SAMSUNG_COMPOSITE
 				/*
 				 * compare enable function with streaming func
 				 * list and based on the same request streaming.
 				 */
 				if(dev->cdev != NULL)
 					check_streaming_func(gadget, pdata, f->name);
-
+#endif
 				return 0;
 			}
 		}

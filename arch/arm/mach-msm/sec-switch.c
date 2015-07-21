@@ -45,7 +45,17 @@ static int MHL_Connected;
 #include <linux/platform_data/rt8973.h>
 #endif
 
-#include <linux/input/tsp_ta_callback.h>
+#ifdef CONFIG_TOUCHSCREEN_MMS300
+#include <linux/i2c/mms300.h>
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_ZINITIX_BT541
+#include <linux/i2c/zinitix_i2c.h>
+#endif
+
+#ifdef CONFIG_TOUCHSCREEN_CYTTSP4
+#include <linux/i2c/cyttsp4_core.h>
+#endif
 
 #if defined(CONFIG_USB_SWITCH_TSU6721) || defined(CONFIG_USB_SWITCH_RT8973)
 #include <linux/switch.h>
@@ -750,7 +760,7 @@ void sm5502_lanhub_callback(enum cable_type_t cable_type, int attached, bool lan
 }
 #endif
 
-#if defined(USE_TSP_TA_CALLBACKS)
+#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
 struct tsp_callbacks *charger_callbacks;
 #endif
 
@@ -758,9 +768,6 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
 {
 	union power_supply_propval value;
 	struct power_supply *psy = power_supply_get_by_name("battery");
-#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
-	struct power_supply *psy_ps = power_supply_get_by_name("ps");
-#endif
 	static enum cable_type_t previous_cable_type = CABLE_TYPE_NONE;
 	pr_info("%s, called : cable_type :%d \n",__func__, cable_type);
 
@@ -768,7 +775,7 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
 
 	switch (cable_type) {
 	case CABLE_TYPE_USB:
-#if defined(USE_TSP_TA_CALLBACKS)
+#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -786,7 +793,7 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
 		sec_otg_set_vbus_state(attached);
 		break;
 	case CABLE_TYPE_AC:
-#if defined(USE_TSP_TA_CALLBACKS)
+#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -839,7 +846,7 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
 #endif
 		return;
 	case CABLE_TYPE_CDP:
-#if defined(USE_TSP_TA_CALLBACKS)
+#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -937,30 +944,6 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
                }
 #endif
 		break;
-#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
-	case CABLE_TYPE_CHARGING_CABLE:
-		if (attached)
-			value.intval = POWER_SUPPLY_TYPE_POWER_SHARING;
-		else
-			value.intval = POWER_SUPPLY_TYPE_BATTERY;
-
-		if (psy_ps) {
-			if (psy_ps->set_property(psy_ps, POWER_SUPPLY_PROP_ONLINE, &value)) {
-				pr_err("%s: fail to set power sharing ONLINE property\n",__func__);
-			}
-		}
-#if defined(DEBUG_STATUS)
-               if (attached)
-               {
-                       status_count = status_count+1;
-                       pr_err("%s Charging Cable status attached (%d) \n",__func__, status_count);
-               } else {
-                       status_count = status_count-1;
-                       pr_err("%s Charging Cable status detached (%d) \n", __func__,status_count);
-               }
-#endif
-		break;
-#endif
 	default:
 		break;
 	}
@@ -1163,7 +1146,7 @@ void sm5504_lanhub_callback(enum cable_type_t cable_type, int attached, bool lan
 }
 #endif
 
-#if defined(USE_TSP_TA_CALLBACKS)
+#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
 struct tsp_callbacks *charger_callbacks;
 #endif
 
@@ -1171,9 +1154,6 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
 {
 	union power_supply_propval value;
 	struct power_supply *psy = power_supply_get_by_name("battery");
-#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
-	struct power_supply *psy_ps = power_supply_get_by_name("ps");
-#endif
 	static enum cable_type_t previous_cable_type = CABLE_TYPE_NONE;
 	pr_info("%s, called : cable_type :%d \n",__func__, cable_type);
 
@@ -1181,7 +1161,7 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
 
 	switch (cable_type) {
 	case CABLE_TYPE_USB:
-#if defined(USE_TSP_TA_CALLBACKS)
+#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -1199,7 +1179,7 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
 		sec_otg_set_vbus_state(attached);
 		break;
 	case CABLE_TYPE_AC:
-#if defined(USE_TSP_TA_CALLBACKS)
+#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -1252,7 +1232,7 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
 #endif
 		return;
 	case CABLE_TYPE_CDP:
-#if defined(USE_TSP_TA_CALLBACKS)
+#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -1350,30 +1330,6 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
                }
 #endif
 		break;
-#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
-	case CABLE_TYPE_CHARGING_CABLE:
-		if (attached)
-			value.intval = POWER_SUPPLY_TYPE_POWER_SHARING;
-		else
-			value.intval = POWER_SUPPLY_TYPE_BATTERY;
-
-		if (psy_ps) {
-			if (psy_ps->set_property(psy_ps, POWER_SUPPLY_PROP_ONLINE, &value)) {
-				pr_err("%s: fail to set power sharing ONLINE property\n",__func__);
-			}
-		}
-#if defined(DEBUG_STATUS)
-               if (attached)
-               {
-                       status_count = status_count+1;
-                       pr_err("%s Charging Cable status attached (%d) \n",__func__, status_count);
-               } else {
-                       status_count = status_count-1;
-                       pr_err("%s Charging Cable status detached (%d) \n", __func__,status_count);
-               }
-#endif
-		break;
-#endif
 	default:
 		break;
 	}

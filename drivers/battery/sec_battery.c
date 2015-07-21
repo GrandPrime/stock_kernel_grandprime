@@ -650,7 +650,6 @@ static bool sec_bat_ovp_uvlo_result(
 			battery->status =
 				POWER_SUPPLY_STATUS_CHARGING;
 			battery->charging_mode = SEC_BATTERY_CHARGING_1ST;
-			sec_bat_set_charge(battery, true);
 			break;
 		case POWER_SUPPLY_HEALTH_OVERVOLTAGE:
 		case POWER_SUPPLY_HEALTH_UNDERVOLTAGE:
@@ -659,7 +658,6 @@ static bool sec_bat_ovp_uvlo_result(
 				__func__, health);
 			battery->status =
 				POWER_SUPPLY_STATUS_NOT_CHARGING;
-			sec_bat_set_charge(battery, false);
 			battery->charging_mode = SEC_BATTERY_CHARGING_NONE;
 			battery->is_recharging = false;
 			/* Take the wakelock during 10 seconds
@@ -3331,6 +3329,8 @@ static int sec_ps_set_property(struct power_supply *psy,
 			queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 		} else {
 			battery->ps_status = false;
+			battery->ps_enable = false;
+			battery->ps_changed = false;
 			dev_info(battery->dev,
 				"%s: power sharing cable plugout (%d)\n", __func__, battery->ps_status);
 			wake_lock(&battery->monitor_wake_lock);
@@ -3956,9 +3956,8 @@ static int sec_battery_probe(struct platform_device *pdev)
 		battery->pdata->check_batt_id();
 
 	battery->wc_status = 0;
-	battery->ps_status = 0;
-	battery->ps_changed = 0;
-	battery->ps_enable = 0;
+	battery->ps_status= 0;
+	battery->ps_changed= 0;
 	battery->wire_status = POWER_SUPPLY_TYPE_BATTERY;
 
 #if defined(ANDROID_ALARM_ACTIVATED)

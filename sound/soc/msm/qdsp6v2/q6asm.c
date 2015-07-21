@@ -3902,21 +3902,20 @@ fail_cmd:
 	return rc;
 }
 
-#ifdef CONFIG_SAMSUNG_AUDIO
 int q6asm_set_sa(struct audio_client *ac, int *param)
 {
 	int sz = 0;
 	int rc  = 0;
 	int i = 0;
 	struct asm_stream_cmd_set_pp_params_sa cmd ;
-
+	
 	if(ac == NULL){
 		printk("%s: audio client is null\n", __func__);
 		return -1;
 	}
 
 	sz = sizeof(struct asm_stream_cmd_set_pp_params_sa);
-	q6asm_add_hdr_async(ac, &cmd.hdr, sz, true);
+	q6asm_add_hdr_async(ac, &cmd.hdr, sz, false);
 
 	cmd.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS_V2;
 	cmd.param.data_payload_addr_lsw = 0;
@@ -3972,7 +3971,7 @@ int q6asm_set_vsp(struct audio_client *ac, int *param)
 	}
 
 	sz = sizeof(struct asm_stream_cmd_set_pp_params_vsp);
-	q6asm_add_hdr_async(ac, &cmd.hdr, sz, true);
+	q6asm_add_hdr_async(ac, &cmd.hdr, sz, false);
 
 	cmd.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS_V2;
 	cmd.param.data_payload_addr_lsw = 0;
@@ -4012,7 +4011,7 @@ int q6asm_set_dha(struct audio_client *ac,int *param)
 	}
 
 	sz = sizeof(struct asm_stream_cmd_set_pp_params_dha);
-	q6asm_add_hdr_async(ac, &cmd.hdr, sz, true);
+	q6asm_add_hdr_async(ac, &cmd.hdr, sz, false);
 
 	cmd.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS_V2;
 	cmd.param.data_payload_addr_lsw = 0;
@@ -4051,7 +4050,7 @@ int q6asm_set_lrsm(struct audio_client *ac,int *param)
 	}
 
 	sz = sizeof(struct asm_stream_cmd_set_pp_params_lrsm);
-	q6asm_add_hdr_async(ac, &cmd.hdr, sz, true);
+	q6asm_add_hdr_async(ac, &cmd.hdr, sz, false);
 
 	cmd.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS_V2;
 	cmd.param.data_payload_addr_lsw = 0;
@@ -4089,7 +4088,7 @@ int q6asm_set_sa_ep(struct audio_client *ac,int *param)
 	}
 
 	sz = sizeof(struct asm_stream_cmd_set_pp_params_sa_ep);
-	q6asm_add_hdr_async(ac, &cmd.hdr, sz, true);
+	q6asm_add_hdr_async(ac, &cmd.hdr, sz, false);
 
 	cmd.hdr.opcode = ASM_STREAM_CMD_SET_PP_PARAMS_V2;
 	cmd.param.data_payload_addr_lsw = 0;
@@ -4152,7 +4151,6 @@ fail_cmd:
 	return 0;
 #endif
 }
-#endif
 
 int q6asm_equalizer(struct audio_client *ac, void *eq_p)
 {
