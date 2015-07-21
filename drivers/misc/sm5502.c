@@ -1206,14 +1206,22 @@ static int sm5502_attach_dev(struct sm5502_usbsw *usbsw)
 		pdata->callback(CABLE_TYPE_CHARGING_CABLE,
 			SM5502_ATTACHED);
 #endif
-	/* Incompatible */
+#if defined(CONFIG_MUIC_SUPPORT_VZW_INCOMPATIBLE)
+	/* Incompatible Charger */
+	} else if (vbus & DEV_VBUSIN_VALID && adc == ADC_VZW_INCOMPATIBLE) {
+		pr_info("[MUIC] Incompatible Charger Connected\n");
+		usbsw->attached_dev = ATTACHED_DEV_UNKNOWN_MUIC;
+		pdata->callback(CABLE_TYPE_INCOMPATIBLE,
+			SM5502_ATTACHED);
+#endif
+	/* Undefined */
 	} else if (vbus & DEV_VBUSIN_VALID) {
 		pr_info("[MUIC] Undefined Charger Connected\n");
 		usbsw->attached_dev = ATTACHED_DEV_UNKNOWN_MUIC;
 		pdata->callback(CABLE_TYPE_UNDEFINED,
 			SM5502_ATTACHED);
 		usbsw->undefined_attached = true;
-    }
+	}
 
 #if !defined(CONFIG_USBID_STANDARD_VER_01)
 attach_end:
@@ -1376,7 +1384,14 @@ static int sm5502_detach_dev(struct sm5502_usbsw *usbsw)
 		pdata->callback(CABLE_TYPE_CHARGING_CABLE,
 			SM5502_DETACHED);
 #endif
-	/* Incompatible */
+#if defined(CONFIG_MUIC_SUPPORT_VZW_INCOMPATIBLE)
+	/* Incompatible Charger */
+	} else if (usbsw->adc == ADC_VZW_INCOMPATIBLE) {
+		pr_info("[MUIC] Incompatible Charger Disconnected\n");
+		pdata->callback(CABLE_TYPE_INCOMPATIBLE,
+			SM5502_DETACHED);
+#endif
+	/* Undefined */
 	} else if (usbsw->undefined_attached) {
 		pr_info("[MUIC] Undefined Charger Disconnected\n");
 		pdata->callback(CABLE_TYPE_UNDEFINED,

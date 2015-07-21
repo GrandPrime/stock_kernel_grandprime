@@ -591,6 +591,12 @@ config MUIC_SUPPORT_CHARGING_CABLE
 	help
 	 This option will enable the Charging (Power sharing) Cable
 
+config MUIC_SUPPORT_VZW_INCOMPATIBLE
+	bool "MUIC VZW INCOMPATIBLE CHARGER SUPPORT"
+	default n
+	help
+	 This option will enable the Incompatible Charger for VZW requirement
+
 config MUIC_SUPPORT_DESKDOCK
 	bool "MUIC DESK DOCK SUPPORT"
 	default n

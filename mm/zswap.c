@@ -906,7 +906,7 @@ static void __exit zswap_debugfs_exit(void) { }
 **********************************/
 static int __init init_zswap(void)
 {
-	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN;
+	gfp_t gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_HIGHMEM;
 
 	if (!zswap_enabled)
 		return 0;

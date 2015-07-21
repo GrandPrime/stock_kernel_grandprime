@@ -89,20 +89,6 @@ config SENSORS_CM36686_LEDA_EN_GPIO
 	help
 	  This option enables leda_en controlled by GPIO using CM36686 driver.
 
-config SENSORS_CM36672P
-	depends on I2C
-	tristate "CM36672P driver"
-	default n
-	help
-	  This option enables proximity sensor using CM36672P driver.
-
-config SENSORS_LEDA_EN_GPIO
-	depends on I2C
-	tristate "LEDA_EN controlled by GPIO"
-	default n
-	help
-	  This option enables leda_en controlled by GPIO using optical sensor driver.
-
 config SENSORS_K303C
 	depends on I2C
 	tristate "ST K303C accel,magnetic combo"

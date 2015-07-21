@@ -1403,9 +1403,9 @@ err_vdd:
 		if (ret)
 			pr_err("%s: Failed to disable vio.\n", __func__);
 	}
-	msleep(30);
-
 	devm_regulator_put(data->vio);
+
+	msleep(20);
 err_vio:
 	return ret;
 }

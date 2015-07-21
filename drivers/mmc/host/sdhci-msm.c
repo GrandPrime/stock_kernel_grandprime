@@ -3175,7 +3175,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		 * weird/inconsistent state resulting in flood of interrupts.
 		 */
 		sdhci_msm_setup_pins(msm_host->pdata, true);
-
+		mdelay(10);
 		ret = mmc_gpio_request_cd(msm_host->mmc,
 				msm_host->pdata->status_gpio);
 		if (ret) {

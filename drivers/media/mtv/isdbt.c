@@ -150,7 +150,6 @@ static void isdbt_gpio_set_output(void)
 	gpio_direction_input(dt_pdata->isdbt_irq);
 }
 
-#if !defined(CONFIG_SEC_GPIO_SETTINGS)
 static void isdbt_gpio_set_input(void)
 {
 	gpio_direction_input(dt_pdata->isdbt_pwr_en);
@@ -159,9 +158,8 @@ static void isdbt_gpio_set_input(void)
 	if (gpio_is_valid(dt_pdata->isdbt_rst))
 		gpio_direction_input(dt_pdata->isdbt_rst);
 }
-#endif
 
-void isdbt_gpio_config(bool poweron)
+static void isdbt_gpio_config(bool poweron)
 {
 #if defined(CONFIG_SEC_GPIO_SETTINGS)
 	struct pinctrl *isdbt_pinctrl;
@@ -232,13 +230,10 @@ void isdbt_gpio_config(bool poweron)
 #endif
 #endif
 
-	// if you added the direction info in pinctrl dtsi file, move this in the below feature.
 	if(poweron)
 		isdbt_gpio_set_output();
-#if !defined(CONFIG_SEC_GPIO_SETTINGS)
 	else
 		isdbt_gpio_set_input();
-#endif
 }
 
 static void isdbt_gpio_on(void)
@@ -286,7 +281,7 @@ static void isdbt_gpio_off(void)
 
  bool isdbt_power_off(void)
 {
-	DPRINTK("%s : isdbt_pwr_on status : %s\n", __func__, (isdbt_pwr_on ? "on" : "off"));
+	DPRINTK("%s : isdbt_power_off(%d)\n", __func__, isdbt_pwr_on);
 
 	if (isdbt_pwr_on) {
 		(*isdbtdrv_func->power_off)();
@@ -323,7 +318,7 @@ int isdbt_power_on(unsigned long arg)
 	else
 		isdbt_pwr_on = false;
 
-	DPRINTK("%s : %s\n", __func__, (isdbt_pwr_on ? "success" : "fail"));
+	DPRINTK("%s : ret(%d)\n", __func__, isdbt_pwr_on);
 	return ret;
 }
 
@@ -351,7 +346,6 @@ bool isdbt_control_irq(bool set)
 			ret = false;
 		}
 	} else {
-		// If spi timeout occurs, try the test after removing this line.
 		free_irq(gpio_to_irq(dt_pdata->isdbt_irq), NULL);
 	}
 
@@ -409,8 +403,8 @@ static int isdbt_release(struct inode *inode, struct file *filp)
 		ret = (*isdbtdrv_func->release)(inode, filp);
 
 	isdbt_power_off();
-	isdbt_control_irq(false);
 	isdbt_gpio_config(false);
+	isdbt_control_irq(false);
 
 	return 0;
 }

@@ -1037,12 +1037,11 @@ INT rtvISDBT_ScanFrequency(UINT nChNum)
 
 					TMCC_L = RTV_REG_GET(0x10) & 0x01;
 					if (TMCC_L)  {
-					    U8 part_flag = 0;
 					    RTV_REG_MAP_SEL(FEC_PAGE);
 					    RTV_REG_MASK_SET(0x11, 0x04, 0x04);
 					    RTV_REG_MASK_SET(0x11, 0x04, 0x00);
 
-						part_flag = RTV_REG_GET(0x7C);
+						U8 part_flag = RTV_REG_GET(0x7C);
 
 						if (part_flag & 0x80)
 							sucess_flag = RTV_SUCCESS;

@@ -15,7 +15,7 @@
 #include "dsi_panel_hx8389c_tft_qhd_video.dtsi"
 #include "msm8916-camera.dtsi"
 #include "msm8916-camera-sensor-cdp-fortuna.dtsi"
-#include "msm8916-sec-fortuna-battery-r00.dtsi"
+#include "msm8916-sec-fortuna-aio-battery-r00.dtsi"
 
 / {
 	aliases {
@@ -401,7 +401,7 @@
 
 &usb_otg {
 	qcom,hsusb-otg-phy-init-seq =
-					<0x49 0x81 0x0b 0x82 0xffffffff>;
+					<0x19 0x81 0x0b 0x82 0xffffffff>;
 };
 
 &sdhc_1 {
@@ -482,7 +482,7 @@
 		};
 	};
 };
-		
+
 &pm8916_mpps {
 	mpp@a000 { /* MPP 1 */
 		/* VDD_PX */

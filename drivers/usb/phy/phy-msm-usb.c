@@ -1636,7 +1636,7 @@ static void msm_otg_start_host(struct usb_otg *otg, int on)
 
 	if (!otg->host)
 		return;
-#if defined (CONFIG_USB_HOST_NOTIFY)
+#if defined (CONFIG_USB_HOST_NOTIFY) && defined (USB_HOST_PHY_TUNE)
 	msm_otg_host_notify(motg, on);
 #endif
 
@@ -4612,7 +4612,7 @@ struct msm_otg_platform_data *msm_otg_dt_to_pdata(struct platform_device *pdev)
 	of_property_read_u32(node, "qcom,hsusb-otg-phy-type",
 				&pdata->phy_type);
 
-	printk("%s : init_seq =%x,%x,%x , otg_mode=%x , otg_control=%x\n",__func__,pdata->phy_init_seq[0],pdata->phy_init_seq[2],pdata->phy_init_seq[4],
+	printk("%s : init_seq =%d,%d,%d , otg_mode=%d , otg_control=%d\n",__func__,pdata->phy_init_seq[0],pdata->phy_init_seq[2],pdata->phy_init_seq[4],
 		pdata->mode,pdata->otg_control);
 	pdata->disable_reset_on_disconnect = of_property_read_bool(node,
 				"qcom,hsusb-otg-disable-reset");

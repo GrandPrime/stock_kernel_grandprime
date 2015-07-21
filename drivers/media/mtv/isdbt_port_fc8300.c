@@ -6,25 +6,15 @@
 struct isdbt_drv_func fc8300_drv_func_struct;
 
 extern void fc8300_set_port_if(unsigned long interface);
+bool isfirst = true;
 
 int probe_drv(void)
 {
 	int res;
 
-	isdbt_gpio_config(true);
-	isdbt_control_irq(true);
-
-	isdbt_control_gpio(true);
-	isdbt_control_gpio(false);
-	isdbt_control_gpio(true);
-
 	fc8300_set_port_if((unsigned long)isdbt_get_if_handle());
 	
 	res = isdbt_drv_probe();
-
-	isdbt_control_gpio(false);
-	isdbt_control_irq(false);
-	isdbt_gpio_config(false);
 
 	return res;
 }
@@ -41,6 +31,13 @@ int remove_drv(void)
 
 int hw_init_drv(unsigned long arg)
 {
+	if(isfirst)
+	{
+		isdbt_control_gpio(true);
+		isdbt_control_gpio(false);
+		isfirst = false;
+	}
+
 	isdbt_control_gpio(true);
 //	isdbt_control_irq(true);
 	isdbt_set_drv_mode(0);

@@ -760,31 +760,6 @@ done:
 	return ret;
 }
 
-#if !defined(CONFIG_MACH_FORTUNA_EUR_OPEN)
-static void gp2a_i2c_shutdown(struct i2c_client *client)
-{
-	struct gp2a_data *gp2a = i2c_get_clientdata(client);
-	if (!gp2a)
-		return;
-	if (gp2a->power_state) {
-		disable_irq_wake(gp2a->irq);
-		disable_irq(gp2a->irq);
-		msleep(20);
-	}
-
-	free_irq(gp2a->irq, gp2a);
-	gpio_free(gp2a->pdata->p_out);
-	gp2a_leda_onoff(gp2a, 0);
-	sysfs_remove_group(&gp2a->input->dev.kobj, &proximity_attribute_group);
-	sensors_remove_symlink(&gp2a->input->dev.kobj, gp2a->input->name);
-	input_unregister_device(gp2a->input);
-	input_free_device(gp2a->input);
-	mutex_destroy(&gp2a->power_lock);
-	wake_lock_destroy(&gp2a->prx_wake_lock);
-	kfree(gp2a);
-}
-#endif
-
 static const struct i2c_device_id gp2a_device_id[] = {
 	{"gp2a", 0},
 	{}
@@ -806,9 +781,6 @@ static struct i2c_driver gp2a_i2c_driver = {
 
 	},
 	.probe		= gp2a_i2c_probe,
-#if !defined(CONFIG_MACH_FORTUNA_EUR_OPEN)
-	.shutdown	= gp2a_i2c_shutdown,
-#endif
 	.id_table	= gp2a_device_id,
 };
 

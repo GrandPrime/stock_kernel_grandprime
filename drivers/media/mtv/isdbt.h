@@ -149,7 +149,6 @@ struct spi_device *isdbt_get_spi_handle(void);
 
 bool isdbt_control_irq(bool set);
 void isdbt_control_gpio(bool poweron);
-void isdbt_gpio_config(bool poweron);
 
 struct spi_device *isdbt_get_if_handle(void);
 

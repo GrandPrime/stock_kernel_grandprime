@@ -34,6 +34,11 @@ config MFD_RT5033_RESET_WA
 	help
 	  If you enable this function, it will reset when RT5033 is invalid.
 
+config MFD_RT5033_SLDO_VBUSDET
+	bool "SLDO uses for VBUS detection"
+	depends on MFD_RT5033
+	default n
+
 config MFD_CS5535
 	tristate "AMD CS5535 and CS5536 southbridge core functions"
 	select MFD_CORE

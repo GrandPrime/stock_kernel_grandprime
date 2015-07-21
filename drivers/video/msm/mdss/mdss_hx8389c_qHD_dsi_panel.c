@@ -598,10 +598,12 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->bklt_en_gpio), 0);
 			gpio_free(ctrl_pdata->bklt_en_gpio);
 		}
+#if !defined(CONFIG_MACH_FORTUNA_AIO)
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
+#endif
 #if defined(CONFIG_MACH_FORTUNA_CTC)
 		if (gpio_is_valid(ctrl_pdata->disp_en_gpio_1p8v)) {
 			gpio_set_value((ctrl_pdata->disp_en_gpio_1p8v), 0);
@@ -612,6 +614,13 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->rst_gpio), 0);
 			gpio_free(ctrl_pdata->rst_gpio);
 		}
+#if defined(CONFIG_MACH_FORTUNA_AIO)
+		mdelay(1);
+		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+			gpio_free(ctrl_pdata->disp_en_gpio);
+		}
+#endif
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
 	}
@@ -1343,12 +1352,12 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-boe", &tmp);
 		pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
 	} else {
-	    rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch", &tmp);
-	    pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
-	    rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch", &tmp);
-	    pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
-	    rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width", &tmp);
-	    pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch", &tmp);
+		pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch", &tmp);
+		pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width", &tmp);
+		pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
     }
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-sync-skew", &tmp);
 	pinfo->lcdc.hsync_skew = (!rc ? tmp : 0);
@@ -1358,10 +1367,10 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch-boe", &tmp);
 		pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
 	} else {
-	    rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch", &tmp);
-	    pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
-	    rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch", &tmp);
-	    pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch", &tmp);
+		pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch", &tmp);
+		pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
     }
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width", &tmp);
 	pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
@@ -1530,27 +1539,27 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	mdss_panel_parse_te_params(np, pinfo);
 
 	if (msd.manufacture_id == 0x53B810) {	// S6D78A0
-	mdss_dsi_parse_reset_seq(np, pinfo->rst_seq, &(pinfo->rst_seq_len),
+		mdss_dsi_parse_reset_seq(np, pinfo->rst_seq, &(pinfo->rst_seq_len),
 				"qcom,mdss-dsi-reset-sequence-boe");
 		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
 				"qcom,mdss-dsi-on-command-boe", "qcom,mdss-dsi-on-command-state");
 		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
 				"qcom,mdss-dsi-off-command-boe", "qcom,mdss-dsi-off-command-state");
 		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->status_cmds,
-					"qcom,mdss-dsi-panel-status-command",
-						"qcom,mdss-dsi-panel-status-command-state");
+				"qcom,mdss-dsi-panel-status-command",
+				"qcom,mdss-dsi-panel-status-command-state");
 		rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-status-value", &tmp);
 	} else {
-	    mdss_dsi_parse_reset_seq(np, pinfo->rst_seq, &(pinfo->rst_seq_len),
-    		"qcom,mdss-dsi-reset-sequence");
-	    mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
-		    "qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
-	    mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
-	        "qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
-	    mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->status_cmds,
-		    "qcom,mdss-dsi-panel-status-command",
-			    "qcom,mdss-dsi-panel-status-command-state");
-	    rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-status-value", &tmp);
+		mdss_dsi_parse_reset_seq(np, pinfo->rst_seq, &(pinfo->rst_seq_len),
+				"qcom,mdss-dsi-reset-sequence");
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
+				"qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
+				"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->status_cmds,
+				"qcom,mdss-dsi-panel-status-command",
+				"qcom,mdss-dsi-panel-status-command-state");
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-status-value", &tmp);
     }
 	ctrl_pdata->status_value = (!rc ? tmp : 0);
 

@@ -45,7 +45,6 @@ ifeq ($(CONFIG_SEC_ROSSA_PROJECT),y)
 	else ifeq ($(CONFIG_MACH_ROSSA_AIO),y)
 		dtb-y += msm8916-sec-rossa-aio-r00.dtb
 		dtb-y += msm8916-sec-rossa-aio-r02.dtb
-		dtb-y += msm8916-sec-rossa-aio-r04.dtb
 	else ifeq ($(CONFIG_MACH_ROSSA_LTN_DTV),y)
 		dtb-y += msm8916-sec-rossa-ltn-dtv-r00.dtb
 	else ifeq ($(CONFIG_MACH_ROSSA_EUR_OPEN),y)

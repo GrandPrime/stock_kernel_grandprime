@@ -149,8 +149,10 @@ struct rt5033_mfd_chip {
 	struct rt5033_fled_info *fled_info;
 #endif
 #ifdef CONFIG_REGULATOR_RT5033
+	bool regulator_states[RT5033_MAX_REGULATOR];
 	struct rt5033_regulator_info *regulator_info[RT5033_MAX_REGULATOR];
 #endif
+	int rev_id;
 };
 
 #define rt5033_mfd_chip_t \
@@ -170,6 +172,14 @@ extern int rt5033_set_bits(struct i2c_client *i2c, int reg_addr, unsigned char m
 extern int rt5033_clr_bits(struct i2c_client *i2c, int reg_addr, unsigned char mask);
 extern void rt5033_lock_regulator(struct i2c_client *i2c);
 extern void rt5033_unlock_regulator(struct i2c_client *i2c);
+
+#ifdef CONFIG_REGULATOR_RT5033
+extern void rt5033_set_regulator_state(struct i2c_client *i2c, int id, bool en);
+extern bool rt5033_get_pmic_state(struct i2c_client *i2c);
+#endif
+
+void rt5033_read_dump(struct i2c_client *i2c);
+void rt5033_workaround(rt5033_mfd_chip_t *chip);
 
 typedef enum {
         RT5033_PREV_STATUS = 0,

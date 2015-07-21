@@ -1338,8 +1338,8 @@ EXPORT_SYMBOL(sk_alloc);
 
 static void __sk_free(struct sock *sk)
 {
-	struct sk_filter *filter = NULL;
-		
+	struct sk_filter *filter;
+
 	if (sk->sk_destruct)
 		sk->sk_destruct(sk);
 

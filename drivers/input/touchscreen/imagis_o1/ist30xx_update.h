@@ -70,7 +70,7 @@
 #error "Unknown IMAGIS_TSP_IC"
 #endif
 
-#define IST30XX_CONFIG_DATE		"1205"
+#define IST30XX_CONFIG_DATE		"1121"
 
 #define IST30XX_FW_NAME			"ist30xx.fw"
 #define IST30XXB_FW_NAME		"ist30xxb.fw"

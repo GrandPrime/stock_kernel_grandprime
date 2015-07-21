@@ -229,7 +229,7 @@
 			stm,sda = <&msm_gpio 6 0>;
 			stm,irq_gpio = <&msm_gpio 115 0x00>;
 			stm,vdd-supply = <&pm8916_l17>;
-			stm,vio-supply = <&pm8916_l6>;
+			stm,vio-supply = <&pm8916_l5>;
 			stm,axis_map_x = <0>;
 			stm,axis_map_y = <1>;
 			stm,axis_map_z = <2>;
@@ -250,7 +250,7 @@
 			gp2a-i2c,irq-gpio = <&msm_gpio 113 0x00>;
 			gp2a-i2c,en-gpio = <&msm_gpio 8 0x00>;
 			gp2a-vdd-supply = <&pm8916_l17>;
-			gp2a-vio-supply = <&pm8916_l6>;
+			gp2a-vio-supply = <&pm8916_l5>;
 		};
 	};
 

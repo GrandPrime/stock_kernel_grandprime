@@ -68,10 +68,9 @@ EXPORT_SYMBOL(sec_set_host);
  * Exported functions
  */
 
-#ifdef CONFIG_USB_HOST_NOTIFY
+#ifdef USB_HOST_PHY_TUNE
 static int ulpi_write(struct usb_phy *phy, u32 val, u32 reg);
 static int ulpi_read(struct usb_phy *phy, u32 reg);
-static void ulpi_init(struct msm_otg *motg);
 
 static void msm_otg_host_phy_tune(struct msm_otg *otg,
 		u32 paramb, u32 paramc, u32 paramd)
@@ -97,9 +96,7 @@ static void msm_otg_host_phy_tune(struct msm_otg *otg,
 static void msm_otg_host_notify(struct msm_otg *motg, int on)
 {
 	if (on)
-		msm_otg_host_phy_tune(motg, 0x33, 0x14, 0x13);
-	else
-		ulpi_init(motg);
+		msm_otg_host_phy_tune(motg, 0x33, 0xB, 0x13);
 }
 #endif
 

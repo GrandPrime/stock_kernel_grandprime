@@ -157,7 +157,7 @@
 			label = "sdc2-clk";
 			sdc2_clk_on: clk_on {
 				bias-disable; /* NO pull */
-				drive-strength = <16>; /* 16 MA */
+				drive-strength = <10>; /* 10 MA */
 			};
 			sdc2_clk_off: clk_off {
 				bias-disable; /* NO pull */

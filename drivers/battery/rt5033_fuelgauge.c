@@ -358,7 +358,7 @@ static unsigned int fg_get_vbat(struct i2c_client *client)
 	ret = rt5033_fg_i2c_read_word(client, RT5033_VBAT_MSB);
 	if (ret<0) {
 		pr_err("%s: read vbat fail", __func__);
-		vbat = 4000;
+		vbat = -1;
 	} else {
 		vbat = (ret&0xfff0)>>4;
 		vbat = vbat * 125 / 100;

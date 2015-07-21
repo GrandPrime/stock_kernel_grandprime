@@ -11,8 +11,7 @@
  */
 
 / {
-	battery {
-		status = "okay";
+	sec-battery {
 			compatible = "samsung,sec-battery";
 			battery,vendor = "SDI SDI";
 			battery,charger_name = "sm5701-charger";
@@ -96,10 +95,10 @@
 				battery,ovp_uvlo_check_type = <3>; /* SEC_BATTERY_OVP_UVLO_CHGPOLLING */
 				battery,full_check_type = <2>; /* SEC_BATTERY_FULLCHARGED_FG_CURRENT */
 
-			battery,input_current_limit = <1000 500 500 1000 500 1000 1000 500 500 1000 1000 1000 1000 500 1000 300 1000 1000 500 1000 1000 500 500>;
-			battery,fast_charging_current = <1400 0 900 1400 900 1400 1400 900 0 1400 1400 1400 1400 (-1) 1400 300 1400 1400 900 1400 1400 0 0>;
-			battery,full_check_current_1st = <150 0 150 150 150 150 150 150 0 150 150 150 150 0 150 150 150 150 150 150 150 0 0>;
-			battery,full_check_current_2nd = <2400 0 2400 2400 2400 2400 2400 2400 0 2400 2400 2400 2400 0 2400 2400 2400 2400 2400 2400 2400 0 0>;
+				battery,input_current_limit = <700 460 460 700 460 700 700 460 460 700 700 700 700 460 700 300 700 700 300 700 700 460 460>;
+				battery,fast_charging_current = <975 0 975 975 975 975 975 975 0 975 975 975 975 (-1) 975 975 975 975 975 975 975 0 0>;
+				battery,full_check_current_1st = <135 0 135 135 135 135 135 135 0 135 135 135 135 0 135 135 135 135 135 135 135 0 0>;
+				battery,full_check_current_2nd = <1800 0 1800 1800 1800 1800 1800 1800 0 1800 1800 1800 1800 0 1800 1800 1800 1800 1800 1800 1800 0 0>;
 			   };
        };
 };

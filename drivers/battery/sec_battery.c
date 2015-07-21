@@ -2118,7 +2118,9 @@ static void sec_bat_monitor_work(
 		monitor_work.work);
 	static struct timespec old_ts;
 	struct timespec c_ts;
-
+#if defined(CONFIG_CHARGER_RT5033)
+	union power_supply_propval val;
+#endif
 	dev_dbg(battery->dev, "%s: Start\n", __func__);
 #if defined(ANDROID_ALARM_ACTIVATED)
 	c_ts = ktime_to_timespec(alarm_get_elapsed_realtime());
@@ -2214,6 +2216,11 @@ continue_monitor:
 		if ((battery->capacity >= 35) && (battery->status == POWER_SUPPLY_STATUS_CHARGING)) {
 			battery->status = POWER_SUPPLY_STATUS_DISCHARGING;
 			sec_bat_set_charge(battery, false);
+#if defined(CONFIG_CHARGER_RT5033)
+			val.intval = 0;
+			psy_do_property(battery->pdata->charger_name, set,
+			POWER_SUPPLY_PROP_CURRENT_NOW, val);
+#endif
 		}
 		if ((battery->capacity <= 30) && (battery->status == POWER_SUPPLY_STATUS_DISCHARGING)) {
 			battery->status = POWER_SUPPLY_STATUS_CHARGING;
@@ -4579,7 +4586,7 @@ static int sec_battery_probe(struct platform_device *pdev)
 
 	dev_info(battery->dev,
 		"%s: SEC Battery Driver Loaded\n", __func__);
-#ifdef CONFIG_SAMSUNG_BATTERY_FACTORY
+#if defined(CONFIG_SAMSUNG_BATTERY_FACTORY) || defined(CONFIG_ARCH_MSM8916)
 	/* do not sleep in lpm mode & factory mode */
 	if (sec_bat_is_lpm(battery)) {
 		wake_lock_init(&battery->lpm_wake_lock, WAKE_LOCK_SUSPEND,

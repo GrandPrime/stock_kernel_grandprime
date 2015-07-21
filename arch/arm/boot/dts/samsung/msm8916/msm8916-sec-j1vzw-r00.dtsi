@@ -44,21 +44,19 @@
 
 	i2c@78b9000 { /* BLSP1 QUP5 */
 	status = "ok";
-		bt432_ts@20 {
-			compatible = "Zinitix,bt432_ts";
-			reg = <0x20>;
+		ist30xx_ts@50 {
+			compatible = "imagis,ist30xx-ts";
+			reg = <0x50>;
 			interrupt-parent = <&msm_gpio>;
 			interrupts = <13 0>;
-			pinctrl-names = "tsp_en_gpio_active", "tsp_en_gpio_suspend";
-			pinctrl-0 = <&tsp_en_active>;
-			pinctrl-1 = <&tsp_en_suspend>;
-			bt432,vdd_en-gpio = <&msm_gpio 73 0x01>;
-			bt432,irq-gpio = <&msm_gpio 13 0x00>;
-			bt432,x_resolution = <480>;
-			bt432,y_resolution = <800>;
-			bt432,page_size = <128>;
-			bt432,orientation = <0>;
-			bt432,tsp_vdd_supply_type = <0>;
+			pinctrl-names = "tsp_int_active", "tsp_en_gpio_active", "tsp_en_gpio_suspend";
+			pinctrl-0 = <&int_active>;
+			pinctrl-1 = <&tsp_en_active>;
+			pinctrl-2 = <&tsp_en_suspend>;
+
+			vdd_en-gpio = <&msm_gpio 73 0x01>;
+			imagis,irq-gpio = <&msm_gpio 13 0x00>;
+			imagis,i2c-pull-up = <1>;
 		};
 	};
 
@@ -78,9 +76,9 @@
 		sec-fuelgauge@70{
 			compatible = "sec-fuelgauge,i2c";
 			reg = <0x70>;
-			interrupt-parent = <&msm_gpio>;
-			fuelgauge,irqf = "IRQF_TRIGGER_FALLING + IRQF_ONESHOT + IRQF_NO_SUSPEND";
-			fuelgauge,fuel_int = <&msm_gpio 121 0x1>;
+			/*interrupt-parent = <&msm_gpio>;*/
+			/*fuelgauge,irqf = "IRQF_TRIGGER_FALLING + IRQF_ONESHOT + IRQF_NO_SUSPEND";*/
+			/*fuelgauge,fuel_int = <&msm_gpio 121 0x1>;*/
 			pinctrl-names = "default";
 			pinctrl-0 = <&fg_i2c_active &fuel_int_active>;
 
@@ -192,21 +190,18 @@
 			stm,poll_interval = <100>;
 			stm,min_interval = <2>;
 		};
-		cm36672p@60 {
-			compatible = "cm36672p";
-			reg = <0x60>;
+		gp2a-i2c@44{
+			compatible = "gp2a-i2c";
+			reg = <0x44>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&prox_int_active>;
+			pinctrl-1 = <&prox_int_suspend>;
 			interrupt-parent = <&msm_gpio>;
-			interrupts = <113 0>;
-			cm36672p,leden_gpio = <&msm_gpio 8 0x1>;
-			cm36672p,irq_gpio = <&msm_gpio 113 0x1>;
-			cm36672p,vdd-supply = <&pm8916_l17>;
-			cm36672p,vio-supply = <&pm8916_l5>;
-			cm36672p,default_hi_thd = <1900>;
-			cm36672p,default_low_thd = <1800>;
-			cm36672p,cancel_hi_thd = <1900>;
-			cm36672p,cancel_low_thd = <1800>;
-			cm36672p,ps_it = <0>;
-			cm36672p,led_current = <2>;
+			interupts= <113 0>;
+			gp2a-i2c,irq-gpio = <&msm_gpio 113 0x00>;
+			gp2a-i2c,en-gpio = <&msm_gpio 8 0x00>;
+			gp2a-vdd-supply = <&pm8916_l17>;
+			gp2a-vio-supply = <&pm8916_l6>;
 		};
 	};
 

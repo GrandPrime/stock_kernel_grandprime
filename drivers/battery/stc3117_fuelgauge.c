@@ -1557,7 +1557,8 @@ bool sec_hal_fg_get_property(struct i2c_client *client,
 		if (val->intval == SEC_FUELGAUGE_CAPACITY_TYPE_RAW)
 			val->intval = fuelgauge->info.batt_soc * 10;
 		else
-			val->intval = fuelgauge->info.batt_soc;
+			val->intval = 500;//fuelgauge->info.batt_soc;  //REV00 HW stc3117 IC can not work ,so need to set the soc to 50 for temp
+			dev_info(&client->dev, "%s: POWER_SUPPLY_PROP_CAPACITY temp to set to 50 \n",__func__);
 		break;
 
 	/* Battery Temperature */
