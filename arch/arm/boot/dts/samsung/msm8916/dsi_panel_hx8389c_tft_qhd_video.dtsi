@@ -41,9 +41,14 @@
 		qcom,mdss-dsi-h-front-porch-3g = <20>;
 		qcom,mdss-dsi-h-back-porch-3g = <20>;
 		qcom,mdss-dsi-h-pulse-width-3g = <18>;
+		qcom,mdss-dsi-h-front-porch-boe = <10>;
+		qcom,mdss-dsi-h-back-porch-boe = <10>;
+		qcom,mdss-dsi-h-pulse-width-boe = <14>;
 		qcom,mdss-dsi-h-sync-skew = <0>;
 		qcom,mdss-dsi-v-back-porch = <5>;
 		qcom,mdss-dsi-v-front-porch = <9>;
+		qcom,mdss-dsi-v-back-porch-boe = <6>;
+		qcom,mdss-dsi-v-front-porch-boe = <8>;
 		qcom,mdss-dsi-v-pulse-width = <2>;
 		qcom,mdss-dsi-h-left-border = <0>;
 		qcom,mdss-dsi-h-right-border = <0>;
@@ -66,6 +71,7 @@
 		qcom,mdss-dsi-traffic-mode = "non_burst_sync_pulse";
 		qcom,mdss-force-clk-lane-hs = <0>;
 		qcom,mdss-dsi-reset-sequence = <1 10>, <0 2>, <1 80>;
+		qcom,mdss-dsi-reset-sequence-boe = <1 10>, <0 5>, <1 30>;
 		qcom,mdss-dsi-lane-map = <0>;
 		qcom,mdss-dsi-h-sync-pulse = <0>;
               qcom,mdss-dsi-panel-timings = [81 1C 12 00 40 44 16 1E 23 03 04 00];
@@ -104,6 +110,34 @@
 						/* < Deep Sleep In Sequence > */
 						39 01 00 00 3C 00 02 28 00
 						39 01 00 00 3C 00 02 10 00
+					];
+		qcom,mdss-dsi-on-command-boe = [				/* Initializing Sequennce(1) */
+				39 01 00 00 00 00 03 F0 5A 5A
+				39 01 00 00 00 00 03 F1 5A 5A
+				39 01 00 00 00 00 03 FC A5 A5
+				05 01 00 00 78 00 02 11 00
+				/* Initializing Sequennce(2) */
+				39 01 00 00 00 00 02 B1 93	// Internal CLK
+				39 01 00 00 00 00 02 B5 10	// Panel Protection
+				39 01 00 00 00 00 12 F4 01 10 32 00 24 26 28 27 27 27 B7 2B 2C 65 6A 34 20	// 18 ea, Internal Power Sequence
+				39 01 00 00 00 00 15 EF 01 01 81 22 83 04 00 00 00 00 28 81 00 21 21 03 03 40 00 10	// 21 ea, GOA Timing
+				39 01 00 00 00 00 09 F2 19 04 08 08 08 14 14 00	// Internal Porch
+				39 01 00 00 00 00 07 F6 93 23 15 07 07 0C	// Source Control
+				39 01 00 00 00 00 07 E1 01 FF 01 1B 20 17	// MIPI Abnormal Detect
+				39 01 00 00 00 00 04 E2 ED C7 23	// MIPI Auto Recover
+				39 01 00 00 00 00 27 F7 01 01 0A 0B 05 1B 1A 01 01 01 01 01 01 01 01 01 01 01 01 01 01 08 09 04 1B 1A 01 01 01 01 01 01 01 01 01 01 01 01	// 39, GOA Output
+				39 01 00 00 00 00 02 36 10	// Memory Data Access Control
+				39 01 00 00 00 00 28 FA 00 19 21 1E 14 0B 10 0E 09 0B 00 00 0A 00 1D 21 1E 14 0B 10 0E 09 0B 00 00 0A 00 1C 21 1E 14 0B 10 0E 09 0B 00 00 0A // 40, Positive Gamma Control
+				39 01 00 00 00 00 28 FB 07 2D 22 24 18 0E 11 0C 05 05 00 00 0A 00 29 22 24 18 0E 11 0C 05 05 00 00 0A 07 2A 22 24 18 0E 11 0C 05 05 00 00 0A //Negative Gamma Control
+				05 01 00 00 14 00 02 29 00
+				39 01 00 00 00 00 03 F0 A5 A5
+				39 01 00 00 00 00 03 F1 A5 A5
+				39 01 00 00 00 00 03 FC 5A 5A
+				];
+		qcom,mdss-dsi-off-command-boe = [
+				/* < Deep Sleep In Sequence > */
+				39 01 00 00 0A 00 02 28 00
+				39 01 00 00 78 00 02 10 00
 					];
 		samsung,panel-manufacture-id-read-cmds = [06 01 00 00 00 00 01 da 01
 							06 01 00 00 00 00 01 db 01

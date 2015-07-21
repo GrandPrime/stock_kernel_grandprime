@@ -363,7 +363,7 @@
 				 <  400000  762>,
 				 <  800000  1525>,
 				 < 1094400  3051>,
-				 < 1152000  4066>;
+				 < 1190400  4066>;
 		};
 	};
 
@@ -515,7 +515,7 @@
 		compatible = "qcom,android-usb";
 		reg = <0x086000c8 0xc8>;
 		qcom,pm-qos-latency = <2 1001 12701>;
-                qcom,streaming-func = "mtp";
+		qcom,streaming-func = "mtp", "ptp";
 		qcom,android-usb-uicc-nluns = /bits/ 8 <1>;
 	};
 
@@ -1527,7 +1527,7 @@
 		qcom,pas-id = <9>;
 		qcom,proxy-timeout-ms = <5000>;
 		qcom,firmware-name = "venus";
-		linux,contiguous-region = <&venus_qseecom_mem>;
+		linux,contiguous-region = <&venus_mem>;
 	};
 
 	qcom,msm-thermal {
