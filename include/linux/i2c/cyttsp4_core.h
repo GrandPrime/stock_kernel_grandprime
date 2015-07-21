@@ -30,6 +30,7 @@
 #define _LINUX_CYTTSP4_CORE_H
 
 #include <linux/stringify.h>
+#include <linux/input/tsp_ta_callback.h>
 
 #define CYTTSP4_I2C_NAME "cyttsp4_i2c_adapter"
 #define CYTTSP4_SPI_NAME "cyttsp4_spi_adapter"
@@ -55,14 +56,6 @@ __stringify(CY_DRIVER_NAME)		    \
 
 /* abs settings */
 #define CY_IGNORE_VALUE             0xFFFF
-
-#define USE_TSP_TA_CALLBACKS
-#ifdef USE_TSP_TA_CALLBACKS
-extern struct tsp_callbacks *charger_callbacks;
-struct tsp_callbacks {
-	void (*inform_charger)(struct tsp_callbacks *, int);
-};
-#endif
 
 enum cyttsp4_core_platform_flags {
 	CY_CORE_FLAG_NONE		= 0,

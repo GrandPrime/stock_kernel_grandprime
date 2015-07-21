@@ -23,12 +23,23 @@
 
 #define BT541_TS_DEVICE		"bt541_ts_device"
 
+#include <linux/input/tsp_ta_callback.h>
+
+#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
+#include <linux/cpufreq.h>
+
+#define TOUCH_BOOSTER_DVFS
+
+#define DVFS_STAGE_TRIPLE       3
+#define DVFS_STAGE_DUAL         2
+#define DVFS_STAGE_SINGLE       1
+#define DVFS_STAGE_NONE         0
+#endif
+
 #if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
 #include "a3c_fw.h"
-#define CONFIG_DATE "0901"
+#define CONFIG_DATE "0904"
 #define TSP_TYPE_COUNT	1
-
-#define GLOVE_MODE
 
  /*Test Mode (Monitoring Raw Data) */
 #define SEC_DND_N_COUNT			2
@@ -37,6 +48,10 @@
 #define SEC_PDND_N_COUNT		16
 #define SEC_PDND_U_COUNT		32
 #define SEC_PDND_FREQUENCY		44
+#ifdef TOUCH_BOOSTER_DVFS
+#define TOUCH_BOOSTER_OFF_TIME	300
+#define TOUCH_BOOSTER_CHG_TIME	200
+#endif
 
 #else /* fortuna */
 #include "fortuna_fw_hwid_01.h"
@@ -55,6 +70,10 @@
 #define SEC_PDND_N_COUNT		14
 #define SEC_PDND_U_COUNT		6
 #define SEC_PDND_FREQUENCY		79
+#ifdef TOUCH_BOOSTER_DVFS
+#define TOUCH_BOOSTER_OFF_TIME	500
+#define TOUCH_BOOSTER_CHG_TIME	130
+#endif
 #endif
 
 
@@ -95,7 +114,7 @@ struct bt541_ts_platform_data {
 	u16		page_size;
 	u8		orientation;
 	const char      *pname;
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 	void (*register_cb) (struct tsp_callbacks *);
 	struct tsp_callbacks callbacks;
 #endif

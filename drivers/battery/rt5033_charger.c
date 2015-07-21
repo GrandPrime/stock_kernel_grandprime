@@ -134,6 +134,20 @@ static void rt5033_test_read(struct i2c_client *i2c)
 	sprintf(str+strlen(str), "0x22 = 0x%02x, ", rt5033_reg_read(i2c, 0x22));
 	sprintf(str+strlen(str), "#");
 	pr_info("%s: %s\n", __func__, str);
+
+	/* for charging fail issue */
+	data = rt5033_reg_read(i2c, RT5033_UUG);
+	if ((data & (~0x2)) != 0x45) {
+		pr_info("%s: RT5033_UUG is incorrect, 0x19 = 0x%x \n", __func__, data);
+		rt5033_assign_bits(i2c, RT5033_UUG, ~0x02, 0x45);
+	}
+
+	/* for leakage current issue */
+	data = rt5033_reg_read(i2c, RT5033_CHG_STAT_CTRL);
+	if ((data & 0x82) != 0x02) {
+		pr_info("%s: SW_HW_CTRL is incorrect (0x%x)\n", __func__, data);
+		rt5033_assign_bits(i2c, RT5033_CHG_STAT_CTRL, 0x82, 0x02);
+	}
 }
 
 static void rt5033_charger_otg_control(struct rt5033_charger_data *charger,
@@ -561,17 +575,9 @@ EXPORT_SYMBOL(rt5033_chg_fled_init);
 static bool rt5033_chg_init(struct rt5033_charger_data *charger)
 {
 	int ret;
+
 	rt5033_mfd_chip_t *chip = i2c_get_clientdata(charger->rt5033->i2c_client);
 	chip->charger = charger;
-
-	ret = rt5033_reg_read(charger->rt5033->i2c_client, RT5033_UUG);
-	if ( ret != 0x47 ) {
-		/* Force to enable OSC (Reg0x1a[5]) and then send CHG reset command */
-		rt5033_set_bits(charger->rt5033->i2c_client, 0x1a, 0x20);
-		rt5033_set_bits(charger->rt5033->i2c_client, RT5033_CHG_RESET, 0x80);
-
-		pr_err("%s 0x19h = 0x%x, CHG reset !!! \n",__func__, ret);
-	}
 	rt5033_chg_fled_init(charger->rt5033->i2c_client);
     /* Disable Timer function (Charging timeout fault) */
     rt5033_clr_bits(charger->rt5033->i2c_client,
@@ -601,6 +607,20 @@ static bool rt5033_chg_init(struct rt5033_charger_data *charger)
 	/* Set Reg0x07[5] = 0 -> enable bad adaptor detection */
 	rt5033_clr_bits(charger->rt5033->i2c_client,
 				RT5033_EOC_CTRL, (1 << 5));
+
+	/* set EXT_PMOS_CTRL bit to Enable PMOS for leakage current issue */
+	rt5033_assign_bits(charger->rt5033->i2c_client,
+		RT5033_CHG_STAT_CTRL, 0x82, 0x02);
+
+	ret = rt5033_reg_read(charger->rt5033->i2c_client, RT5033_UUG);
+	/* the default value is supposed to be 0x47 but it could be 0x45 as well with certain model */
+	if ((ret & (~0x2)) != 0x45) {
+		/* Force to enable OSC (Reg0x1a[5]) and then send CHG reset command */
+		rt5033_set_bits(charger->rt5033->i2c_client, 0x1a, 0x20);
+		rt5033_set_bits(charger->rt5033->i2c_client, RT5033_CHG_RESET, 0x80);
+
+		pr_err("%s 0x19h = 0x%x, CHG reset !!! \n",__func__, ret);
+	}
 	return true;
 }
 
@@ -688,8 +708,14 @@ static int rt5033_get_charging_health(struct rt5033_charger_data *charger)
 		charger->ovp = false;
 		charger->unhealth_cnt = 0;
 		return POWER_SUPPLY_HEALTH_GOOD;
+	} else if ((ret & (0x04)) == 0) {
+		/* No need to disable charger,
+		 * H/W will do it automatically */
+		charger->unhealth_cnt = HEALTH_DEBOUNCE_CNT;
+		charger->ovp = true;
 	}
-	charger->unhealth_cnt++;
+	if (charger->cable_type > POWER_SUPPLY_TYPE_BATTERY)
+		charger->unhealth_cnt++;
 	if (charger->unhealth_cnt < HEALTH_DEBOUNCE_CNT)
 		return POWER_SUPPLY_HEALTH_GOOD;
 

@@ -708,7 +708,7 @@ static struct sec_jack_platform_data *sec_jack_populate_dt_pdata(struct device *
 		pr_info("%s : No support FSA8038 chip\n", __func__);
 	else
 		pr_info("%s : earjack-fsa_en-gpio =%d\n", __func__, pdata->fsa_en_gpio);
-	
+
 	for( i=0; i<4; i++)
 	{
 		of_parse_phandle_with_args(dev->of_node, "det-zones-list","#list-det-cells", i, &args);
@@ -720,6 +720,20 @@ static struct sec_jack_platform_data *sec_jack_populate_dt_pdata(struct device *
 				__func__, args.args_count, args.args[0],
 				args.args[1], args.args[2],args.args[3]);		
 	}
+#ifdef CONFIG_MACH_FORTUNA3G_EUR
+	pdata->jack_buttons_zones[0].code = KEY_MEDIA;
+	pdata->jack_buttons_zones[0].adc_low = 0;
+	pdata->jack_buttons_zones[0].adc_high = 325;
+	pr_info("%s : %d, %d, %d, %d\n", __func__, 0, KEY_MEDIA, 0, 325);
+	pdata->jack_buttons_zones[1].code = KEY_VOLUMEUP;
+	pdata->jack_buttons_zones[1].adc_low = 326;
+	pdata->jack_buttons_zones[1].adc_high = 457;
+	pr_info("%s : %d, %d, %d, %d\n", __func__, 1, KEY_VOLUMEUP, 326, 457);
+	pdata->jack_buttons_zones[2].code = KEY_VOLUMEDOWN;
+	pdata->jack_buttons_zones[2].adc_low = 458;
+	pdata->jack_buttons_zones[2].adc_high = 990;
+	pr_info("%s : %d, %d, %d, %d\n", __func__, 2, KEY_VOLUMEDOWN, 458, 990);
+#else
 	for( i=0; i<3; i++)
 	{
 		of_parse_phandle_with_args(dev->of_node, "but-zones-list","#list-but-cells", i, &args);
@@ -730,6 +744,7 @@ static struct sec_jack_platform_data *sec_jack_populate_dt_pdata(struct device *
 				__func__, args.args_count, args.args[0],
 				args.args[1], args.args[2]);
 	}
+#endif
 
 	if (of_find_property(dev->of_node, "qcom,send-end-active-high", NULL))
 		pdata->send_end_active_high = true;

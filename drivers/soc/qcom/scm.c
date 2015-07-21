@@ -377,7 +377,7 @@ int scm_call_noalloc(u32 svc_id, u32 cmd_id, const void *cmd_buf,
  */
  
 #define SCM_EBUSY_WAIT_MS	30
-#define SCM_EBUSY_MAX_RETRY	20
+#define SCM_EBUSY_MAX_RETRY	400
 
 int scm_call(u32 svc_id, u32 cmd_id, const void *cmd_buf, size_t cmd_len,
 		void *resp_buf, size_t resp_len)

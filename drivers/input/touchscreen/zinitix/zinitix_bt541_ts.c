@@ -35,7 +35,6 @@
 #include <linux/gpio.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
-#include <linux/i2c/zinitix_i2c.h>
 #include <linux/input/mt.h>
 #include <linux/regulator/machine.h>
 #include <linux/of_device.h>
@@ -49,17 +48,6 @@
 #endif
 
 #include "zinitix_bt541_ts.h"
-
-#ifdef CONFIG_CPU_FREQ_LIMIT_USERSPACE
-#include <linux/cpufreq.h>
-
-#define TOUCH_BOOSTER_DVFS
-
-#define DVFS_STAGE_TRIPLE       3
-#define DVFS_STAGE_DUAL         2
-#define DVFS_STAGE_SINGLE       1
-#define DVFS_STAGE_NONE         0
-#endif
 
 #if (TSP_TYPE_COUNT == 1)
 u8 *m_pFirmware [TSP_TYPE_COUNT] = {(u8*)m_firmware_data,};
@@ -85,11 +73,6 @@ extern char *saved_command_line;
 #endif
 
 #define MAX_SUPPORTED_FINGER_NUM	5 /* max 10 */
-
-#ifdef TOUCH_BOOSTER_DVFS
-#define TOUCH_BOOSTER_OFF_TIME	500
-#define TOUCH_BOOSTER_CHG_TIME	130
-#endif
 
 #ifdef SUPPORTED_TOUCH_KEY
 #define NOT_SUPPORTED_TOUCH_DUMMY_KEY
@@ -543,7 +526,7 @@ struct bt541_ts_info {
 	bool stay_awake;
 #endif
 
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 	void (*register_cb) (struct tsp_callbacks *tsp_cb);
 	struct tsp_callbacks callbacks;
 #endif
@@ -2395,13 +2378,13 @@ static irqreturn_t bt541_touch_work(int irq, void *data)
 	if (ts_read_coord(info) == false || info->touch_info.status == 0xffff
 		|| info->touch_info.status == 0x1) {
 		// more retry
-		for(i=0; i< 50; i++) {	// about 30ms
+		for(i=0; i< 5; i++) {
 			if(!(ts_read_coord(info) == false|| info->touch_info.status == 0xffff
 			|| info->touch_info.status == 0x1))
 				break;
 		}
 
-		if(i==50)
+		if(i==5)
 			read_result = 0;
 	}
 	if (!read_result) {
@@ -4624,7 +4607,7 @@ static int bt541_ts_probe_dt(struct device_node *np,
 
 }
 
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 void bt541_register_callback(struct tsp_callbacks *cb)
 {
 	charger_callbacks = cb;
@@ -4660,7 +4643,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 			goto err_no_platform_data;
 		}
 
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 		pdata->register_cb = bt541_register_callback;
 #endif
 		
@@ -4716,7 +4699,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 		goto err_alloc;
 	}
 	
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 	info->register_cb = info->pdata->register_cb;
 #endif
 
@@ -4766,7 +4749,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 		info->button[i] = ICON_BUTTON_UNCHANGE;
 #endif
 
-#ifndef CONFIG_EXTCON
+#ifdef USE_TSP_TA_CALLBACKS
 	info->callbacks.inform_charger = bt541_charger_status_cb;
 		if (info->register_cb)
 			info->register_cb(&info->callbacks);

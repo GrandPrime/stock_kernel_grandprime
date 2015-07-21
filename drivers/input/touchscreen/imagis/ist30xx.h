@@ -22,6 +22,7 @@
  * Release : 2014.01.07 by Ian Bae
  */
 #include "ist30xx_sec.h"
+#include <linux/input/tsp_ta_callback.h>
 
 #define IMAGIS_IST30XX          (1)
 #define IMAGIS_IST30XXB         (2)
@@ -304,6 +305,10 @@ struct ist30xx_data {
 	u32			t_status;
 	finger_info		fingers[IST30XX_MAX_MT_FINGERS];
 	bool			i2cPower_flag;
+#ifdef USE_TSP_TA_CALLBACKS
+	struct tsp_callbacks callbacks;
+	void (*register_cb)(struct tsp_callbacks *);
+#endif
 };
 
 

@@ -754,6 +754,13 @@ config NFC_PN547_8916_USE_BBCLK2
 	  It is used by many services. NFC is fully controlled using I2C
 	  to communicate the AP chip.
 
+config NFC_PN547_8916_CLK_CTL
+	bool "NXP PN547 NFC CLOCK Control"
+	depends on NFC_PN547
+	default n
+	help
+	  NXP PN547 Near Field Communication controller support.
+	  This option control the clock in suspend and resume.
 
 config SEC_NFC_I2C
 	tristate "SEC NFC driver for I2C interface"

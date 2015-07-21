@@ -1,5 +1,5 @@
-#define CAPACITY_MAX			1000
-#define CAPACITY_MAX_MARGIN     30
+#define CAPACITY_MAX			960
+#define CAPACITY_MAX_MARGIN     50
 #define CAPACITY_MIN			0
 
 #if defined(CONFIG_MACH_FORTUNA_CTC)

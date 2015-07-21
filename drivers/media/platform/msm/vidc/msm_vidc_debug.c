@@ -20,7 +20,7 @@ int msm_vidc_debug_out = VIDC_OUT_PRINTK;
 int msm_fw_debug = 0x18;
 int msm_fw_debug_mode = 0x1;
 int msm_fw_low_power_mode = 0x1;
-int msm_vidc_hw_rsp_timeout = 1000;
+int msm_vidc_hw_rsp_timeout = 4000;
 u32 msm_fw_coverage = 0x0;
 
 struct debug_buffer {

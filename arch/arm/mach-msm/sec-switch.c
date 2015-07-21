@@ -45,17 +45,7 @@ static int MHL_Connected;
 #include <linux/platform_data/rt8973.h>
 #endif
 
-#ifdef CONFIG_TOUCHSCREEN_MMS300
-#include <linux/i2c/mms300.h>
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_ZINITIX_BT541
-#include <linux/i2c/zinitix_i2c.h>
-#endif
-
-#ifdef CONFIG_TOUCHSCREEN_CYTTSP4
-#include <linux/i2c/cyttsp4_core.h>
-#endif
+#include <linux/input/tsp_ta_callback.h>
 
 #if defined(CONFIG_USB_SWITCH_TSU6721) || defined(CONFIG_USB_SWITCH_RT8973)
 #include <linux/switch.h>
@@ -760,7 +750,7 @@ void sm5502_lanhub_callback(enum cable_type_t cable_type, int attached, bool lan
 }
 #endif
 
-#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
+#if defined(USE_TSP_TA_CALLBACKS)
 struct tsp_callbacks *charger_callbacks;
 #endif
 
@@ -778,7 +768,7 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
 
 	switch (cable_type) {
 	case CABLE_TYPE_USB:
-#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
+#if defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -796,7 +786,7 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
 		sec_otg_set_vbus_state(attached);
 		break;
 	case CABLE_TYPE_AC:
-#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
+#if defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -849,7 +839,7 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
 #endif
 		return;
 	case CABLE_TYPE_CDP:
-#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
+#if defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -1173,7 +1163,7 @@ void sm5504_lanhub_callback(enum cable_type_t cable_type, int attached, bool lan
 }
 #endif
 
-#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
+#if defined(USE_TSP_TA_CALLBACKS)
 struct tsp_callbacks *charger_callbacks;
 #endif
 
@@ -1191,7 +1181,7 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
 
 	switch (cable_type) {
 	case CABLE_TYPE_USB:
-#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
+#if defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -1209,7 +1199,7 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
 		sec_otg_set_vbus_state(attached);
 		break;
 	case CABLE_TYPE_AC:
-#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
+#if defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
@@ -1262,7 +1252,7 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
 #endif
 		return;
 	case CABLE_TYPE_CDP:
-#if defined(CONFIG_TOUCHSCREEN_ZINITIX_BT541) || defined(USE_TSP_TA_CALLBACKS)
+#if defined(USE_TSP_TA_CALLBACKS)
 		if (charger_callbacks && charger_callbacks->inform_charger)
 			charger_callbacks->inform_charger(charger_callbacks,
 			attached);
