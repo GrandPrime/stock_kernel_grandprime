@@ -2041,21 +2041,17 @@ static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 	int pwr_state = 0, io_level = 0;
 	unsigned long flags;
 
-	if (!IS_ERR(msm_host->pclk)) { 
-		ret = clk_prepare_enable(msm_host->pclk); 
-		if (ret) 
-			pr_err("%s: %s: failed to enable the pclk with error %d\n",
-				mmc_hostname(host->mmc), __func__, ret);
+
+	if(!atomic_read(&msm_host->controller_clock)) { 
+		sdhci_msm_enable_controller_clock(host); // To enable clock 
+		pr_err("%s: Power IRQ while clock is turned off\n", mmc_hostname(msm_host->mmc)); 
+		sdhci_dumpregs(host); // Dump host registers including power control registers 
+		BUG_ON(1); // Force panic! 
 	}
 
 	irq_status = readb_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
 	pr_info("%s: Received IRQ(%d), status=0x%x\n", 
 		mmc_hostname(msm_host->mmc), irq, irq_status);
-
-	if ((irq_status & msm_host->curr_pwr_state) || 
-		(irq_status & msm_host->curr_io_level)) 
-		pr_err("spurious IRQ 0x%x pwr_ctrl_reg 0x%x\n", irq_status, 
-			readl_relaxed(msm_host->core_mem + CORE_PWRCTL_CTL)); 
 
 	/* Clear the interrupt */
 	writeb_relaxed(irq_status, (msm_host->core_mem + CORE_PWRCTL_CLEAR));
@@ -2149,9 +2145,6 @@ static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 		msm_host->curr_io_level = io_level;
 	complete(&msm_host->pwr_irq_completion);
 	spin_unlock_irqrestore(&host->lock, flags);
-
-	if (!IS_ERR(msm_host->pclk)) 
-		clk_disable_unprepare(msm_host->pclk); 
 
 	return IRQ_HANDLED;
 }
@@ -2292,7 +2285,7 @@ static void sdhci_msm_toggle_cdr(struct sdhci_host *host, bool enable)
 
 static unsigned int sdhci_msm_max_segs(void)
 {
-	return SDHCI_MSM_MAX_SEGMENTS / 16;
+	return SDHCI_MSM_MAX_SEGMENTS;
 }
 
 static unsigned int sdhci_msm_get_min_clock(struct sdhci_host *host)

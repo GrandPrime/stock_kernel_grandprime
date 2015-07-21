@@ -44,10 +44,6 @@ enum mipi_samsung_cmd_list {
 	PANEL_ACL_UPDATE,
 	MTP_READ_ENABLE,
 	PANEL_BRIGHT_CTRL,
-#if defined(CONFIG_CABC_TUNING)
-	PANEL_CABC_DISABLE,
-	PANEL_CABC_ENABLE,
-#endif
 };
 
 enum {

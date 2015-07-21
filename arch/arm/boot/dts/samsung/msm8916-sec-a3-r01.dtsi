@@ -130,8 +130,8 @@
 
 			rt5033_charger {
 				compatible = "richtek,rt5033-charger";
-				is_750kHz_switching = "yes";
-				is_fixed_switching = "yes";
+				/* is_750kHz_switching = "yes"; */
+				/* is_fixed_switching = "yes"; */
 			};
 
 			rt5033_safe_ldo {
@@ -148,8 +148,8 @@
 			rt5033_ldo1 {
 				compatible = "richtek,rt5033-ldo1";
 				regulator-name = "CAM_SENSOR_A2.8V"; /* change name by yourself */
-				regulator-min-microvolt = <2700000>;
-				regulator-max-microvolt = <2700000>; /* max == min then apply_uV = 1 */
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>; /* max == min then apply_uV = 1 */
 				/* regulator-microvolt-offset = < >; optional*/
 				/* regulator-boot-on = "yes"; optional, exist = enabled */
 				/* regulator-always-on = "yes"; optional, exist = enabled */
@@ -160,8 +160,8 @@
 			rt5033_buck1 {
 				compatible = "richtek,rt5033-dcdc1";
 				regulator-name = "CAM_SENSOR_CORE_1.2V"; /* change name by yourself */
-				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt = <1100000>; /* max == min then apply_uV = 1 */
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>; /* max == min then apply_uV = 1 */
 				/* regulator-microvolt-offset = < >; optional*/
 				/* regulator-boot-on = "yes"; optional, exist = enabled */
 				/* regulator-always-on = "yes"; optional, exist = enabled */
@@ -176,7 +176,7 @@
                 timeout_current_level = <50>;
                 strobe_current = <500>;
                 strobe_timeout = <544>;
-                torch_current = <63>;
+                torch_current = <38>;
                 lv_protection = <3000>;
                 mid_level = <4400>;
                 rt5033,led1-gpio = <&msm_gpio 34 0x00>;
@@ -306,9 +306,9 @@
 			cm36652,irq_gpio = <&msm_gpio 113 0x1>;
 			cm36652,vdd-supply = <&pm8916_l17>;
 			cm36652,vio-supply = <&pm8916_l5>;
-			cm36652,default_hi_thd = <20>;
-			cm36652,default_low_thd = <17>;
-			cm36652,cancel_hi_thd = <10>;
+			cm36652,default_hi_thd = <11>;
+			cm36652,default_low_thd = <7>;
+			cm36652,cancel_hi_thd = <11>;
 			cm36652,cancel_low_thd = <7>;
 		};
 	};
@@ -420,9 +420,9 @@
 				 <&det_zones 975 10000 10 0>,
 				 <&det_zones 976 10000 10 1>,
 				 <&det_zones 9999 10000 10 1>;
-		but-zones-list = <&but_zones 0 0 317>,
-				 <&but_zones 1 318 447>,
-				 <&but_zones 2 448 975>;
+		but-zones-list = <&but_zones 0 0 325>,
+				 <&but_zones 1 326 463>,
+				 <&but_zones 2 464 975>;
 		mpp-channel-scaling = <2 1 1>;
 		pinctrl-names = "earjack_gpio_active","earjack_gpio_suspend";
 		pinctrl-0 = <&earjack_det_act &earjack_switch_act>;

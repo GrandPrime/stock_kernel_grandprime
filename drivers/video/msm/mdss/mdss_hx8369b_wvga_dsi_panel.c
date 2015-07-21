@@ -48,7 +48,6 @@ static int lcd_brightness = -1;
 static int is_panel_dtc;
 static int is_panel_boe;
 static int is_ldi_hx8369b;
-static int is_ldi_sc7798a;
 static DEFINE_SPINLOCK(bg_gpio_lock);
 
 #define DT_CMD_HDR 6
@@ -502,7 +501,7 @@ unsigned char mdss_dsi_panel_pwm_scaling_dtc(int level)
 	
 	return scaled_level;
 }
-#elif defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_SPR)
+#elif defined(CONFIG_MACH_ROSSA_CTC)
 int scaling_step_array[] = {255,253,251,248,246,243,241,238,236,233,
 							231,228,226,223,221,218,216,213,211,208,
 							206,203,201,198,196,193,190,188,185,183,
@@ -576,10 +575,10 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	struct dcs_cmd_req cmdreq;
 
 	pr_debug("%s: level=%d\n", __func__, level);
-#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_AUS)|| defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_SPR)
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_AUS)|| defined(CONFIG_MACH_ROSSA_CTC)
 	if(msd.manufacture_id == 0x55c090)
 		led_pwm1[1] = mdss_dsi_panel_pwm_scaling_dtc(level);
-	else if(msd.manufacture_id == 0x55b890 || msd.manufacture_id == 0x55b8f0)
+	else if(msd.manufacture_id == 0x55b890)
 		led_pwm1[1] = mdss_dsi_panel_pwm_scaling_boe(level);
 	else
 		led_pwm1[1] = (unsigned char)level;
@@ -1728,52 +1727,28 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post-dtc", &tmp);
 		pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
 	} else if (is_panel_boe) {
-		if (is_ldi_sc7798a)
-		{
-			mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
-				"qcom,mdss-dsi-on-command-sc7798a-boe", "qcom,mdss-dsi-on-command-state");
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch-sc7798a-boe", &tmp);
-			pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-sc7798a-boe", &tmp);
-			pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-sc7798a-boe", &tmp);
-			pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch-sc7798a-boe", &tmp);
-			pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch-sc7798a-boe", &tmp);
-			pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width-sc7798a-boe", &tmp);
-			pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-pre-sc7798a-boe", &tmp);
-			pinfo->mipi.t_clk_pre = (!rc ? tmp : 0x24);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post-sc7798a-boe", &tmp);
-			pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
-		}
-		else
-		{
-			mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
-					"qcom,mdss-dsi-on-command-boe", "qcom,mdss-dsi-on-command-state");
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch-boe", &tmp);
-			pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
+				"qcom,mdss-dsi-on-command-boe", "qcom,mdss-dsi-on-command-state");
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch-boe", &tmp);
+		pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
 #if defined(CONFIG_MACH_ROSSA_CTC)
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-boe-ctc", &tmp);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-boe-ctc", &tmp);
 #else
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-boe", &tmp);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-boe", &tmp);
 #endif
-			pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-boe", &tmp);
-			pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch-boe", &tmp);
-			pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch-boe", &tmp);
-			pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width-boe", &tmp);
-			pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-pre-boe", &tmp);
-			pinfo->mipi.t_clk_pre = (!rc ? tmp : 0x24);
-			rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post-boe", &tmp);
-			pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
-		}
+		pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-boe", &tmp);
+		pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch-boe", &tmp);
+		pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch-boe", &tmp);
+		pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width-boe", &tmp);
+		pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-pre-boe", &tmp);
+		pinfo->mipi.t_clk_pre = (!rc ? tmp : 0x24);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-t-clk-post-boe", &tmp);
+		pinfo->mipi.t_clk_post = (!rc ? tmp : 0x03);
 	}else {
 		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
 			"qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
@@ -2028,14 +2003,10 @@ static int __init detect_lcd_panel_vendor(char* read_id)
 	} else if(lcd_id == 0x55c090) {
 		is_panel_dtc=1;
 		is_ldi_hx8369b=1;
-	} else if(lcd_id == 0x55b890) {
+	}  else if(lcd_id == 0x55b890) {
 		is_panel_boe = 1;
 		is_panel_dtc = 0;
-	} else if(lcd_id == 0x55b8F0) {
-		is_panel_boe = 1;
-		is_panel_dtc = 0;
-		is_ldi_sc7798a = 1;
-	} else {
+	}else {
 		pr_info("%s: manufacture id read may be faulty id[0x%x]\n", __func__, lcd_id);
 		is_panel_dtc = 0;
 		is_ldi_hx8369b=0;

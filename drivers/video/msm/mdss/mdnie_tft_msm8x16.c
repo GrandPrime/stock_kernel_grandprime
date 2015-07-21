@@ -34,8 +34,6 @@
 
 #if defined(CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
 #include "mdnie_tft_data_wvga_hx8369b.h"
-#elif defined(CONFIG_FB_MSM_MIPI_SHARP_HD_VIDEO_PANEL)
-#include "mdnie_tft_data_s6d2aa0x.h"
 #endif
 
 
@@ -145,12 +143,12 @@ static struct dsi_cmd_desc mdni_tune_cmd[] = {
 	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(tune_data5)}, tune_data5},
 	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(cmd_disable)}, cmd_disable},
 #else
-	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(level1_key)}, level1_key},
-	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(level2_key)}, level2_key},
 
-	{{DTYPE_DCS_LWRITE, 0, 0, 0, 0,
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data1)}, tune_data1},
 	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0,
 		sizeof(tune_data2)}, tune_data2},
@@ -480,16 +478,12 @@ void is_negative_on(void)
 		DPRINT("mDNIe_Set_Negative = %d\n", mdnie_tun_state.negative);
 		DPRINT(" = NEGATIVE MODE =\n");
 
-#if defined (CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
 		INPUT_PAYLOAD1(NEGATIVE_1);
 		INPUT_PAYLOAD2(NEGATIVE_2);
 		INPUT_PAYLOAD3(NEGATIVE_3);
 		INPUT_PAYLOAD4(NEGATIVE_4);
 		INPUT_PAYLOAD5(NEGATIVE_5);
-#else
-		INPUT_PAYLOAD1(NEGATIVE_1);
-		INPUT_PAYLOAD2(NEGATIVE_2);
-#endif
+
 		sending_tuning_cmd();
 		free_tun_cmd();
 	} else {
@@ -512,16 +506,12 @@ void mDNIe_set_negative(enum Lcd_mDNIe_Negative negative)
 		DPRINT("mDNIe_Set_Negative = %d\n", mdnie_tun_state.negative);
 		DPRINT(" = NEGATIVE MODE =\n");
 
-#if defined (CONFIG_FB_MSM_MIPI_HIMAX_WVGA_VIDEO_PANEL)
 		INPUT_PAYLOAD1(NEGATIVE_1);
 		INPUT_PAYLOAD2(NEGATIVE_2);
 		INPUT_PAYLOAD3(NEGATIVE_3);
 		INPUT_PAYLOAD4(NEGATIVE_4);
 		INPUT_PAYLOAD5(NEGATIVE_5);
-#else
-		INPUT_PAYLOAD1(NEGATIVE_1);
-		INPUT_PAYLOAD2(NEGATIVE_2);
-#endif
+
 		sending_tuning_cmd();
 		free_tun_cmd();
 	}

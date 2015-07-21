@@ -89,21 +89,14 @@ static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 		pr_err("%s: pwm_enable() failed err=%d\n", __func__, ret);
 	ctrl->pwm_enabled = 1;
 }
-#ifdef CONFIG_MACH_FORTUNA_SEA_OPEN
-static int lux_tbl[] = {
-	 1,
-	 2,  3,	 4,  6,  7,  8,  9,  10, 11, 12,
-	 13, 14, 15, 16, 17, 18, 20, 21, 22,
-	 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 0,
-};
-#else
+
 static int lux_tbl[] = {
 	 3,
 	 4,  5,  6,  7,  8,  9, 10, 11, 12, 13,
 	14, 15, 16, 17, 18, 19, 20, 21, 22,
 	23, 24, 25, 26, 27, 28, 29, 30, 31, 32,  0,
 };
-#endif
+
 
 static int get_candela_index(int bl_level)
 {
@@ -345,7 +338,7 @@ static unsigned char get_brightness_mapped(int bl_level)
 	case 232 ...233 : backlightlevel = 230 ; break;
 	case 229 ...231 : backlightlevel = 227 ; break;
 	case 227 ...228 : backlightlevel = 224 ; break;
-	case 224 ...226 : backlightlevel = 221 ; break;
+	case 225 ...226 : backlightlevel = 221 ; break;
 	case 222 ...223 : backlightlevel = 218 ; break;
 	case 219 ...221 : backlightlevel = 215 ; break;
 	case 217 ...218 : backlightlevel = 212 ; break;
@@ -401,7 +394,7 @@ static unsigned char get_brightness_mapped(int bl_level)
 	case 91 ...92 : backlightlevel = 75 ; break;
 	case 88 ...90 : backlightlevel = 73 ; break;
 	case 86 ...87 : backlightlevel = 71 ; break;
-	case 83 ...85 : backlightlevel = 69 ; break;
+	case 84 ...85 : backlightlevel = 69 ; break;
 	case 81 ...82 : backlightlevel = 67 ; break;
 	case 78 ...80 : backlightlevel = 65 ; break;
 	case 76 ...77 : backlightlevel = 63 ; break;
@@ -584,9 +577,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
 	} else {
-#if defined(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL)
-		mdelay(20);
-#endif
 		if (gpio_is_valid(msd.bl_ap_pwm_gpio)) {
 			gpio_set_value((msd.bl_ap_pwm_gpio), 0);
 			gpio_free(msd.bl_ap_pwm_gpio);

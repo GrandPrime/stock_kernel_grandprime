@@ -26,7 +26,7 @@
 #define MSM_ISP_MIN_IB 900000000
 #if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
 	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_O1_PROJECT)
+	|| defined(CONFIG_SEC_ROSSA_PROJECT)
 #define MIN_IB         1700000000
 #endif
 
@@ -1230,7 +1230,7 @@ static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 	uint64_t total_bandwidth = 0;
 #if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
 	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_O1_PROJECT)
+	|| defined(CONFIG_SEC_ROSSA_PROJECT)
 	uint64_t ib_total_bandwidth = 0;
 #endif
 
@@ -1256,7 +1256,7 @@ static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 	total_streams = num_pix_streams + num_rdi_streams;
 #if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
 	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_O1_PROJECT)
+	|| defined(CONFIG_SEC_ROSSA_PROJECT)
 	if (total_streams == 1) {
 	  ib_total_bandwidth = total_bandwidth *
 		ISP_BUS_UTILIZATION_FACTOR / ISP_Q2 - MSM_ISP_MIN_IB;

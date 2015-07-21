@@ -255,7 +255,8 @@ static void apply_rule(struct rule_node_info *node,
 			}
 		} else {
 			rule->state_change = false;
-			if (rule->state == RULE_STATE_APPLIED) {
+			if ((rule->state == RULE_STATE_APPLIED) &&
+					list_empty(output_list)) {
 				node->apply.id = rule->rule_ops.dst_node[0];
 				node->apply.throttle = rule->rule_ops.mode;
 				node->apply.lim_bw = rule->rule_ops.dst_bw;

@@ -155,8 +155,8 @@
 			rt5033_ldo1 {
 				compatible = "richtek,rt5033-ldo1";
 				regulator-name = "CAM_SENSOR_A2.8V"; /* change name by yourself */
-				regulator-min-microvolt = <2700000>;
-				regulator-max-microvolt = <2700000>; /* max == min then apply_uV = 1 */
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>; /* max == min then apply_uV = 1 */
 				/* regulator-microvolt-offset = < >; optional*/
 				/* regulator-boot-on = "yes"; optional, exist = enabled */
 				/* regulator-always-on = "yes"; optional, exist = enabled */
@@ -167,8 +167,8 @@
 			rt5033_buck1 {
 				compatible = "richtek,rt5033-dcdc1";
 				regulator-name = "CAM_SENSOR_CORE_1.2V"; /* change name by yourself */
-				regulator-min-microvolt = <1100000>;
-				regulator-max-microvolt = <1100000>; /* max == min then apply_uV = 1 */
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>; /* max == min then apply_uV = 1 */
 				/* regulator-microvolt-offset = < >; optional*/
 				/* regulator-boot-on = "yes"; optional, exist = enabled */
 				/* regulator-always-on = "yes"; optional, exist = enabled */

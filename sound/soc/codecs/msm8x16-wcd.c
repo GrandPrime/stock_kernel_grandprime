@@ -46,10 +46,6 @@
 #include "msm8916-wcd-irq.h"
 #include "msm8x16_wcd_registers.h"
 
-#ifdef CONFIG_SND_SOC_DBMD2
-#include "dbmd2-export.h"
-#endif
-
 #define MSM8X16_WCD_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000)
 #define MSM8X16_WCD_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
@@ -1941,10 +1937,6 @@ static int msm8x16_wcd_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 		msm8x16_notifier_call(codec, WCD_EVENT_PRE_MICBIAS_2_ON);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-#ifdef CONFIG_SND_SOC_DBMD2
-		msm8x16_notifier_call(codec, WCD_EVENT_PRE_MICBIAS_2_OFF);
-		break;
-#endif
 		if (w->shift == 4) { /* 4 bit is only for power external option */
 			if (--msm8x16_wcd->micb_2_ref_cnt == 0) {
 				snd_soc_update_bits(codec, micb_ctl_reg, 0x80, 0x00);
@@ -1996,8 +1988,7 @@ static int msm8x16_codec_enable_micbias_power(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 		case SND_SOC_DAPM_PRE_PMU:
-			pr_info("%s SND_SOC_DAPM_PRE_PMU mclk_rsc_ref %d\n", __func__, atomic_read(&pdata->mclk_rsc_ref));
-			if (atomic_inc_return(&pdata->mclk_rsc_ref) >= 1)
+			if (atomic_inc_return(&pdata->mclk_rsc_ref) == 1)
 				msm8x16_wcd_mclk_enable(codec, 1, true);
 			__msm8x16_wcd_codec_enable_on_demand_supply(w,
 					ON_DEMAND_MICBIAS, event);
@@ -2007,7 +1998,6 @@ static int msm8x16_codec_enable_micbias_power(struct snd_soc_dapm_widget *w,
 			msm8x16_wcd_codec_enable_micbias(w, kcontrol, event);
 			if (atomic_dec_return(&pdata->mclk_rsc_ref) == 0)
 				msm8x16_wcd_mclk_enable(codec, 0, true);
-			pr_info("%s SND_SOC_DAPM_POST_PMU mclk_rsc_ref %d\n", __func__, atomic_read(&pdata->mclk_rsc_ref));
 			break;
 		case SND_SOC_DAPM_POST_PMD:
 			msm8x16_wcd_codec_enable_micbias(w, kcontrol, event);
@@ -3417,9 +3407,6 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 	struct msm8x16_wcd_priv *msm8x16_wcd_priv;
 	struct msm8x16_wcd *msm8x16_wcd;
 	int i;
-#ifdef CONFIG_SND_SOC_DBMD2
-	int rc;
-#endif
 
 	dev_dbg(codec->dev, "%s()\n", __func__);
 
@@ -3492,13 +3479,6 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 #ifdef CONFIG_SAMSUNG_JACK
 	codec_probe_done = true;
 #endif /* CONFIG_SAMSUNG_JACK */
-#ifdef CONFIG_SND_SOC_DBMD2
-	dbmd2_remote_add_codec_controls(codec);
-
-	rc = snd_soc_dapm_force_enable_pin(&codec->dapm, "MIC BIAS External");
-	if(!rc)
-		snd_soc_dapm_sync(&codec->dapm);
-#endif
 	return 0;
 }
 

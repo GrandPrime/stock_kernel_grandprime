@@ -67,10 +67,6 @@
 #define SIG_MDNIE_BROWSER_TONE3	42
 #endif
 
-#if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
-#define SUPPORT_WHITE_RGB
-#endif
-
 enum SCENARIO {
 	mDNIe_UI_MODE,
 	mDNIe_VIDEO_MODE,
@@ -147,11 +143,6 @@ struct mdnie_lite_tun_type {
 	enum ACCESSIBILITY accessibility;
 #if defined(CONFIG_TDMB)
 	enum DMB dmb;
-#endif
-#if defined(SUPPORT_WHITE_RGB)
-	int scr_white_red;
-	int scr_white_green;
-	int scr_white_blue;
 #endif
 };
 

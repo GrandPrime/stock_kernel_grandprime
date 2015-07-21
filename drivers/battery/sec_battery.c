@@ -650,6 +650,7 @@ static bool sec_bat_ovp_uvlo_result(
 			battery->status =
 				POWER_SUPPLY_STATUS_CHARGING;
 			battery->charging_mode = SEC_BATTERY_CHARGING_1ST;
+			sec_bat_set_charge(battery, true);
 			break;
 		case POWER_SUPPLY_HEALTH_OVERVOLTAGE:
 		case POWER_SUPPLY_HEALTH_UNDERVOLTAGE:
@@ -658,6 +659,7 @@ static bool sec_bat_ovp_uvlo_result(
 				__func__, health);
 			battery->status =
 				POWER_SUPPLY_STATUS_NOT_CHARGING;
+			sec_bat_set_charge(battery, false);
 			battery->charging_mode = SEC_BATTERY_CHARGING_NONE;
 			battery->is_recharging = false;
 			/* Take the wakelock during 10 seconds
@@ -713,14 +715,6 @@ static bool sec_bat_ovp_uvlo(struct sec_battery_info *battery)
 
 static bool sec_bat_check_recharge(struct sec_battery_info *battery)
 {
-#if defined(CONFIG_BATTERY_SWELLING)
-	if (battery->swelling_mode) {
-		pr_info("%s: Skip normal recharge check routine for swelling mode\n",
-				__func__);
-		return false;
-	}
-#endif
-
 	if ((battery->status == POWER_SUPPLY_STATUS_CHARGING) &&
 			(battery->pdata->full_condition_type &
 			 SEC_BATTERY_FULL_CONDITION_NOTIMEFULL) &&
@@ -957,86 +951,6 @@ static bool sec_bat_temperature(
 		battery->temp_low_recovery);
 	return ret;
 }
-
-#if defined(CONFIG_BATTERY_SWELLING)
-static void sec_bat_swelling_check(struct sec_battery_info *battery, int temperature)
-{
-	union power_supply_propval val;
-	ktime_t current_time;
-	struct timespec ts;
-
-	psy_do_property(battery->pdata->charger_name, get,
-			POWER_SUPPLY_PROP_VOLTAGE_MAX, val);
-
-	pr_info("%s: status(%d), swell_mode(%d), cv(0x%x), temp(%d)\n",
-			__func__, battery->status, battery->swelling_mode, val.intval, temperature);
-
-	/* swelling_mode
-	 *		under voltage over voltage, battery missing  */
-	if ((battery->status == POWER_SUPPLY_STATUS_DISCHARGING) ||\
-			(battery->status == POWER_SUPPLY_STATUS_NOT_CHARGING)) {
-		pr_info("%s: DISCHARGING or NOT-CHARGING. stop swelling mode\n", __func__);
-		battery->swelling_mode = false;
-		battery->swelling_block = false;
-		goto skip_swelling_chek;
-	}
-
-	if (!battery->swelling_mode) {
-		/*if ((temperature >= BATT_SWELLING_HIGH_TEMP_BLOCK) ||\
-		 *			(temperature <= BATT_SWELLING_LOW_TEMP_BLOCK)) {*/
-		if (temperature >= battery->swelling_temp_high_threshold) {
-			pr_info("%s: swelling mode start. stop charging\n", __func__);
-			sec_bat_set_charge(battery, false);
-			battery->swelling_mode = true;
-			battery->swelling_block = true;
-			battery->swelling_full_check_cnt = 0;
-			/* Initialize swelling charging-block timer */
-			current_time = ktime_get_boottime();
-			ts = ktime_to_timespec(current_time);
-			battery->swelling_block_start = ts.tv_sec;
-		}
-	} else {
-		get_monotonic_boottime(&ts);
-		if (ts.tv_sec >= battery->swelling_block_start)
-			battery->swelling_block_passed= ts.tv_sec - battery->swelling_block_start;
-		else
-			battery->swelling_block_passed = 0xFFFFFFFF - battery->swelling_block_start
-				+ ts.tv_sec;
-
-		pr_info("%s: swelling block time : %ld secs\n", __func__,
-				battery->swelling_block_passed);
-
-		if (battery->swelling_block_passed < battery->swelling_block_time) {
-			pr_info("%s: swelling_timer doesn't reach 30 sec, stop charging\n", __func__);
-		} else {
-			/*if ((temperature <= BATT_SWELLING_HIGH_TEMP_RECOV) &&\
-			 *				(temperature >= BATT_SWELLING_LOW_TEMP_RECOV)) {*/
-			if (temperature <= battery->swelling_temp_high_recovery) {
-				pr_info("%s: swelling mode end. restart charging\n", __func__);
-				sec_bat_set_charge(battery, true);
-				battery->swelling_block = false;
-				battery->swelling_mode = false;
-				/* restore float voltage */
-				val.intval = battery->pdata->chg_float_voltage;
-				psy_do_property(battery->pdata->charger_name, set,
-						POWER_SUPPLY_PROP_VOLTAGE_MAX, val);
-			} else if ((battery->voltage_now < battery->swelling_recharge_voltage) &&
-				(battery->swelling_block == true)) {
-				pr_info("%s: swelling mode recharging start. Vbatt(%d)\n",
-						__func__, battery->voltage_now);
-				sec_bat_set_charge(battery, true);
-				/* change to 4.25V float voltage */
-				val.intval = 4250;
-				psy_do_property(battery->pdata->charger_name, set,
-						POWER_SUPPLY_PROP_VOLTAGE_MAX, val);
-				battery->swelling_block = false;
-			}
-		}
-	}
-skip_swelling_chek:
-	dev_dbg(battery->dev, "%s end\n", __func__);
-}
-#endif
 
 static bool sec_bat_temperature_check(
 				struct sec_battery_info *battery)
@@ -1715,7 +1629,7 @@ static bool sec_bat_fullcharged_check(
 
 	return true;
 }
-#if defined(CONFIG_TOUCHSCREEN_IST30XX_CORE3)int battery_temp;#endif
+
 static void sec_bat_get_battery_info(
 				struct sec_battery_info *battery)
 {
@@ -1804,7 +1718,7 @@ static void sec_bat_get_battery_info(
 	psy_do_property(battery->pdata->fuelgauge_name, get,
 		POWER_SUPPLY_PROP_CAPACITY, value);
 
-	battery->capacity = value.intval;#if defined(CONFIG_TOUCHSCREEN_IST30XX_CORE3)	battery_temp = battery->temperature;#endif
+	battery->capacity = value.intval;
 
 	dev_info(battery->dev,
 		"%s:Vnow(%dmV),Inow(%dmA),Imax(%dmA),SOC(%d%%),Tbat(%d)\n",
@@ -2000,38 +1914,6 @@ static void sec_bat_set_polling(
 	dev_dbg(battery->dev, "%s: End\n", __func__);
 }
 
-#if defined(CONFIG_BATTERY_SWELLING)
-static void sec_bat_swelling_fullcharged_check(struct sec_battery_info *battery)
-{
-	union power_supply_propval value;
-	ktime_t current_time;
-	struct timespec ts;
-
-	psy_do_property(battery->pdata->charger_name, get,
-			POWER_SUPPLY_PROP_STATUS, value);
-
-	if (value.intval == POWER_SUPPLY_STATUS_FULL) {
-		battery->swelling_full_check_cnt++;
-		pr_info("%s: Swelling mode full-charged check (%d)\n",
-				__func__, battery->swelling_full_check_cnt);
-	} else
-		battery->swelling_full_check_cnt = 0;
-
-	if (battery->swelling_full_check_cnt >=
-			battery->pdata->full_check_count) {
-		battery->swelling_full_check_cnt = 0;
-		battery->charging_mode = SEC_BATTERY_CHARGING_NONE;
-		battery->is_recharging = false;
-		sec_bat_set_charge(battery, false);
-		battery->swelling_block = true;
-		/* Initialize swelling charging-block timer */
-		current_time = ktime_get_boottime();
-		ts = ktime_to_timespec(current_time);
-		battery->swelling_block_start = ts.tv_sec;
-	}
-}
-#endif
-
 static void sec_bat_monitor_work(
 				struct work_struct *work)
 {
@@ -2094,13 +1976,6 @@ static void sec_bat_monitor_work(
 	if (!sec_bat_temperature_check(battery))
 		goto continue_monitor;
 
-#if defined(CONFIG_BATTERY_SWELLING)
-	sec_bat_swelling_check(battery, battery->temperature);
-
-	if (battery->swelling_mode)
-		sec_bat_swelling_fullcharged_check(battery);
-	else
-#endif
 	/* 5. full charging check */
 	sec_bat_fullcharged_check(battery);
 
@@ -2246,9 +2121,7 @@ static void sec_bat_cable_work(struct work_struct *work)
 		battery->is_recharging = false;
 		battery->status = POWER_SUPPLY_STATUS_DISCHARGING;
 		battery->health = POWER_SUPPLY_HEALTH_GOOD;
-#if defined(CONFIG_BATTERY_SWELLING)
-		battery->swelling_mode = false;
-#endif
+
 		if (sec_bat_set_charge(battery, false))
 			goto end_of_cable_work;
 	} else if ((battery->slate_mode == true) &&
@@ -2279,9 +2152,6 @@ static void sec_bat_cable_work(struct work_struct *work)
 			battery->status = POWER_SUPPLY_STATUS_CHARGING;
 		}
 
-#if defined(CONFIG_BATTERY_SWELLING)
-		if (!battery->swelling_block)
-#endif
 		if (sec_bat_set_charge(battery, true))
 			goto end_of_cable_work;
 
@@ -3949,13 +3819,7 @@ static int sec_bat_parse_dt(struct device *dev,
 		pr_info("%s : np NULL\n", __func__);
 		return 1;
 	}
-#if defined(CONFIG_BATTERY_SWELLING)
-	ret = of_property_read_u32(np, "battery,chg_float_voltage",
-		&pdata->chg_float_voltage);
-	if (ret)
-		pr_info("%s: chg_float_voltage is Empty\n", __func__);
 
-#endif
 	p = of_get_property(np, "battery,input_current_limit", &len);
 
 	len = len / sizeof(u32);
@@ -4096,10 +3960,7 @@ static int sec_battery_probe(struct platform_device *pdev)
 	battery->ps_changed = 0;
 	battery->ps_enable = 0;
 	battery->wire_status = POWER_SUPPLY_TYPE_BATTERY;
-#if defined(CONFIG_BATTERY_SWELLING)
-	battery->swelling_mode = false;
-	battery->swelling_block = false;
-#endif
+
 #if defined(ANDROID_ALARM_ACTIVATED)
 	alarm_init(&battery->event_termination_alarm,
 			ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,

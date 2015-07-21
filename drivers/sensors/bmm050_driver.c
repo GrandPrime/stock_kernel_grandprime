@@ -281,14 +281,6 @@ static char bmm_i2c_read(struct i2c_client *client, u8 reg_addr,
 		 .buf = data,
 		 },
 	};
-	struct bmm_client_data *client_data =
-		(struct bmm_client_data *)i2c_get_clientdata(client);
-	if (client_data != NULL) {
-		int isSuspend = atomic_read(&client_data->in_suspend);
-		if (isSuspend) {
-			pr_err("%s i2c occured while suspend[%d]\n", __func__, isSuspend);
-		}
-	}
 
 	for (retry = 0; retry < BMM_MAX_RETRY_I2C_XFER; retry++) {
 		if (i2c_transfer(client->adapter, msg, ARRAY_SIZE(msg)) > 0)
@@ -349,14 +341,6 @@ static char bmm_i2c_write(struct i2c_client *client, u8 reg_addr,
 		 },
 	};
 
-	struct bmm_client_data *client_data =
-		(struct bmm_client_data *)i2c_get_clientdata(client);
-	if (client_data != NULL) {
-		int isSuspend = atomic_read(&client_data->in_suspend);
-		if (isSuspend) {
-			pr_err("%s i2c occured while suspend[%d]\n", __func__, isSuspend);
-		}
-	}
 	while (0 != len--) {
 		buffer[0] = reg_addr;
 		buffer[1] = *data;
@@ -516,13 +500,11 @@ static int bmm_set_op_mode(struct bmm_client_data *client_data, int op_mode)
 
 	err = BMM_CALL_API(set_functional_state)(
 			op_mode);
-	if (BMM_VAL_NAME(SUSPEND_MODE) == op_mode)
-		pr_info("%s Suspend mode set!!!\n", __func__);
 
-	//if (BMM_VAL_NAME(SUSPEND_MODE) == op_mode)
-	//	atomic_set(&client_data->in_suspend, 1);
-	//else
-	//	atomic_set(&client_data->in_suspend, 0);
+	if (BMM_VAL_NAME(SUSPEND_MODE) == op_mode)
+		atomic_set(&client_data->in_suspend, 1);
+	else
+		atomic_set(&client_data->in_suspend, 0);
 
 	return err;
 }
@@ -833,6 +815,7 @@ static ssize_t bmm_show_value_raw(struct device *dev,
 	struct input_dev *input = to_input_dev(dev);
 	struct bmm_client_data *client_data = input_get_drvdata(input);
 	struct bmm050_mdata_s32 value = {0, 0, 0, 0, 0};
+	static struct bmm050_mdata_s32 prev_value = {0, 0, 0};
 	int count;
 
 	if (client_data->selftest == 1)
@@ -840,8 +823,15 @@ static ssize_t bmm_show_value_raw(struct device *dev,
 
 	BMM_CALL_API(read_mdataXYZ_s32)(&value);
 
-	if ((value.datax == 0) && (value.datay == 0))
-		return 0;
+	if ((value.datax == 0) && (value.datay == 0)) {
+		value.datax = prev_value.datax;
+		value.datay = prev_value.datay;
+		value.dataz = prev_value.dataz;
+	} else {
+		prev_value.datax = value.datax;
+		prev_value.datay = value.datay;
+		prev_value.dataz = value.dataz;
+	}
 
 	if (value.datax == BMM050_OVERFLOW_OUTPUT_S32)
 		value.datax = BMM050_OVERFLOW_OUTPUT_S32_XY;
@@ -865,6 +855,7 @@ static ssize_t bmm_show_raw_data(struct device *dev,
 	struct input_dev *input = to_input_dev(dev);
 	struct bmm_client_data *client_data = input_get_drvdata(input);
 	struct bmm050_mdata_s32 value = {0, 0, 0, 0, 0};
+	static struct bmm050_mdata_s32 prev_value = {0, 0, 0};
 	int count;
 
 	if (client_data->selftest == 1)
@@ -872,15 +863,29 @@ static ssize_t bmm_show_raw_data(struct device *dev,
 
 	BMM_CALL_API(read_mdataXYZ_s32)(&value);
 
-	if ((value.datax == 0) && (value.datay == 0))
-		return 0;
+	if ((value.datax == 0) && (value.datay == 0)) {
+		value.datax = prev_value.datax;
+		value.datay = prev_value.datay;
+		value.dataz = prev_value.dataz;
+	} else {
+		prev_value.datax = value.datax;
+		prev_value.datay = value.datay;
+		prev_value.dataz = value.dataz;
+	}
 
-	if (value.datax == BMM050_OVERFLOW_OUTPUT_S32)
-		value.datax = BMM050_OVERFLOW_OUTPUT_S32_XY;
-	if (value.datay == BMM050_OVERFLOW_OUTPUT_S32)
-		value.datay = BMM050_OVERFLOW_OUTPUT_S32_XY;
-	if (value.dataz == BMM050_OVERFLOW_OUTPUT_S32)
-		value.dataz = BMM050_OVERFLOW_OUTPUT_S32_Z;
+	if (value.datax > BMM050_OVERFLOW_OUTPUT_XY_12BIT)
+		value.datax = BMM050_OVERFLOW_OUTPUT_XY_12BIT;
+	else if (value.datax < BMM050_OVERFLOW_OUTPUT_XY_12BIT*(-1))
+		value.datax = BMM050_OVERFLOW_OUTPUT_XY_12BIT*(-1);
+	if (value.datay > BMM050_OVERFLOW_OUTPUT_XY_12BIT)
+		value.datay = BMM050_OVERFLOW_OUTPUT_XY_12BIT;
+	else if (value.datay < BMM050_OVERFLOW_OUTPUT_XY_12BIT*(-1))
+		value.datay = BMM050_OVERFLOW_OUTPUT_XY_12BIT*(-1);
+
+	if (value.dataz > BMM050_OVERFLOW_OUTPUT_Z_13BIT)
+		value.dataz = BMM050_OVERFLOW_OUTPUT_Z_13BIT;
+	else if (value.dataz < BMM050_OVERFLOW_OUTPUT_Z_13BIT*(-1))
+		value.dataz = BMM050_OVERFLOW_OUTPUT_Z_13BIT*(-1);
 
 	count = sprintf(buf, "%d,%d,%d\n",
 			value.datax,
@@ -1024,9 +1029,6 @@ static ssize_t bmm_store_test(struct device *dev,
 		BMM_CALL_API(soft_reset)();
 		mdelay(BMM_I2C_WRITE_DELAY_TIME);
 		bmm_restore_hw_cfg(client);
-
-		//err = bmm_set_forced_mode(client);
-		//client_data->op_mode = BMM_OP_MODE_UNKNOWN;
 	}
 
 	if (err)
@@ -1497,7 +1499,7 @@ static int bmm_pre_suspend(struct i2c_client *client)
 	int err = 0;
 	struct bmm_client_data *client_data =
 		(struct bmm_client_data *)i2c_get_clientdata(client);
-	pr_info("%s function entrance\n", __func__);
+	pr_debug("%s function entrance\n", __func__);
 
 	mutex_lock(&client_data->mutex_enable);
 	if (client_data->enable) {
@@ -1532,7 +1534,6 @@ static int bmm_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct bmm_client_data *client_data =
 		(struct bmm_client_data *)i2c_get_clientdata(client);
 	u8 power_mode;
-	u8 op_mode = 0xff;
 
 	pr_debug("%s function entrance\n", __func__);
 
@@ -1542,10 +1543,6 @@ static int bmm_suspend(struct i2c_client *client, pm_message_t mesg)
 		err = bmm_pre_suspend(client);
 		err = bmm_set_op_mode(client_data, BMM_VAL_NAME(SUSPEND_MODE));
 	}
-	pr_info("%s power_mode[%u] op_mode[%d/%d]\n", __func__, power_mode,
-		BMM_CALL_API(get_functional_state)(&op_mode), client_data->op_mode);
-	atomic_set(&client_data->in_suspend, 1);
-
 	mutex_unlock(&client_data->mutex_power_mode);
 
 	return err;
@@ -1554,13 +1551,10 @@ static int bmm_suspend(struct i2c_client *client, pm_message_t mesg)
 static int bmm_resume(struct i2c_client *client)
 {
 	int err = 0;
-	u8 op_mode = 0xff;
 	struct bmm_client_data *client_data =
 		(struct bmm_client_data *)i2c_get_clientdata(client);
 
-	atomic_set(&client_data->in_suspend, 0);
-	pr_info("%s op_mode[%d/%d] in_sus[%d]\n", __func__, BMM_CALL_API(get_functional_state)(&op_mode),
-		client_data->op_mode, atomic_read(&client_data->in_suspend));
+	pr_debug("%s function entrance\n", __func__);
 
 	mutex_lock(&client_data->mutex_power_mode);
 	err = bmm_restore_hw_cfg(client);

@@ -28,43 +28,31 @@ dtb-$(CONFIG_ARCH_MSM8974) += msm8974-v1-cdp.dtb \
 	msm8974pro-ac-pm8941-liquid.dtb \
 	msm8974pro-ac-pm8941-mtp.dtb \
 	msm8974pro-ac-pma8084-pm8941-mtp.dtb
-ifeq ($(CONFIG_SEC_KLEOS_PROJECT),y)
-	ifeq ($(CONFIG_MACH_KLEOS_CTC),y)
-		dtb-y += msm8916-sec-kleos-r08.dtb \
-			msm8916-sec-kleos-r09.dtb
-	else
-		dtb-y += msm8916-sec-kleos-r00.dtb \
-			msm8916-sec-kleos-r01.dtb \
-			msm8916-sec-kleos-r02.dtb \
-			msm8916-sec-kleos-r03.dtb \
-			msm8916-sec-kleos-r04.dtb \
-			msm8916-sec-kleos-r05.dtb \
-			msm8916-sec-kleos-r07.dtb \
-			msm8916-sec-kleos-r08.dtb
-	endif
-
-endif
+dtb-$(CONFIG_SEC_KLEOS_PROJECT) += msm8916-sec-kleos-r00.dtb \
+	msm8916-sec-kleos-r01.dtb \
+	msm8916-sec-kleos-r02.dtb \
+	msm8916-sec-kleos-r03.dtb \
+	msm8916-sec-kleos-r04.dtb \
+	msm8916-sec-kleos-r05.dtb \
+	msm8916-sec-kleos-r07.dtb \
+	msm8916-sec-kleos-r08.dtb
 dtb-$(CONFIG_SEC_A3_PROJECT) += msm8916-sec-a3-r00.dtb \
 	msm8916-sec-a3-r01.dtb \
 	msm8916-sec-a3-r03.dtb
 dtb-$(CONFIG_SEC_A3_EUR_PROJECT) += msm8916-sec-a3-eur-r00.dtb \
 	msm8916-sec-a3-eur-r01.dtb
 dtb-$(CONFIG_SEC_A33G_EUR_PROJECT) += msm8916-sec-a33g-eur-r00.dtb \
-	msm8916-sec-a33g-eur-r01.dtb \
-	msm8916-sec-a33g-eur-r03.dtb
+	msm8916-sec-a33g-eur-r01.dtb
 ifeq ($(CONFIG_SEC_ROSSA_PROJECT),y)
 	ifeq ($(CONFIG_MACH_ROSSA_SPR),y)
 		dtb-y += msm8916-sec-rossaspr-r00.dtb
 		dtb-y += msm8916-sec-rossaspr-r01.dtb
-		dtb-y += msm8916-sec-rossaspr-r02.dtb
 	else ifeq ($(CONFIG_MACH_ROSSA_TFN),y)
-		dtb-y += msm8916-sec-rossatfn-r00.dtb
-		dtb-y += msm8916-sec-rossatfn-r01.dtb
-		dtb-y += msm8916-sec-rossatfn-r02.dtb
+		dtb-y += msm8916-sec-rossaspr-r00.dtb
+		dtb-y += msm8916-sec-rossaspr-r01.dtb
 	else ifeq ($(CONFIG_MACH_ROSSA_VZW),y)
-		dtb-y += msm8916-sec-rossavzw-r00.dtb
-		dtb-y += msm8916-sec-rossavzw-r01.dtb
-		dtb-y += msm8916-sec-rossavzw-r02.dtb
+		dtb-y += msm8916-sec-rossaspr-r00.dtb
+		dtb-y += msm8916-sec-rossaspr-r01.dtb
 	else ifeq ($(CONFIG_MACH_ROSSA_AUS),y)
 		dtb-y += msm8916-sec-rossa-aus-r02.dtb \
 			msm8916-sec-rossa-aus-r03.dtb
@@ -102,8 +90,7 @@ ifeq ($(CONFIG_SEC_FORTUNA_PROJECT),y)
 		endif
 	endif
 endif
-dtb-$(CONFIG_SEC_O1_PROJECT) += msm8916-sec-o1-r00.dtb \
-	msm8916-sec-o1-r01.dtb
+dtb-$(CONFIG_SEC_O1_PROJECT) += msm8916-sec-o1-r00.dtb
 dtb-$(CONFIG_SEC_GPEN_PROJECT) += msm8916-sec-gpen-r00.dtb
 dtb-$(CONFIG_SEC_VIVALTO_PROJECT) += msm8916-sec-vivalto-r00.dtb
 dtb-$(CONFIG_SEC_HEAT_PROJECT) += msm8916-sec-heat-r00.dtb \

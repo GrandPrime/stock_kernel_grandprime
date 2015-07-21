@@ -319,15 +319,6 @@ void board_battery_init(struct platform_device *pdev, struct sec_battery_info *b
 	battery->pdata->temp_low_threshold_lpm = TEMP_LOW_THRESHOLD_LPM;
 	battery->pdata->temp_low_recovery_lpm = TEMP_LOW_RECOVERY_LPM;
 
-#if defined(CONFIG_BATTERY_SWELLING)
-	battery->swelling_temp_high_threshold = BATT_SWELLING_HIGH_TEMP_BLOCK;
-	battery->swelling_temp_high_recovery = BATT_SWELLING_HIGH_TEMP_RECOV;
-	battery->swelling_temp_low_threshold = BATT_SWELLING_LOW_TEMP_BLOCK;
-	battery->swelling_temp_low_recovery = BATT_SWELLING_LOW_TEMP_RECOV;
-	battery->swelling_recharge_voltage = BATT_SWELLING_RECHG_VOLTAGE;
-	battery->swelling_block_time = BATT_SWELLING_BLOCK_TIME;
-#endif
-
 	adc_init_type(pdev, battery);
 }
 

@@ -1,6 +1,6 @@
-#define CAPACITY_MAX			980
-#define CAPACITY_MAX_MARGIN     50
-#define CAPACITY_MIN			-7
+#define CAPACITY_MAX			1000
+#define CAPACITY_MAX_MARGIN     30
+#define CAPACITY_MIN			0
 
 #ifdef CONFIG_MACH_ROSSA_CTC
 static sec_bat_adc_table_data_t temp_table[] = {
@@ -94,17 +94,17 @@ static sec_bat_adc_table_data_t temp_table[] = {
 #endif
 
 #if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN)
-#define TEMP_HIGH_THRESHOLD_EVENT  620
+#define TEMP_HIGH_THRESHOLD_EVENT  615
 #define TEMP_HIGH_RECOVERY_EVENT   480
 #define TEMP_LOW_THRESHOLD_EVENT   (-70)
 #define TEMP_LOW_RECOVERY_EVENT    0
-#define TEMP_HIGH_THRESHOLD_NORMAL 520
+#define TEMP_HIGH_THRESHOLD_NORMAL 516
 #define TEMP_HIGH_RECOVERY_NORMAL  470
-#define TEMP_LOW_THRESHOLD_NORMAL  (-50)
+#define TEMP_LOW_THRESHOLD_NORMAL  (-70)
 #define TEMP_LOW_RECOVERY_NORMAL   5
-#define TEMP_HIGH_THRESHOLD_LPM    510
-#define TEMP_HIGH_RECOVERY_LPM     482
-#define TEMP_LOW_THRESHOLD_LPM     (-30)
+#define TEMP_HIGH_THRESHOLD_LPM    500
+#define TEMP_HIGH_RECOVERY_LPM     485
+#define TEMP_LOW_THRESHOLD_LPM     (-50)
 #define TEMP_LOW_RECOVERY_LPM      -8
 #else
 #define TEMP_HIGH_THRESHOLD_EVENT  600

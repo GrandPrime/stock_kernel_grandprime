@@ -274,10 +274,6 @@ struct ist30xx_data {
 	u32			t_status;
 	finger_info		fingers[IST30XX_MAX_MT_FINGERS];
 	bool			touch_stopped;
-#ifdef USE_TSP_TA_CALLBACKS
-	struct tsp_callbacks callbacks;
-	void (*register_cb)(struct tsp_callbacks *);
-#endif
 };
 
 

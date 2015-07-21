@@ -29,7 +29,7 @@
 #include <sound/jack.h>
 #include <sound/q6afe-v2.h>
 #include <soc/qcom/socinfo.h>
-#include <qdsp6v2/msm-pcm-routing-v2.h>
+#include "qdsp6v2/msm-pcm-routing-v2.h"
 #include "../codecs/msm8x16-wcd.h"
 #include "../codecs/wcd9306.h"
 #define DRV_NAME "msm8x16-asoc-wcd"
@@ -616,7 +616,7 @@ static int ext_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 			pr_err("%s:afe_set_lpass_clock failed\n", __func__);
 
 #ifdef CONFIG_AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE
-		if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) && (pdata->ext_pa & QUAT_MI2S_ID))
+		if (pdata->ext_pa & QUAT_MI2S_ID)
 			msm_q6_enable_mi2s_clocks(true);
 #endif
 	} else {
@@ -635,7 +635,7 @@ static int ext_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 			pr_err("%s:afe_set_lpass_clock failed\n", __func__);
 
 #ifdef CONFIG_AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE
-		if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) && (pdata->ext_pa & QUAT_MI2S_ID))
+		if (pdata->ext_pa & QUAT_MI2S_ID)
 			msm_q6_enable_mi2s_clocks(false);
 #endif
 	}
@@ -977,6 +977,7 @@ static void msm_quat_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 	int ret = 0;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_card *card = rtd->card;
+	struct snd_soc_codec *codec = rtd->codec;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 
 	pr_debug("%s(): substream = %s  stream = %d, ext_pa = %d\n", __func__,
@@ -987,6 +988,9 @@ static void msm_quat_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 		ret = ext_mi2s_clk_ctl(substream, false);
 		if (ret < 0)
 			pr_err("%s:clock disable failed\n", __func__);
+		ret = msm8x16_enable_codec_ext_clk(codec, 0, true);
+		if (ret < 0)
+			pr_err("%s:failed to disable mclk\n", __func__);
 		if (atomic_read(&pdata->mclk_rsc_ref) > 0) {
 			atomic_dec(&pdata->mclk_rsc_ref);
 			pr_debug("%s: decrementing mclk_res_ref %d\n",

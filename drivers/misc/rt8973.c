@@ -955,6 +955,14 @@ static void rt8973_process_normal_evt(rt8973_chip_t *chip)
 	}
 }
 
+#if defined(CONFIG_TOUCHSCREEN_MELFAS_CS02_GF1) || defined(CONFIG_TOUCHSCREEN_IST30XX)
+extern void charger_enable(int enable);
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_MMS136)
+extern void tsp_charger_infom(bool en);
+#endif
+
 #if defined(CONFIG_MACH_VICTORLTE_CTC)
 #define PMIC_SLAVE_ID	0x0
 #define PMIC_SMBBP_BAT_IF_BPD_CTRL	0x1248
@@ -1082,6 +1090,25 @@ static void rt8973_irq_work(struct work_struct *work)
 #endif
 	}
 //////////////////////////////////////////////////////////////////////
+
+#if defined(CONFIG_TOUCHSCREEN_MELFAS_CS02_GF1) || defined(CONFIG_TOUCHSCREEN_IST30XX)
+	if(chip->curr_status.cable_type==MUIC_RT8973_CABLE_TYPE_NONE){
+		charger_enable(0);	
+	}
+	else if(chip->curr_status.cable_type==MUIC_RT8973_CABLE_TYPE_UNKNOWN){
+		printk("[TSP] %s : attached, but don't noti (MUIC_RT8973_CABLE_TYPE_UNKNOWN)\n",__func__);	
+	}
+	else{	
+		charger_enable(1);	
+	}
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_MMS136)
+	if(chip->curr_status.cable_type!=0)
+		tsp_charger_infom(1);
+	else
+		tsp_charger_infom(0);
+#endif
 }
 
 static irqreturn_t rt8973_irq_handler(int irq, void *data)

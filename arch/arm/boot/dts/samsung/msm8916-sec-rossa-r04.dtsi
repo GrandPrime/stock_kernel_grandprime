@@ -14,7 +14,7 @@
 #include "msm8916-pinctrl-sec-rossa-r04.dtsi"
 #include "dsi_panel_hx8369b_tft_wvga_video.dtsi"
 #include "msm8916-camera.dtsi"
-#include "msm8916-camera-sensor-cdp-rossa-r04.dtsi"
+#include "msm8916-camera-sensor-cdp-rossa.dtsi"
 #include "msm8916-sec-rossa-battery-r00.dtsi"
 
 / {

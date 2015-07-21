@@ -100,7 +100,6 @@ struct yuv_ctrl {
     struct yuv_userset settings;
     int op_mode;
 	int prev_mode;
-	int vtcall_mode;
 };
 
 static struct yuv_ctrl sr200pc20_ctrl;
@@ -429,7 +428,6 @@ int32_t msm_sensor_driver_probe(void *setting)
 	int c, end;
 	struct msm_sensor_power_setting     power_down_setting_t;
 	unsigned long mount_pos = 0;
-	int probe_fail = 0;
 
 	/* Validate input parameters */
 	if (!setting) {
@@ -699,9 +697,28 @@ int32_t msm_sensor_driver_probe(void *setting)
 	rc = s_ctrl->func_tbl->sensor_power_up(s_ctrl);
 	if (rc < 0) {
 		pr_err("%s power up failed", slave_info->sensor_name);
-		probe_fail = rc;
-//		goto FREE_CAMERA_INFO;
+		goto FREE_CAMERA_INFO;
 	}
+#if defined(CONFIG_MSM_OTP)
+	if (!strcmp("sr544", slave_info->sensor_name)) {
+		pr_err("%s : read_otp_bank\n", __func__);
+#if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_VZW)
+		if (system_rev > 0) {
+#endif
+		rc = s_ctrl->func_tbl->sensor_read_otp(s_ctrl);
+		if (rc < 0) {
+			pr_err("%s power up failed", slave_info->sensor_name);
+#if defined(CONFIG_SEC_ROSSA_PROJECT)
+			rc = 0;
+#else
+			goto FREE_CAMERA_INFO;
+#endif
+		}
+#if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_VZW)
+		}
+#endif
+	}
+#endif
 
 	pr_err("%s probe succeeded", slave_info->sensor_name);
 
@@ -779,10 +796,6 @@ int32_t msm_sensor_driver_probe(void *setting)
 
 	/*Save sensor info*/
 	s_ctrl->sensordata->cam_slave_info = slave_info;
-
-	if(probe_fail) {
-		rc = probe_fail;
-	}
 
 	return rc;
 
@@ -1352,15 +1365,7 @@ int32_t sr200pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		break;
 		case CFG_SET_INIT_SETTING:
 			CDBG("CFG_SET_INIT_SETTING writing INIT registers: sr200pc20_Init_Reg \n");
-			if (sr200pc20_ctrl.prev_mode == CAMERA_MODE_INIT) {
-				if (sr200pc20_ctrl.vtcall_mode == 1) {
-					msm_sensor_driver_WRT_LIST(s_ctrl,sr200pc20_VT_Init_Reg);
-					CDBG("VT Init Settings");
-				}else {
-					rc = msm_sensor_driver_WRT_LIST(s_ctrl,sr200pc20_Init_Reg);
-					CDBG("Init settings");
-				}
-			}
+			rc = msm_sensor_driver_WRT_LIST(s_ctrl,sr200pc20_Init_Reg);
 			break;
 		case CFG_SET_RESOLUTION:
 			resolution = *((int32_t  *)cdata->cfg.setting);
@@ -1372,10 +1377,7 @@ int32_t sr200pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			}else{
 			if(recording == 1){
 				CDBG("CFG_SET_RESOLUTION recording START recording =1 *** res = %d\n " , resolution);
-				rc = msm_sensor_driver_WRT_LIST(s_ctrl,sr200pc20_Auto_fps);
-				sr200pc20_set_effect( s_ctrl , sr200pc20_ctrl.settings.effect);
-				sr200pc20_set_white_balance( s_ctrl, sr200pc20_ctrl.settings.wb);
-				sr200pc20_set_exposure_compensation( s_ctrl , sr200pc20_ctrl.settings.exposure);
+				rc = msm_sensor_driver_WRT_LIST(s_ctrl,sr200pc20_Auto_fps);  
 				recording = 0;
 			}else{
 				sr200pc20_set_resolution(s_ctrl , resolution );
@@ -1398,11 +1400,6 @@ int32_t sr200pc20_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 		break;
 	case CFG_SET_START_STREAM:
 		CDBG(" CFG_SET_START_STREAM writing start stream registers: sr200pc20_start_stream start   \n");
-		if( sr200pc20_ctrl.op_mode != CAMERA_MODE_CAPTURE  && sr200pc20_ctrl.op_mode != CAMERA_MODE_PREVIEW){
-			sr200pc20_set_effect( s_ctrl , sr200pc20_ctrl.settings.effect);
-			sr200pc20_set_white_balance( s_ctrl, sr200pc20_ctrl.settings.wb);
-			sr200pc20_set_exposure_compensation( s_ctrl , sr200pc20_ctrl.settings.exposure);
-		}
 		streamon = 1;
 		CDBG("CFG_SET_START_STREAM : sr200pc20_start_stream rc = %d \n", rc);
 		break;
@@ -1651,10 +1648,6 @@ int32_t sr200pc20_sensor_native_control(struct msm_sensor_ctrl_t *s_ctrl,
 			(const void *)&cam_info,
 			sizeof(cam_info)))
 		pr_err("copy failed");
-		break;
-	case EXT_CAM_VT_MODE:
-		CDBG("EXT_CAM_VT_MODE = %d",cam_info->value_1);
-		sr200pc20_ctrl.vtcall_mode = cam_info->value_1;
 		break;
 	default:
 		rc = 0;

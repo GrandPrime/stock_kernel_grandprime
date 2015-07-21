@@ -1881,7 +1881,6 @@ static int mms_flash_fw(struct mms_ts_info *info, const u8 *fw_data, size_t fw_s
 
 	if(!update_flag){
 		dev_info(&client->dev, "firmware is already updated\n");
-		kfree(img);
 		return 0;
 	}
 
@@ -1993,15 +1992,11 @@ static int mms_flash_fw(struct mms_ts_info *info, const u8 *fw_data, size_t fw_s
 	}
 	dev_err(&client->dev,"firmware update finish\n");
 	kfree(cpydata);
-	kfree(data);
-	kfree(img);
 	return 0;
 
 EXIT:
 	dev_err(&client->dev,"firmware update failed\n");
 	kfree(cpydata);
-	kfree(data);
-	kfree(img);
 	return nRet;
 
 }
@@ -3700,7 +3695,7 @@ static int mms300l_i2c_write(struct mms_ts_info *info, char *buf, int length)
 	if (length > TS_WRITE_REGS_LEN)
 	{
 		dev_err(&info->client->dev, "%s: size error : [%d]", __func__, length);
-		kfree(data);
+
 		return -EINVAL;
 	}
 
@@ -3720,7 +3715,6 @@ static int mms300l_i2c_write(struct mms_ts_info *info, char *buf, int length)
 				i = i2c_master_send(client, temp_data, temp);
 				if (i != temp) {
 					dev_err(&info->client->dev, "%s, %d: write error : [%d]", __func__, __LINE__, i);
-					kfree(data);
 					return -EIO;
 				}		
 
@@ -3731,7 +3725,6 @@ static int mms300l_i2c_write(struct mms_ts_info *info, char *buf, int length)
 				i = i2c_master_send(client, temp_data, 250);
 				if (i != 250) {
 					dev_err(&info->client->dev, "%s, %d: write error : [%d]", __func__, __LINE__,  i);
-					kfree(data);
 					return -EIO;
 				}		
 
@@ -4912,7 +4905,6 @@ static int mms_ts_input_open(struct input_dev *dev)
 		i2c_smbus_write_byte_data(info->client, 0x33, 0x2);
 	}
 	info->enabled = true;
-	mms_set_noise_mode(info);
 
 	enable_irq(info->irq);
 
@@ -5333,9 +5325,6 @@ static void mms_ts_shutdown(struct i2c_client *client)
 {
 	struct mms_ts_info *info = i2c_get_clientdata(client);
 
-	if (info->irq >= 0){
-		free_irq(info->irq, info);
-	}	
 	if (info->enabled)
 		info->power(info,0);
 #ifdef TOUCHKEY

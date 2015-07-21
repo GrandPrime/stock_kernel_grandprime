@@ -256,9 +256,6 @@ static inline void mdss_fb_update_notify_update(struct msm_fb_data_type *mfd)
 }
 
 #ifdef CONFIG_FB_MSM_CAMERA_CSC
-#if defined(CONFIG_SEC_ROSSA_PROJECT) 
-extern u8 prev_csc_update;
-#endif
 extern u8 csc_update;
 #endif
 

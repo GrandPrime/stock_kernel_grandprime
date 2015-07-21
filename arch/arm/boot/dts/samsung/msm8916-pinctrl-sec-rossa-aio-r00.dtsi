@@ -1010,7 +1010,7 @@
 		};
 
 		tsp_en_gpio_active {
-			qcom,pins = <&gp 75>;
+			qcom,pins = <&gp 73>;
 			qcom,num-grp-pins = <1>;
 			qcom,pin-func = <0>;
 			label = "tsp_en_gpio_active";
@@ -1021,7 +1021,7 @@
 		};
 
 		tsp_en_gpio_suspend {
-			qcom,pins = <&gp 75>;
+			qcom,pins = <&gp 73>;
 			qcom,num-grp-pins = <1>;
 			qcom,pin-func = <0>;
 			label = "tsp_en_gpio_suspend";

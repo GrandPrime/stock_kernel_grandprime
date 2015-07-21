@@ -27,29 +27,21 @@
 #endif /* CONFIG_LCD_CLASS_DEVICE */
 
 #include "mdss_dsi.h"
-#include "mdss_fb.h"
-#include "mdss_msm8x16_panel.h"
 
+#include "mdss_sharp_dsi_panel.h"
 static struct mdss_samsung_driver_data msd;
 
-#if defined(CONFIG_MDNIE_TFT_MSM8X16)
-#include "mdnie_tft_msm8x16.h"
-#endif
+#if defined(CONFIG_MDNIE_LITE_TUNING)
+#include "mdnie_lite_tuning.h"
+#endif	/* CONFIG_MDNIE_LITE_TUNING */
 
 #define DT_CMD_HDR 6
 
 #if defined(CONFIG_BL_ISL98611)
 static int isl98611_i2c_scl_gpio;
 static int isl98611_i2c_sda_gpio;
-static int isl98611_panel_enp_gpio;
-static int isl98611_panel_enn_gpio;
-static int isl98611_bl_on_gpio;
 #endif
-#if defined(CONFIG_CABC_TUNING) /* tft panel */
-static struct dsi_panel_cmds brightness_cmds;
-static struct dsi_panel_cmds cabc_on_cmds;
-static struct dsi_panel_cmds cabc_off_cmds;
-#endif
+
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
 #if defined(CONFIG_PWM_QPNP)
@@ -148,241 +140,113 @@ static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 	/*Panel ON/Off commands should be sent in DSI Low Power Mode*/
 	if (pcmds->link_state == DSI_LP_MODE)
 		cmdreq.flags  |= CMD_REQ_LP_MODE;
-	else
-		mdss_dsi_set_tx_power_mode(0, msd.mpd);
 
 	cmdreq.rlen = 0;
 	cmdreq.cb = NULL;
+
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
-	mdss_dsi_set_tx_power_mode(1, msd.mpd);
-}
-
-void mdss_dsi_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl, struct dsi_cmd_desc *cmds, int cnt,int flag)
-{
-	struct dcs_cmd_req cmdreq;
-
-	memset(&cmdreq, 0, sizeof(cmdreq));
-
-	if (flag) {
-		cmdreq.flags = CMD_CLK_CTRL | CMD_REQ_COMMIT;
-	}else
-		cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL;
-
-	cmdreq.cmds = cmds;
-	cmdreq.cmds_cnt = cnt;
-	cmdreq.rlen = 0;
-	cmdreq.cb = NULL;
-	/*
-	 * This mutex is to sync up with dynamic FPS changes
-	 * so that DSI lockups shall not happen
-	 */
-	BUG_ON(msd.ctrl_pdata == NULL);
-	mdss_dsi_set_tx_power_mode(0, msd.mpd);
-	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
-	mdss_dsi_set_tx_power_mode(1, msd.mpd);
 }
 
 #if defined(CONFIG_CABC_TUNING)
-static int mdss_disp_send_cmd(
-	enum mipi_samsung_cmd_list cmd, unsigned char lock)
+static unsigned char mdss_dsi_panel_bklt_scaling(int level)
 {
-	struct dsi_panel_cmds cmd_desc;
-	struct mdss_dsi_ctrl_pdata *ctrl;
-#ifdef CMD_DEBUG
-	int i,j;
-#endif
+	unsigned char scaled_level;
 
-	ctrl = msd.ctrl_pdata;
-
-	if (!ctrl) {
-		pr_err("%s : ctrl is null\n", __func__);
-		return -EINVAL;
-	}
-
-	if (msd.mfd->resume_state != MIPI_RESUME_STATE) {
-		pr_err("%s : Panel is off state", __func__);
-		return 0;
-	}
-
-	if (lock)
-		mutex_lock(&msd.lock);
-
-	switch (cmd) {
-			case PANEL_CABC_DISABLE:
-				cmd_desc = cabc_off_cmds;
-				break;
-			case PANEL_CABC_ENABLE:
-				cmd_desc = cabc_on_cmds;
-				break;
-			default:
-				pr_err("%s : unknown_command.. \n", __func__);
-				goto unknown_command;
-	}
-
-	if (!cmd_desc.cmd_cnt) {
-		pr_err("%s : cmd_size is zero!.. \n", __func__);
-		goto unknown_command;
-	}
-
-#ifdef CMD_DEBUG
-	for (i = 0; i < cmd_desc.cmd_cnt; i++)
-	{
-		for (j = 0; j < cmd_desc.cmds[i].dchdr.dlen; j++)
-			printk("%02X ",cmd_desc.cmds[i].payload[j]);
-		printk("\n");
-	}
-#endif
-
-	if(cmd_desc.cmd_cnt)
-		mdss_dsi_panel_cmds_send(ctrl, &cmd_desc);
-
-	if (lock)
-		mutex_unlock(&msd.lock);
-
-	return 0;
-
-unknown_command:
-	pr_err("%s : Undefined command\n", __func__);
-
-	if (lock)
-		mutex_unlock(&msd.lock);
-
-	return -EINVAL;
-}
-
-static void mdss_dsi_panel_cabc_update(void)
-{
-	if(msd.dstat.siop_status){
-		if(msd.dstat.auto_brightness >= 5 ) {
-			mdss_disp_send_cmd(PANEL_CABC_DISABLE, true);
-			msd.dstat.siop_status = 0;
-		} else {
-			mdss_disp_send_cmd(PANEL_CABC_ENABLE, true);
-		}
+	/*	platform		4~255			:	251	*/
+	/*	DDI			0x2~0xE2(226)	:	224	*/
+	if(level) {
+		scaled_level = ((level - 4) * 224 / 251) + 2 ;
 	} else {
-		mdss_disp_send_cmd(PANEL_CABC_DISABLE, true);
+		scaled_level = 0;
 	}
-}
-#endif
 
-static unsigned char get_brightness_mapped(int bl_level)
-{
-	unsigned char backlightlevel;
-	switch(bl_level){
-	case 254 ...255 : backlightlevel = 239 ; break;
-	case 252 ...253 : backlightlevel = 237 ; break;
-	case 249 ...251 : backlightlevel = 235 ; break;
-	case 247 ...248 : backlightlevel = 233 ; break;
-	case 244 ...246 : backlightlevel = 231 ; break;
-	case 242 ...243 : backlightlevel = 229 ; break;
-	case 239 ...241 : backlightlevel = 227 ; break;
-	case 237 ...238 : backlightlevel = 225 ; break;
-	case 234 ...236 : backlightlevel = 223 ; break;
-	case 232 ...233 : backlightlevel = 221 ; break;
-	case 229 ...231 : backlightlevel = 218 ; break;
-	case 227 ...228 : backlightlevel = 215 ; break;
-	case 225 ...226 : backlightlevel = 212 ; break;
-	case 222 ...223 : backlightlevel = 209 ; break;
-	case 219 ...221 : backlightlevel = 206 ; break;
-	case 217 ...218 : backlightlevel = 203 ; break;
-	case 214 ...216 : backlightlevel = 200 ; break;
-	case 212 ...213 : backlightlevel = 197 ; break;
-	case 209 ...211 : backlightlevel = 194 ; break;
-	case 207 ...208 : backlightlevel = 191 ; break;
-	case 204 ...206 : backlightlevel = 188 ; break;
-	case 202 ...203 : backlightlevel = 185 ; break;
-	case 199 ...201 : backlightlevel = 182 ; break;
-	case 197 ...198 : backlightlevel = 179 ; break;
-	case 194 ...196 : backlightlevel = 176 ; break;
-	case 191 ...193 : backlightlevel = 173 ; break;
-	case 189 ...190 : backlightlevel = 170 ; break;
-	case 186 ...188 : backlightlevel = 167 ; break;
-	case 184 ...185 : backlightlevel = 164 ; break;
-	case 181 ...183 : backlightlevel = 161 ; break;
-	case 179 ...180 : backlightlevel = 158 ; break;
-	case 176 ...178 : backlightlevel = 155 ; break;
-	case 174 ...175 : backlightlevel = 152 ; break;
-	case 171 ...173 : backlightlevel = 149 ; break;
-	case 169 ...170 : backlightlevel = 146 ; break;
-	case 166 ...168 : backlightlevel = 143 ; break;
-	case 164 ...165 : backlightlevel = 140 ; break;
-	case 161 ...163 : backlightlevel = 137 ; break;
-	case 159 ...160 : backlightlevel = 134 ; break;
-	case 156 ...158 : backlightlevel = 131 ; break;
-	case 154 ...155 : backlightlevel = 128 ; break;
-	case 151 ...153 : backlightlevel = 125 ; break;
-	case 149 ...150 : backlightlevel = 122 ; break;
-	case 146 ...148 : backlightlevel = 119 ; break;
-	case 144 ...145 : backlightlevel = 116 ; break;
-	case 141 ...143 : backlightlevel = 113 ; break;
-	case 139 ...140 : backlightlevel = 110 ; break;
-	case 136 ...138 : backlightlevel = 107 ; break;
-	case 134 ...135 : backlightlevel = 104 ; break;
-	case 131 ...133 : backlightlevel = 102 ; break;
-	case 128 ...130 : backlightlevel = 100 ; break;
-	case 126 ...127 : backlightlevel = 98 ; break;
-	case 123 ...125 : backlightlevel = 96 ; break;
-	case 121 ...122 : backlightlevel = 94 ; break;
-	case 118 ...120 : backlightlevel = 92 ; break;
-	case 116 ...117 : backlightlevel = 90 ; break;
-	case 113 ...115 : backlightlevel = 88 ; break;
-	case 111 ...112 : backlightlevel = 86 ; break;
-	case 108 ...110 : backlightlevel = 84 ; break;
-	case 106 ...107 : backlightlevel = 82 ; break;
-	case 103 ...105 : backlightlevel = 80 ; break;
-	case 101 ...102 : backlightlevel = 78 ; break;
-	case 98 ...100 : backlightlevel = 76 ; break;
-	case 96 ...97 : backlightlevel = 74 ; break;
-	case 93 ...95 : backlightlevel = 72 ; break;
-	case 91 ...92 : backlightlevel = 70 ; break;
-	case 88 ...90 : backlightlevel = 68 ; break;
-	case 86 ...87 : backlightlevel = 66 ; break;
-	case 84 ...85 : backlightlevel = 64 ; break;
-	case 81 ...82 : backlightlevel = 62 ; break;
-	case 78 ...80 : backlightlevel = 60 ; break;
-	case 76 ...77 : backlightlevel = 58 ; break;
-	case 73 ...75 : backlightlevel = 56 ; break;
-	case 71 ...72 : backlightlevel = 54 ; break;
-	case 68 ...70 : backlightlevel = 52 ; break;
-	case 65 ...67 : backlightlevel = 50 ; break;
-	case 63 ...64 : backlightlevel = 48 ; break;
-	case 60 ...62 : backlightlevel = 46 ; break;
-	case 58 ...59 : backlightlevel = 44 ; break;
-	case 55 ...57 : backlightlevel = 42 ; break;
-	case 53 ...54 : backlightlevel = 40 ; break;
-	case 50 ...52 : backlightlevel = 38 ; break;
-	case 48 ...49 : backlightlevel = 36 ; break;
-	case 45 ...47 : backlightlevel = 34 ; break;
-	case 43 ...44 : backlightlevel = 32 ; break;
-	case 40 ...42 : backlightlevel = 30 ; break;
-	case 38 ...39 : backlightlevel = 28 ; break;
-	case 35 ...37 : backlightlevel = 26 ; break;
-	case 33 ...34 : backlightlevel = 24 ; break;
-	case 30 ...32 : backlightlevel = 22 ; break;
-	case 28 ...29 : backlightlevel = 20 ; break;
-	case 25 ...27 : backlightlevel = 18 ; break;
-	case 23 ...24 : backlightlevel = 16 ; break;
-	case 20 ...22 : backlightlevel = 14 ; break;
-	case 18 ...19 : backlightlevel = 12 ; break;
-	case 15 ...17 : backlightlevel = 11 ; break;
-	case 13 ...14 : backlightlevel = 10 ; break;
-	case 10 ...12 : backlightlevel = 9 ; break;
-	case 8 ...9 : backlightlevel = 8 ; break;
-	case 1 ...7 : backlightlevel = 7 ; break;
-	case 0: backlightlevel = 0 ; break;
-	default:
-				backlightlevel = 29;  /* 32 */
-				break;
-	}
-	return backlightlevel;
-}
+	pr_info("%s : level = %d, scaled_level = %d\n", __func__, level, scaled_level);
 
+	return scaled_level;
+}
+#endif /* CONFIG_CABC_TUNING */
 
 static char led_pwm1[2] = {0x51, 0x0};	/* DTYPE_DCS_WRITE1 */
+static char set_cabc[8] = {0xC9, 0x1F, 0x00, 0x0A, 0x1E, 0x81, 0x1E, 0x00};
+static char cabc_mode[2] = {0x55, 0x0};
+static char cabc_duty[10] = {0xCA, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20};
+
 static struct dsi_cmd_desc backlight_cmd = {
-	{DTYPE_DCS_WRITE1, 1, 0, 0, 1, sizeof(led_pwm1)},
-	led_pwm1
+	{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(led_pwm1)}, led_pwm1
 };
+
+static struct dsi_cmd_desc cabc_cmd[] = {
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 0, sizeof(set_cabc)}, set_cabc},
+	{{DTYPE_DCS_WRITE1, 1, 0, 0, 0, sizeof(cabc_mode)}, cabc_mode},
+	{{DTYPE_DCS_LWRITE, 1, 0, 0, 5, sizeof(cabc_duty)}, cabc_duty}
+};
+
+char cabc_name[5][7] = {
+	"100.0%",
+	"82.05%",
+	"78.05%",
+	"74.42%",
+	"72.73%",
+};
+
+#define CABC_OFF 0x20 /* 100% */
+#define CABC_DUTY_82 0x27 /* 82.05% */
+#define CABC_DUTY_78 0x29 /* 78.05% */
+#define CABC_DUTY_74 0x2B /* 74.42% */
+#define CABC_DUTY_72 0x2C	/* 72.73% */
+
+static void mdss_dsi_panel_cabc_update(struct mdss_dsi_ctrl_pdata *ctrl, int level)
+{
+	struct dcs_cmd_req cabc_cmdreq;
+	char cabc_duty_val = 0;
+	int cabc_mode_val = 0;
+	static int before_cabc_mode_val = -1;
+	int i = 0;
+
+	cabc_mode[1] = msd.dstat.siop_status;
+
+	if(msd.dstat.siop_status) {
+	if (level < 84) {
+		cabc_mode_val = CABC_MODE_72;
+		cabc_duty_val = CABC_DUTY_72;
+	} else if (level < 98) {
+			cabc_mode_val = CABC_MODE_74;
+		cabc_duty_val = CABC_DUTY_74;
+	} else if (level < 112) {
+		cabc_mode_val = CABC_MODE_78;
+		cabc_duty_val= CABC_DUTY_78;
+	} else {
+		cabc_mode_val = CABC_MODE_82;
+		cabc_duty_val = CABC_DUTY_82;
+	}
+	} else {
+		cabc_mode_val = CABC_MODE_OFF;
+		cabc_duty_val = CABC_OFF;
+	}
+
+	if(before_cabc_mode_val != cabc_mode_val) {
+		for(i = 1; i<sizeof(cabc_duty); i++) {
+			cabc_duty[i] = cabc_duty_val;
+		}
+
+		cabc_cmd[1].payload = cabc_mode;
+		cabc_cmd[2].payload = cabc_duty;
+
+		memset(&cabc_cmdreq, 0, sizeof(cabc_cmdreq));
+		cabc_cmdreq.cmds = cabc_cmd;
+		cabc_cmdreq.cmds_cnt = ARRAY_SIZE(cabc_cmd);
+		cabc_cmdreq.flags = CMD_REQ_COMMIT | CMD_CLK_CTRL;
+		cabc_cmdreq.rlen = 0;
+		cabc_cmdreq.cb = NULL;
+
+		mdss_dsi_cmdlist_put(ctrl, &cabc_cmdreq);
+
+		pr_info("%s: cabc %s duty=%s\n", __func__,
+			msd.dstat.siop_status ? "ON " : "OFF", cabc_name[cabc_mode_val]);
+	}
+
+	before_cabc_mode_val = cabc_mode_val;
+}
 
 static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 {
@@ -395,7 +259,13 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 
 	mutex_lock(&msd.lock);
 
-	led_pwm1[1] = get_brightness_mapped(level);
+#if defined(CONFIG_CABC_TUNING)
+	led_pwm1[1] = mdss_dsi_panel_bklt_scaling(level);
+#else
+	pr_info("%s: level=%d\n", __func__, level);
+
+	led_pwm1[1] = (unsigned char)level;
+#endif
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
 	cmdreq.cmds = &backlight_cmd;
@@ -404,41 +274,46 @@ static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 	cmdreq.rlen = 0;
 	cmdreq.cb = NULL;
 
-	if(ctrl->ctrl_state & CTRL_STATE_PANEL_INIT)
-		mdss_dsi_set_tx_power_mode(0, msd.mpd);
+	if(ctrl->ctrl_state & CTRL_STATE_PANEL_INIT) {
+		mdss_dsi_set_tx_power_mode(0, msd.pdata);
+	}
 
 	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
 
-	if(ctrl->ctrl_state & CTRL_STATE_PANEL_INIT)
-		mdss_dsi_set_tx_power_mode(1, msd.mpd);
+	mdss_dsi_panel_cabc_update(ctrl, level);
+
+	if(ctrl->ctrl_state & CTRL_STATE_PANEL_INIT) {
+		mdss_dsi_set_tx_power_mode(1, msd.pdata);
+	}
 
 	msd.dstat.bright_level = level;
 
 	mutex_unlock(&msd.lock);
 }
 
+#if defined(CONFIG_CABC_TUNING)
+unsigned char mdss_dsi_panel_cabc_show(void)
+{
+	return msd.dstat.siop_status;
+}
+
+void mdss_dsi_panel_cabc_store(unsigned char cabc)
+{
+	if(msd.ctrl_pdata == NULL){
+		pr_err("%s: ctrl_pdata is NULL!\n", __func__);
+		return;
+	}
+
+	msd.dstat.siop_status = cabc;
+
+	mdss_dsi_panel_bklt_dcs(msd.ctrl_pdata, msd.dstat.bright_level);
+}
+#endif
+
 static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = 0;
 
-	rc = gpio_request(isl98611_panel_enp_gpio, "panel_enp_p");
-	if (rc) {
-		pr_err("request isl98611_panel_enp_gpio failed, rc=%d\n",
-			rc);
-		goto isl98611_panel_enp_gpio_err;
-	}	
-	rc = gpio_request(isl98611_panel_enn_gpio, "panel_enn_n");
-	if (rc) {
-		pr_err("request isl98611_panel_enn_gpio failed, rc=%d\n",
-			rc);
-		goto isl98611_panel_enn_gpio_err;
-	}	
-	rc = gpio_request(isl98611_bl_on_gpio, "bl_on");
-	if (rc) {
-		pr_err("request isl98611_bl_on_gpio failed, rc=%d\n",
-			rc);
-		goto isl98611_bl_on_gpio_err;
-	}	
 	rc = gpio_request(ctrl_pdata->rst_gpio, "disp_rst_n");
 	if (rc) {
 		pr_err("request reset gpio failed, rc=%d\n",
@@ -454,12 +329,7 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		}
 	}
 	return rc;
-isl98611_panel_enp_gpio_err:
-	gpio_free(isl98611_panel_enp_gpio);
-isl98611_panel_enn_gpio_err:
-	gpio_free(isl98611_panel_enn_gpio);
-isl98611_bl_on_gpio_err:
-	gpio_free(isl98611_bl_on_gpio);	
+
 mode_gpio_err:
 	gpio_free(ctrl_pdata->rst_gpio);
 rst_gpio_err:
@@ -470,7 +340,7 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *pinfo = NULL;
-	int rc = 0;
+	int i, rc = 0;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -490,34 +360,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 
 	if (enable) {
-		int i;
-		rc = mdss_dsi_request_gpios(ctrl_pdata);
-		if (rc) {
-			pr_err("gpio request failed\n");
-			return rc;
-		}
-#if defined(CONFIG_BL_ISL98611)
-		if(gpio_is_valid(isl98611_panel_enp_gpio)){
-			rc = gpio_direction_output(isl98611_panel_enp_gpio, 1);
-			if (rc) {
-				pr_err("%s: Set direction for isl98611_panel_enp_gpio failed, ret=%d\n",
-						__func__, rc);
-				gpio_free(isl98611_panel_enp_gpio);
-			}
-			gpio_set_value(isl98611_panel_enp_gpio, 1);
-		}
-		mdelay(2);
-		if(gpio_is_valid(isl98611_panel_enn_gpio)){
-			rc = gpio_direction_output(isl98611_panel_enn_gpio, 1);
-			if (rc) {
-				pr_err("%s: Set direction for isl98611_panel_enn_gpio failed, ret=%d\n",
-						__func__, rc);
-				gpio_free(isl98611_panel_enn_gpio);
-			}
-			gpio_set_value(isl98611_panel_enn_gpio, 1);
-		}
-		mdelay(10);
-#endif
 		for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
 			gpio_set_value((ctrl_pdata->rst_gpio),
 				pdata->panel_info.rst_seq[i]);
@@ -555,36 +397,10 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			}
 			gpio_set_value(isl98611_i2c_sda_gpio, 1);
 		}
-		if(gpio_is_valid(isl98611_bl_on_gpio)){
-			rc = gpio_direction_output(isl98611_bl_on_gpio, 1);
-			if (rc) {
-				pr_err("%s: Set direction for isl98611_bl_on_gpio failed, ret=%d\n",
-						__func__, rc);
-				gpio_free(isl98611_bl_on_gpio);
-			}
-			gpio_set_value(isl98611_bl_on_gpio, 1);
-		}
 #endif
 	} else {
-		if (gpio_is_valid(ctrl_pdata->rst_gpio)) {
-			gpio_set_value((ctrl_pdata->rst_gpio), 0);
-			gpio_free(ctrl_pdata->rst_gpio);
-		}
+		gpio_set_value((ctrl_pdata->rst_gpio), 0);
 #if defined(CONFIG_BL_ISL98611)
-		mdelay(10);
-		if (gpio_is_valid(isl98611_panel_enn_gpio)) {
-			gpio_set_value((isl98611_panel_enn_gpio), 0);
-			gpio_free(isl98611_panel_enn_gpio);
-		}
-		mdelay(2);
-		if (gpio_is_valid(isl98611_panel_enp_gpio)) {
-			gpio_set_value((isl98611_panel_enp_gpio), 0);
-			gpio_free(isl98611_panel_enp_gpio);
-		}
-		if (gpio_is_valid(isl98611_bl_on_gpio)) {
-			gpio_set_value((isl98611_bl_on_gpio), 0);
-			gpio_free(isl98611_bl_on_gpio);
-		}
 		if(gpio_is_valid(isl98611_i2c_scl_gpio)){
 			rc = gpio_direction_input(isl98611_i2c_scl_gpio);
 			if (rc) {
@@ -604,12 +420,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value(isl98611_i2c_sda_gpio, 0);
 		}
 #endif
-		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
-			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
-			gpio_free(ctrl_pdata->disp_en_gpio);
-		}
-		if (gpio_is_valid(ctrl_pdata->mode_gpio))
-			gpio_free(ctrl_pdata->mode_gpio);
 	}
 	return rc;
 }
@@ -750,22 +560,6 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	}
 }
 
-static int mdss_dsi_panel_event_handler(int event)
-{
-	switch (event) {
-#if defined(CONFIG_MDNIE_TFT_MSM8X16)
-		case MDSS_EVENT_MDNIE_DEFAULT_UPDATE:
-			pr_info("%s : send CONFIG_MDNIE_TFT_MSM8X16... \n",__func__);
-			is_negative_on();
-			break;
-#endif
-		default:
-			pr_err("%s : unknown event (%d)\n", __func__, event);
-			break;
-	}
-
-	return 0;
-}
 
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 {
@@ -1390,18 +1184,6 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	if (!gpio_is_valid(isl98611_i2c_sda_gpio)) {
 		pr_info("%s: isl98611 i2c sda gpio not specified\n", __func__);
 	}
-	isl98611_panel_enp_gpio = of_get_named_gpio(np, "isl98611,panel-enp-gpio", 0);
-	if (!gpio_is_valid(isl98611_panel_enp_gpio )) {
-		pr_info("%s: isl98611_panel_enp_gpio not specified\n", __func__);
-	}
-	isl98611_panel_enn_gpio = of_get_named_gpio(np, "isl98611,panel-enn-gpio", 0);
-	if (!gpio_is_valid(isl98611_panel_enn_gpio )) {
-		pr_info("%s: isl98611_panel_enn_gpio not specified\n", __func__);
-	}
-	isl98611_bl_on_gpio = of_get_named_gpio(np, "isl98611,bl-on-gpio", 0);
-	if (!gpio_is_valid(isl98611_bl_on_gpio )) {
-		pr_info("%s: isl98611_bl_on_gpio not specified\n", __func__);
-	}
 #endif
 
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-interleave-mode", &tmp);
@@ -1565,16 +1347,7 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		pr_err("%s: failed to parse panel features\n", __func__);
 		goto error;
 	}
-#if defined(CONFIG_CABC_TUNING)
-	mdss_dsi_parse_dcs_cmds(np, &brightness_cmds,
-		"samsung,panel-brightness-cmds", "samsung,panel-cabc-cmds-state");
 
-	mdss_dsi_parse_dcs_cmds(np, &cabc_on_cmds,
-		"samsung,panel-cabc-on-cmds", "samsung,panel-cabc-cmds-state");
-
-	mdss_dsi_parse_dcs_cmds(np, &cabc_off_cmds,
-		"samsung,panel-cabc-off-cmds", "samsung,panel-cabc-cmds-state");
-#endif
 	return 0;
 
 error:
@@ -1592,7 +1365,7 @@ static int mdss_dsi_panel_registered(struct mdss_panel_data *pdata)
 				panel_data);
 
 	msd.mfd = (struct msm_fb_data_type *)registered_fb[0]->par;
-	msd.mpd = pdata;
+	msd.pdata = pdata;
 	msd.ctrl_pdata = ctrl_pdata;
 
 	if(!msd.mfd) {
@@ -1600,10 +1373,17 @@ static int mdss_dsi_panel_registered(struct mdss_panel_data *pdata)
 	} else {
 		pr_info("%s msd.mfd is ok!!\n",__func__);
 	}
-#if defined(CONFIG_MDNIE_TFT_MSM8X16)
-	mdnie_tft_init(&msd);
+
+#if defined(CONFIG_MDNIE_LITE_TUNING)
+	mdnie_lite_tuning_init(&msd);
 #endif
-	msd.mfd->resume_state = MIPI_RESUME_STATE;
+
+	if (msd.mfd->update.is_suspend) {
+		msd.mfd->resume_state = MIPI_SUSPEND_STATE;
+	} else {
+		msd.mfd->resume_state = MIPI_RESUME_STATE;
+	}
+
 	pr_info("%s:%d, Panel registered succesfully\n", __func__, __LINE__);
 	return 0;
 }
@@ -1652,40 +1432,17 @@ static ssize_t mdss_disp_lcdtype_show(struct device *dev,
 {
 	char temp[12] = {0,};
 
-	if(msd.manufacture_id)
-		snprintf(temp, 12, "INH_%x\n",msd.manufacture_id);
-	else
+	if(msd.manufacture_id) {
+		snprintf(temp, 12, "SDC_598C90");
+	} else {
 		snprintf(temp, 12, "NOT_DEFINED");
+	}
 
 	strncat(buf, temp, 12);
 	return strnlen(buf, 12);
 }
 static DEVICE_ATTR(lcd_type, S_IRUGO, mdss_disp_lcdtype_show, NULL);
 
-static ssize_t mdss_siop_enable_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	int rc;
-
-	rc = snprintf(buf, 2, "%d\n",msd.dstat.siop_status);
-	pr_info("%s :[MDSS_SHARP] CABC: %d\n", __func__, msd.dstat.siop_status);
-	return rc;
-}
-static ssize_t mdss_siop_enable_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	if (sysfs_streq(buf, "1") && !msd.dstat.siop_status)
-		msd.dstat.siop_status = true;
-	else if (sysfs_streq(buf, "0") && msd.dstat.siop_status)
-		msd.dstat.siop_status = false;
-	else
-		pr_info("%s: Invalid argument!!", __func__);
-
-	return size;
-}
-static DEVICE_ATTR(siop_enable, S_IRUGO | S_IWUSR | S_IWGRP,
-			mdss_siop_enable_show,
-			mdss_siop_enable_store);
 
 static struct lcd_ops mdss_disp_props = {
 
@@ -1697,112 +1454,29 @@ static struct lcd_ops mdss_disp_props = {
 static struct attribute *panel_sysfs_attributes[] = {
 	&dev_attr_lcd_power.attr,
 	&dev_attr_lcd_type.attr,
-	&dev_attr_siop_enable.attr,
 	NULL
 };
 static const struct attribute_group panel_sysfs_group = {
 	.attrs = panel_sysfs_attributes,
 };
-
-#if defined(CONFIG_CABC_TUNING)
-unsigned char mdss_dsi_panel_cabc_show(void)
-{
-	return msd.dstat.siop_status;
-}
-
-void mdss_dsi_panel_cabc_store(unsigned char cabc)
-{
-	if(msd.ctrl_pdata == NULL){
-		pr_err("%s: ctrl_pdata is NULL!\n", __func__);
-		return;
-	}
-
-	if( msd.mfd->panel_power_on == false){
-		pr_err("%s: panel power off no cabc ctrl\n", __func__);
-		return;
-	}
-
-	msd.dstat.siop_status = cabc;
-
-	mdss_dsi_panel_cabc_update();
-	pr_info("%s :CABC: %d\n", __func__,msd.dstat.siop_status);
-}
-#endif
-
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE)
-static ssize_t mdss_auto_brightness_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	int rc;
-
-	rc = snprintf((char *)buf, sizeof(buf), "%d\n",
-					msd.dstat.auto_brightness);
-	pr_info("auto_brightness: %d\n", *buf);
-
-	return rc;
-}
-
-static ssize_t mdss_auto_brightness_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	// 0, 5, 6     => CABC OFF
-	// 1, 2, 3, 4 => CABC ON
-	if (sysfs_streq(buf, "0"))
-		msd.dstat.auto_brightness = 0;
-	else if (sysfs_streq(buf, "1"))
-		msd.dstat.auto_brightness = 1;
-	else if (sysfs_streq(buf, "2"))
-		msd.dstat.auto_brightness = 2;
-	else if (sysfs_streq(buf, "3"))
-		msd.dstat.auto_brightness = 3;
-	else if (sysfs_streq(buf, "4"))
-		msd.dstat.auto_brightness = 4;
-	else if (sysfs_streq(buf, "5"))
-		msd.dstat.auto_brightness = 5;
-	else if (sysfs_streq(buf, "6")) // HBM mode (HBM + PSRE) will be changed to // leve 6 : no HBM , RE
-		msd.dstat.auto_brightness = 6;
-	else if (sysfs_streq(buf, "7")) // HBM mode (HBM + PSRE)
-		msd.dstat.auto_brightness = 7;
-	else
-		pr_info("%s: Invalid argument!!", __func__);
-
-	if(msd.dstat.auto_brightness == 0 || msd.dstat.auto_brightness >= 5 )
-		msd.dstat.siop_status = false;
-	else
-		msd.dstat.siop_status = true;
-#if defined(CONFIG_CABC_TUNING)
-	mdss_dsi_panel_cabc_update();
-#endif
-	pr_info("%s %d %d\n", __func__, msd.dstat.auto_brightness, msd.dstat.siop_status);
-
-	return size;
-}
-
-
-static DEVICE_ATTR(auto_brightness, S_IRUGO | S_IWUSR | S_IWGRP,
-			mdss_auto_brightness_show,
-			mdss_auto_brightness_store);
-
-static struct attribute *bl_sysfs_attributes[] = {
-	&dev_attr_auto_brightness.attr,
-	NULL
-};
-static const struct attribute_group bl_sysfs_group = {
-	.attrs = bl_sysfs_attributes,
-};
-#endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 #endif /* CONFIG_LCD_CLASS_DEVICE */
 
-static int __init detect_lcd_manufacture_id(char* read_id)
-{
 
-	int lcd_id = simple_strtol(read_id, NULL, 16);
-	msd.manufacture_id = lcd_id;
-	gv_manufacture_id = msd.manufacture_id; 
-	pr_info("%s: detected panel ID --> [0x%x]\n", __func__, lcd_id);
+#if defined(CONFIG_GET_LCD_ATTACHED)
+int get_lcd_attached(void)
+{
+	return msd.manufacture_id;
+}
+
+static int __init get_lcd_id_cmdline(char *mode)
+{
+	msd.manufacture_id = simple_strtol(mode, NULL, 16);
+	pr_info("%s: lcd_id=0x%06X", __func__, msd.manufacture_id);
+
 	return 1;
 }
-__setup("lcd_id=0x", detect_lcd_manufacture_id);
+__setup("lcd_id=0x", get_lcd_id_cmdline);
+#endif
 
 int mdss_dsi_panel_init(struct device_node *node,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata,
@@ -1813,9 +1487,6 @@ int mdss_dsi_panel_init(struct device_node *node,
 	struct mdss_panel_info *pinfo;
 #if defined(CONFIG_LCD_CLASS_DEVICE)
 	struct lcd_device *lcd_device;
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE)
-	struct backlight_device *bd = NULL;
-#endif
 #endif
 
 	if (!node || !ctrl_pdata) {
@@ -1852,11 +1523,12 @@ int mdss_dsi_panel_init(struct device_node *node,
 	ctrl_pdata->on = mdss_dsi_panel_on;
 	ctrl_pdata->off = mdss_dsi_panel_off;
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
+
 	ctrl_pdata->panel_reset = mdss_dsi_panel_reset;
 	ctrl_pdata->registered = mdss_dsi_panel_registered;
+
 	ctrl_pdata->panel_gpio_request = mdss_dsi_request_gpios;
 	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
-	ctrl_pdata->event_handler = mdss_dsi_panel_event_handler;
 #if defined(CONFIG_LCD_CLASS_DEVICE)
 	lcd_device = lcd_device_register("panel", NULL, NULL, &mdss_disp_props);
 
@@ -1874,27 +1546,12 @@ int mdss_dsi_panel_init(struct device_node *node,
 		sysfs_remove_group(&lcd_device->dev.kobj, &panel_sysfs_group);
 		return rc;
 	}
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE)
-	bd = backlight_device_register("panel", &lcd_device->dev,
-						NULL, NULL, NULL);
-	if (IS_ERR(bd)) {
-		rc = PTR_ERR(bd);
-		pr_info("backlight : failed to register device\n");
-		return rc;
-	}
-
-	rc = sysfs_create_group(&bd->dev.kobj, &bl_sysfs_group);
-	if (rc) {
-		pr_err("Failed to create backlight sysfs group..\n");
-		sysfs_remove_group(&bd->dev.kobj, &bl_sysfs_group);
-	}
-#endif /* CONFIG_BACKLIGHT_CLASS_DEVICE */
 #endif /* CONFIG_LCD_CLASS_DEVICE */
 
-#if defined(CONFIG_MDNIE_TFT_MSM8X16)
+#if defined(CONFIG_MDNIE_LITE_TUNING)
 	init_mdnie_class();
-	pr_info("%s : CONFIG_MDNIE_TFT_MSM8X16 ok ! init class called!\n", __func__);
-#endif /* CONFIG_MDNIE_TFT_MSM8X16 */
+	pr_info("%s : CONFIG_MDNIE_LITE_TUNING ok ! init class called!\n", __func__);
+#endif /* CONFIG_MDNIE_LITE_TUNING */
 
 	return 0;
 }
