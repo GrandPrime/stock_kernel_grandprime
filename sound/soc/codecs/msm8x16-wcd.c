@@ -3223,7 +3223,11 @@ static const struct msm8x16_wcd_reg_mask_val
 	/* Initialize current threshold to 350MA
 	 * number of wait and run cycles to 4096
 	 */
+#if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT)
 	{MSM8X16_WCD_A_ANALOG_RX_COM_OCP_CTL, 0xFF, 0xDF},
+#else
+	{MSM8X16_WCD_A_ANALOG_RX_COM_OCP_CTL, 0xFF, 0xD1},
+#endif
 	{MSM8X16_WCD_A_ANALOG_RX_COM_OCP_COUNT, 0xFF, 0xFF},
 };
 
