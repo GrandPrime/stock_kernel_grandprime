@@ -3329,6 +3329,8 @@ static int sec_ps_set_property(struct power_supply *psy,
 			queue_delayed_work(battery->monitor_wqueue, &battery->monitor_work, 0);
 		} else {
 			battery->ps_status = false;
+			battery->ps_enable = false;
+			battery->ps_changed = false;
 			dev_info(battery->dev,
 				"%s: power sharing cable plugout (%d)\n", __func__, battery->ps_status);
 			wake_lock(&battery->monitor_wake_lock);
@@ -3954,9 +3956,8 @@ static int sec_battery_probe(struct platform_device *pdev)
 		battery->pdata->check_batt_id();
 
 	battery->wc_status = 0;
-	battery->ps_status = 0;
-	battery->ps_changed = 0;
-	battery->ps_enable = 0;
+	battery->ps_status= 0;
+	battery->ps_changed= 0;
 	battery->wire_status = POWER_SUPPLY_TYPE_BATTERY;
 
 #if defined(ANDROID_ALARM_ACTIVATED)

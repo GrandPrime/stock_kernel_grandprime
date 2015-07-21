@@ -2496,10 +2496,6 @@ skip_dma_resources:
 	spin_lock_init(&dd->queue_lock);
 	mutex_init(&dd->core_lock);
 
-#ifdef CONFIG_MACH_FORTUNA3G_LTN_DTV
-	init_waitqueue_head(&dd->continue_suspend);
-#endif
-
 	if (!devm_request_mem_region(&pdev->dev, dd->mem_phys_addr,
 					dd->mem_size, SPI_DRV_NAME)) {
 		rc = -ENXIO;

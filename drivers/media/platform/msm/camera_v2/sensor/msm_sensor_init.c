@@ -140,7 +140,7 @@ static ssize_t back_camera_type_show(struct device *dev,
 
 #if defined(CONFIG_S5K4ECGX)
 	char type[] = "SLSI_S5K4ECGX\n";
-#elif defined(CONFIG_SEC_ROSSA_PROJECT)
+#elif defined(CONFIG_MACH_ROSSA_CMCC)
 	char type[] = "SILICONFILE_SR544\n";
 #else
 	char type[] = "SONY_IMX219\n";
@@ -208,7 +208,7 @@ char cam_fw_full_ver[40] = "NULL NULL NULL\n"; /* Multi Module*/
 static ssize_t back_camera_firmware_full_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-#if defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_MACH_ROSSA_CMCC)
 	char cam_fw_full_ver[] = "A05QFHG01NA A05QFHG01NA\n";
 	return snprintf(buf, sizeof(cam_fw_full_ver), "%s", cam_fw_full_ver);
 #else

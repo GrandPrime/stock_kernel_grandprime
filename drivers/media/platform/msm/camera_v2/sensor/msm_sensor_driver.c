@@ -41,7 +41,7 @@
 
 #define SENSOR_MAX_MOUNTANGLE (360)
 
-#if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_VZW)
+#if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN)
 extern unsigned int system_rev;
 #endif
 
@@ -78,7 +78,7 @@ static struct msm_sensor_fn_t sr030pc50_sensor_func_tbl = {
 };
 #endif
 
-#if defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_AUS)
 #include "sr200pc20_yuv.h"
 #define msm_sensor_driver_WRT_LIST(s_ctrl,A)\
     s_ctrl->sensor_i2c_client->i2c_func_tbl->\
@@ -502,7 +502,7 @@ int32_t msm_sensor_driver_probe(void *setting)
 		s_ctrl->func_tbl = &sr030pc50_sensor_func_tbl;
 	}
 #endif
-#if defined(CONFIG_SEC_ROSSA_PROJECT) 
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_AUS)
 	if(slave_info->camera_id == CAMERA_2){
 		s_ctrl->func_tbl = &sr200pc20_sensor_func_tbl ;
 	}
@@ -702,19 +702,15 @@ int32_t msm_sensor_driver_probe(void *setting)
 #if defined(CONFIG_MSM_OTP)
 	if (!strcmp("sr544", slave_info->sensor_name)) {
 		pr_err("%s : read_otp_bank\n", __func__);
-#if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_VZW)
+#if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN)
 		if (system_rev > 0) {
 #endif
 		rc = s_ctrl->func_tbl->sensor_read_otp(s_ctrl);
 		if (rc < 0) {
 			pr_err("%s power up failed", slave_info->sensor_name);
-#if defined(CONFIG_SEC_ROSSA_PROJECT)
-			rc = 0;
-#else
 			goto FREE_CAMERA_INFO;
-#endif
 		}
-#if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_VZW)
+#if defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN)
 		}
 #endif
 	}
@@ -1204,7 +1200,7 @@ static void __exit msm_sensor_driver_exit(void)
 	i2c_del_driver(&msm_sensor_driver_i2c);
 	return;
 }
-#if defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_AUS)
 int32_t sr200pc20_set_exposure_compensation(struct msm_sensor_ctrl_t *s_ctrl, int mode)
 {
 	int32_t rc = 0;
@@ -1682,7 +1678,7 @@ static int sr200pc20_exif_shutter_speed(struct msm_sensor_ctrl_t *s_ctrl)
 	u16 read_value1 = 0;
 	u16 read_value2 = 0;
 	u16 read_value3 = 0;
-	int OPCLK = 26000000;
+	int OPCLK = 24000000;
 
 	/* Exposure Time */
 	s_ctrl->sensor_i2c_client->i2c_func_tbl->

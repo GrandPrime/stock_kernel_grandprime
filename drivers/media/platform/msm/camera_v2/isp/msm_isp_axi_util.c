@@ -24,9 +24,11 @@
 
 #define MSM_ISP_MIN_AB 450000000
 #define MSM_ISP_MIN_IB 900000000
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
+#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_MACH_ROSSA_CMCC) \
+	|| defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
 	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_SEC_ROSSA_PROJECT)
+	|| defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) \
+	|| defined(CONFIG_MACH_ROSSA_AUS)
 #define MIN_IB         1700000000
 #endif
 
@@ -1228,9 +1230,11 @@ static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 	uint32_t num_rdi_streams = 0;
 	uint32_t total_streams   = 0;
 	uint64_t total_bandwidth = 0;
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
+#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_MACH_ROSSA_CMCC) \
+	|| defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
 	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_SEC_ROSSA_PROJECT)
+	|| defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) \
+	|| defined(CONFIG_MACH_ROSSA_AUS)
 	uint64_t ib_total_bandwidth = 0;
 #endif
 
@@ -1254,9 +1258,11 @@ static int msm_isp_update_stream_bandwidth(struct vfe_device *vfe_dev)
 			pixel_clock) * ISP_DEFAULT_FORMAT_FACTOR / ISP_Q2;
 	total_bandwidth = total_pix_bandwidth + total_rdi_bandwidth;
 	total_streams = num_pix_streams + num_rdi_streams;
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
+#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_MACH_ROSSA_CMCC) \
+	|| defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
 	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT) \
-	|| defined(CONFIG_SEC_ROSSA_PROJECT)
+	|| defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) \
+	|| defined(CONFIG_MACH_ROSSA_AUS)
 	if (total_streams == 1) {
 	  ib_total_bandwidth = total_bandwidth *
 		ISP_BUS_UTILIZATION_FACTOR / ISP_Q2 - MSM_ISP_MIN_IB;

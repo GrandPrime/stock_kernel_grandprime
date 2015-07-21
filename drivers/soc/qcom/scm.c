@@ -186,30 +186,11 @@ static u32 smc(u32 cmd_addr)
 	return r0;
 }
 
-#ifdef CONFIG_TIMA_LKMAUTH
-#if defined CONFIG_ARCH_MSM8916
-static void __wrap_flush_cache_all(void* vp)
-{
-	flush_cache_all();
-}
-#endif
-
-pid_t pid_from_lkm = -1;
-#endif
 static int __scm_call(const struct scm_command *cmd)
 {
-#ifdef CONFIG_TIMA_LKMAUTH
-	int flush_all_need;
-#endif
 	int ret;
 	u32 cmd_addr = virt_to_phys(cmd);
 
-#ifdef CONFIG_TIMA_LKMAUTH
-	/*
-	 * in case of QSEE command
-	 */
-	flush_all_need = ((cmd->id & 0x0003FC00) == (252 << 10));
-#endif
 	/*
 	 * Flush the command buffer so that the secure world sees
 	 * the correct data.
@@ -217,17 +198,6 @@ static int __scm_call(const struct scm_command *cmd)
 	__cpuc_flush_dcache_area((void *)cmd, cmd->len);
 	outer_flush_range(cmd_addr, cmd_addr + cmd->len);
 
-#ifdef CONFIG_TIMA_LKMAUTH
-	if (flush_all_need && (pid_from_lkm == current_thread_info()->task->pid)) {
-		flush_cache_all();
-
-#if defined CONFIG_ARCH_MSM8916
-		smp_call_function((void (*)(void *))__wrap_flush_cache_all, NULL, 1);
-#endif
-
-		outer_flush_all();
-	}
-#endif
 	ret = smc(cmd_addr);
 	if (ret < 0)
 		ret = scm_remap_error(ret);

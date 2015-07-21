@@ -26,39 +26,8 @@ static struct msm_isp_bandwidth_mgr isp_bandwidth_mgr;
 
 #define MSM_ISP_MIN_AB 450000000
 #define MSM_ISP_MIN_IB 900000000
-#define MSM_MIN_REQ_VFE_CPP_BW 1700000000
 
 #define VFE40_8974V2_VERSION 0x1001001A
-
-
-#ifdef CAMERA_BOOST
-#define MBYTE (1ULL << 20)
-
-#define BW_MBPS(_bw) \
-{ \
-	.vectors = &(struct msm_bus_vectors){ \
-		.src = 1, \
-		.dst = 512, \
-		.ib = (_bw) * MBYTE, \
-		.ab = 0, \
-	}, \
-	.num_paths = 1, \
-}
-
-static struct msm_bus_paths bw_level_tbl[] = {
-	[0] =  BW_MBPS(381), /* At least 50 MHz on bus. */
-	[1] =  BW_MBPS(4066), /* At least 533 MHz on bus. */
-};
-
-static struct msm_bus_scale_pdata bus_client_pdata = {
-	.usecase = bw_level_tbl,
-	.num_usecases = ARRAY_SIZE(bw_level_tbl),
-	.active_only = 1,
-	.name = "Camera_boost",
-};
-static u32 bus_client;
-#endif
-
 static struct msm_bus_vectors msm_isp_init_vectors[] = {
 	{
 		.src = MSM_BUS_MASTER_VFE,
@@ -160,12 +129,6 @@ int msm_isp_init_bandwidth_mgr(enum msm_isp_hw_client client)
 	   isp_bandwidth_mgr.bus_client,
 	   isp_bandwidth_mgr.bus_vector_active_idx);
 
-#ifdef CAMERA_BOOST
-	if (!bus_client) {
-		bus_client = msm_bus_scale_register_client(&bus_client_pdata);
-		msm_bus_scale_client_update_request(bus_client, 1);
-	}
-#endif
 	mutex_unlock(&bandwidth_mgr_mutex);
 	return 0;
 }
@@ -200,10 +163,6 @@ int msm_isp_update_bandwidth(enum msm_isp_hw_client client,
 				isp_bandwidth_mgr.client_info[i].ib;
 		}
 	}
-	/*All the clients combined i.e. VFE + CPP should use at least
-	minimum recommended bandwidth*/
-	if (path->vectors[0].ib < MSM_MIN_REQ_VFE_CPP_BW)
-		path->vectors[0].ib = MSM_MIN_REQ_VFE_CPP_BW;
 	msm_bus_scale_client_update_request(isp_bandwidth_mgr.bus_client,
 		isp_bandwidth_mgr.bus_vector_active_idx);
 	mutex_unlock(&bandwidth_mgr_mutex);
@@ -229,12 +188,6 @@ void msm_isp_deinit_bandwidth_mgr(enum msm_isp_hw_client client)
 	msm_bus_scale_client_update_request(
 	   isp_bandwidth_mgr.bus_client, 0);
 	msm_bus_scale_unregister_client(isp_bandwidth_mgr.bus_client);
-
-#ifdef CAMERA_BOOST
-	msm_bus_scale_client_update_request(bus_client, 0);
-	msm_bus_scale_unregister_client(bus_client);
-	bus_client = 0;
-#endif
 	isp_bandwidth_mgr.bus_client = 0;
 	mutex_unlock(&bandwidth_mgr_mutex);
 }
@@ -1359,10 +1312,9 @@ irqreturn_t msm_isp_process_irq(int irq_num, void *data)
 		msm_isp_update_error_info(vfe_dev, error_mask0, error_mask1);
 
 	if ((irq_status0 == 0) && (irq_status1 == 0) &&
-		(!(((error_mask0 != 0) || (error_mask1 != 0)) &&
-		 vfe_dev->error_info.error_count == 1))) {
-		ISP_DBG("%s: irq status 0 and 1 = 0, also error irq hadnled!\n",
-			__func__);
+		(!((error_mask0 != 0) || (error_mask1 != 0)) &&
+		 vfe_dev->error_info.error_count == 1)) {
+		ISP_DBG("%s: error_mask0/1 & error_count are set!\n", __func__);
 		return IRQ_HANDLED;
 	}
 	msm_isp_get_timestamp(&ts);

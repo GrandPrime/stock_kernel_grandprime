@@ -43,11 +43,7 @@
 #if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_WVGA_VIDEO_PT_PANEL)
 #include "mdnie_lite_tuning_data_wvga_s6e88a0.h"
 #else
-#if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
-#include "mdnie_lite_tuning_data_a3_qhd_s6e88a0.h"
-#else
 #include "mdnie_lite_tuning_data_qhd_s6e88a0.h"
-#endif
 #endif
 #if defined(CONFIG_TDMB)
 #include "mdnie_lite_tuning_data_dmb.h"

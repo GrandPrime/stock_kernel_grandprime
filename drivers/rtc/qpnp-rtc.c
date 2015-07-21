@@ -755,18 +755,10 @@ sapa_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 		rtc_tm_to_time(&rtc_tm, &secs_rtc);
 		if (secs < secs_rtc) {
-			if ( poweroff_charging && ( secs_rtc < secs+180 ) ) {
-				wake_lock(&sapa_wakelock);
-				rtc_dd->alarm_irq_flag = true;
-				pr_info("%s [SAPA] Restart(alarm)\n",__func__);
-				queue_delayed_work(sapa_workq, &sapa_reboot_work, (10*HZ));
-			}
-			else {
-				pr_err("[SAPA] Trying to set alarm in the past\n");
-				sapa_saved_time.enabled = 0;  // disable pwr on alarm to prevent retrying
-				sapa_store_kparam(alarm);
-				return -EINVAL;
-			}
+			pr_err("[SAPA] Trying to set alarm in the past\n");
+			sapa_saved_time.enabled = 0;  // disable pwr on alarm to prevent retrying
+			sapa_store_kparam(alarm);
+			return -EINVAL;
 		}
 
 		value[0] = secs & 0xFF;

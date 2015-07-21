@@ -503,7 +503,7 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 	struct msm_camera_i2c_client *sensor_i2c_client;
 	struct msm_camera_slave_info *slave_info;
 	const char *sensor_name;
-#if defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_MACH_ROSSA_AUS)
 	enum msm_camera_i2c_data_type data_type = MSM_CAMERA_I2C_WORD_DATA;
 #endif
 	if (!s_ctrl) {
@@ -521,7 +521,7 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 			sensor_name);
 		return -EINVAL;
 	}
-#if defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_MACH_ROSSA_AUS)
 	if (slave_info->sensor_id == 0xb4)
 		data_type = MSM_CAMERA_I2C_BYTE_DATA;
 	rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
@@ -534,18 +534,14 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 #endif
 	if (rc < 0) {
 		pr_err("%s: %s: read id failed\n", __func__, sensor_name);
-#if defined(CONFIG_SEC_ROSSA_PROJECT)
-		rc = 0;
-#else
 		return rc;
-#endif
 	}
 
 	CDBG("%s: read id: 0x%x expected id 0x%x:\n", __func__, chipid,
 		slave_info->sensor_id);
 	if (chipid != slave_info->sensor_id) {
 		pr_err("msm_sensor_match_id chip id doesnot match\n");
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_SEC_FORTUNA_PROJECT)
 		return 0;	 //to pass DFMS with removing REAR cam
 #else
 		return -ENODEV;
@@ -735,7 +731,7 @@ static long msm_sensor_subdev_ioctl(struct v4l2_subdev *sd,
 		return 0;
 	case MSM_SD_SHUTDOWN:
 		return 0;
-#if  defined(CONFIG_MACH_HEAT_EUR) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_SEC_ROSSA_PROJECT)
+#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_HEAT_EUR) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_MACH_ROSSA_AUS)
 	case VIDIOC_MSM_SENSOR_NATIVE_CMD:
 		if( s_ctrl->func_tbl->sensor_native_control != NULL )
 			return s_ctrl->func_tbl->sensor_native_control(s_ctrl, argp);

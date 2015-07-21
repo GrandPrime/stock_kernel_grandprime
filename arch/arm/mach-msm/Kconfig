@@ -442,26 +442,12 @@ config MACH_ROSSA_SPR
 		help
 		  Support for Samsung ROSSA Sprint device.
 
-config MACH_ROSSA_AIO
-	depends on SEC_ROSSA_PROJECT
-		default n
-		bool "Samsung ROSSA Cricket"
-		help
-		  Support for Samsung ROSSA Cricket device.
-
 config MACH_ROSSA_TFN
 	depends on SEC_ROSSA_PROJECT
 		default n
 		bool "Samsung ROSSA Tracfone"
 		help
 		  Support for Samsung ROSSA Tracfone device.
-
-config MACH_ROSSA_VZW
-	depends on SEC_ROSSA_PROJECT
-		default n
-		bool "Samsung ROSSA VERIZON"
-		help
-		  Support for Samsung ROSSA VERIZON device.
 
 config SEC_FORTUNA_PROJECT
 	depends on ARCH_MSM8916
@@ -569,20 +555,6 @@ config MACH_HEAT_EUR
 		bool "Samsung HEAT Europe Open"
 		help
 		  Support for Samsung HEAT Europe Open device.
-
-config SEC_O1_PROJECT
-	depends on ARCH_MSM8916
-		default n
-		bool "Samsung O1 Project"
-		help
-		  Support for Samsung O1 Project
-
-config MACH_O1_CHN_OPEN
-	depends on SEC_O1_PROJECT
-		default n
-		bool "Samsung O1 China Open"
-		help
-		  Support for Samsung O1 China Open device.
 
 config MSM_KRAIT_TBB_ABORT_HANDLER
 	bool "Krait TBB/TBH data abort handler"
@@ -1397,7 +1369,6 @@ config TIMA_RKP_DEBUG
 config TIMA_LKMAUTH
        bool "Enable LKM authentication TIMA feature"
        default n
-       depends on MODULES
        help
          TIMA authenticates loaded kernel modules. Disable it if you don't
          want TIMA enabled.
@@ -1405,7 +1376,7 @@ config TIMA_LKMAUTH
 config TIMA_LKMAUTH_CODE_PROT
        bool
        depends on TIMA_LKMAUTH
-       default n
+       default y
        help
          When enabled, this feature will mark all Executable sections in an
          LKM as RO

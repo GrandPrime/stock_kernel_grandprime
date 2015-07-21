@@ -86,15 +86,6 @@ config FB_MSM_MIPI_NT35502_WVGA_VIDEO_PANEL
 	depends on FB_MSM_MDSS
 	bool "Support WVGA VIDEO (nt35502) Panel"
 	default n
-	
-config FB_MSM_MIPI_SHARP_HD_VIDEO_PANEL
-	depends on FB_MSM_MDSS
-	bool "Support Sharp Panel"
-	default n
-	
-config BL_ISL98611
-	bool "Support Backlight ISL98611"
-	default n
 
 config ESD_ERR_FG_RECOVERY
 	bool "Support ESD ERR FG RECOVERY"

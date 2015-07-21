@@ -768,9 +768,6 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
 {
 	union power_supply_propval value;
 	struct power_supply *psy = power_supply_get_by_name("battery");
-#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
-	struct power_supply *psy_ps = power_supply_get_by_name("ps");
-#endif
 	static enum cable_type_t previous_cable_type = CABLE_TYPE_NONE;
 	pr_info("%s, called : cable_type :%d \n",__func__, cable_type);
 
@@ -947,30 +944,6 @@ void sm5502_callback(enum cable_type_t cable_type, int attached)
                }
 #endif
 		break;
-#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
-	case CABLE_TYPE_CHARGING_CABLE:
-		if (attached)
-			value.intval = POWER_SUPPLY_TYPE_POWER_SHARING;
-		else
-			value.intval = POWER_SUPPLY_TYPE_BATTERY;
-
-		if (psy_ps) {
-			if (psy_ps->set_property(psy_ps, POWER_SUPPLY_PROP_ONLINE, &value)) {
-				pr_err("%s: fail to set power sharing ONLINE property\n",__func__);
-			}
-		}
-#if defined(DEBUG_STATUS)
-               if (attached)
-               {
-                       status_count = status_count+1;
-                       pr_err("%s Charging Cable status attached (%d) \n",__func__, status_count);
-               } else {
-                       status_count = status_count-1;
-                       pr_err("%s Charging Cable status detached (%d) \n", __func__,status_count);
-               }
-#endif
-		break;
-#endif
 	default:
 		break;
 	}
@@ -1181,9 +1154,6 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
 {
 	union power_supply_propval value;
 	struct power_supply *psy = power_supply_get_by_name("battery");
-#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
-	struct power_supply *psy_ps = power_supply_get_by_name("ps");
-#endif
 	static enum cable_type_t previous_cable_type = CABLE_TYPE_NONE;
 	pr_info("%s, called : cable_type :%d \n",__func__, cable_type);
 
@@ -1360,30 +1330,6 @@ void sm5504_callback(enum cable_type_t cable_type, int attached)
                }
 #endif
 		break;
-#if defined(CONFIG_MUIC_SUPPORT_CHARGING_CABLE)
-	case CABLE_TYPE_CHARGING_CABLE:
-		if (attached)
-			value.intval = POWER_SUPPLY_TYPE_POWER_SHARING;
-		else
-			value.intval = POWER_SUPPLY_TYPE_BATTERY;
-
-		if (psy_ps) {
-			if (psy_ps->set_property(psy_ps, POWER_SUPPLY_PROP_ONLINE, &value)) {
-				pr_err("%s: fail to set power sharing ONLINE property\n",__func__);
-			}
-		}
-#if defined(DEBUG_STATUS)
-               if (attached)
-               {
-                       status_count = status_count+1;
-                       pr_err("%s Charging Cable status attached (%d) \n",__func__, status_count);
-               } else {
-                       status_count = status_count-1;
-                       pr_err("%s Charging Cable status detached (%d) \n", __func__,status_count);
-               }
-#endif
-		break;
-#endif
 	default:
 		break;
 	}
