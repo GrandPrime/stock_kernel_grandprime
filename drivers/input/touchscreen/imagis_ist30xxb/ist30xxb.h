@@ -16,8 +16,6 @@
 #ifndef __IST30XX_H__
 #define __IST30XX_H__
 
-#include <linux/input/tsp_ta_callback.h>
-
 /*
  * Support F/W ver : IST30xxB core v3.3 (included tag)
  * Support IC : IST30xxB
@@ -263,10 +261,6 @@ struct ist30xx_data {
 	struct delayed_work	work_reset_check;
 	struct delayed_work	work_noise_protect;
 	struct delayed_work	work_debug_algorithm;
-#ifdef USE_TSP_TA_CALLBACKS
-	struct tsp_callbacks callbacks;
-	void (*register_cb)(struct tsp_callbacks *);
-#endif
 };
 
 struct tsp_dev_info {

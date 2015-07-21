@@ -12,7 +12,7 @@
 	# CONFIG_CHECK_SIMSLOT_COUNT_GPIO is not defined
 #endif
 
-#if defined(CONFIG_SEC_A3_EUR_PROJECT) | defined(CONFIG_SEC_A33G_EUR_PROJECT)
+#ifdef CONFIG_SEC_A3_EUR_PROJECT
 #define SINGLE_SIM_VALUE 0
 #define DUAL_SIM_VALUE 1
 #else

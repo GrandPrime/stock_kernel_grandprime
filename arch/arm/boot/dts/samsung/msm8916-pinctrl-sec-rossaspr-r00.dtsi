@@ -657,16 +657,16 @@
 			};
 		};
 
-		tpiu_seta_9 {
+		/*tpiu_seta_9 {
 			qcom,pins = <&gp 45>;
 			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <3>;
+			qcom,pin-func = <0>;
 			label = "tpiu-seta-9";
 			seta_9: seta {
 				drive-strength = <16>;
-				bias-disable;
+				bias-pull-up;
 			};
-		};
+		};*/
 
 		tpiu_seta_10 {
 			qcom,pins = <&gp 46>;
@@ -1069,19 +1069,6 @@
 				drive-strength = <2>;
 				bias-disable;
 				output-low;
-			};
-		};
-
-		/*SVC LED SCL,SDA pingroup*/
-		pmx_svc_led_pin {
-			qcom,pins = <&gp 31>,<&gp 32>;
-			qcom,pin-func = <0>;
-			qcom,num-grp-pins = <2>;
-			label = "pmx_svc_led_pin";
-
-			svc_led_pin: default {
-				drive-strength = <2>;
-				bias-disable;
 			};
 		};
 

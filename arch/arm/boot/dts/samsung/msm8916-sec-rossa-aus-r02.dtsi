@@ -156,14 +156,14 @@
 				mid_track_alive = <0>;
 				mid_auto_track_en = <0>;
 				timeout_current_level = <50>;
-				strobe_current = <500>;
+				strobe_current = <400>;
 				strobe_timeout = <544>;
-				torch_current = <63>;
+				torch_current = <38>;
 				lv_protection = <3000>;
 				mid_level = <4400>;
 				rt5033,led1-gpio = <&msm_gpio 34 0x00>;
 				rt5033,led2-gpio = <&msm_gpio 36 0x00>;
-				pinctrl-names = "fled_default","fled_sleep";
+				pinctrl-names = "fled_defualt","fled_sleep";
 				pinctrl-0 = <&cam_flash_active>;
 				pinctrl-1 = <&cam_flash_sleep>;
 			};
@@ -331,7 +331,7 @@
 			sm5504,gpio-sda = <&msm_gpio 2 0x00>;
 			sm5504,gpio-scl = <&msm_gpio 3 0x00>;
 			sm5504,uarton-gpio = <&msm_gpio 114 0x00>;
-			pinctrl-names = "sm5504_i2c_active","sm5504_i2c_suspend";
+			pinctrl-names = "sm5502_i2c_active","sm5502_i2c_suspend";
 			pinctrl-0 = <&muic_i2c_active &muic_int_pin>;
 			pinctrl-1 = <&muic_i2c_suspend &muic_int_pin>;
 		};
@@ -355,9 +355,9 @@
 						 <&det_zones 975 10000 10 0>,
 						 <&det_zones 976 10000 10 1>,
 						 <&det_zones 1810 10000 10 1>;
-		but-zones-list = <&but_zones 0 0 325>,
-						 <&but_zones 1 326 457>,
-						 <&but_zones 2 458 999>;
+		but-zones-list = <&but_zones 0 0 330>,
+						 <&but_zones 1 331 470>,
+						 <&but_zones 2 471 999>;
 		mpp-channel-scaling = <2 1 1>;
 		pinctrl-names = "earjack_gpio_active","earjack_gpio_suspend";
 		pinctrl-0 = <&earjack_det_act &earjack_switch_act>;

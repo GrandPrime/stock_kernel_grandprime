@@ -177,7 +177,7 @@
 				mid_level = <4400>;
 				rt5033,led1-gpio = <&msm_gpio 34 0x00>;
 				rt5033,led2-gpio = <&msm_gpio 36 0x00>;
-				pinctrl-names = "fled_default","fled_sleep";
+				pinctrl-names = "fled_defualt","fled_sleep";
 				pinctrl-0 = <&cam_flash_active>;
 				pinctrl-1 = <&cam_flash_sleep>;
 			};
@@ -398,9 +398,9 @@
 						 <&det_zones 975 10000 10 0>,
 						 <&det_zones 976 10000 10 1>,
 						 <&det_zones 1810 10000 10 1>;
-		but-zones-list = <&but_zones 0 0 325>,
-						 <&but_zones 1 326 457>,
-						 <&but_zones 2 458 999>;
+		but-zones-list = <&but_zones 0 0 330>,
+						 <&but_zones 1 331 470>,
+						 <&but_zones 2 471 999>;
 		mpp-channel-scaling = <2 1 1>;
 		pinctrl-names = "earjack_gpio_active","earjack_gpio_suspend";
 		pinctrl-0 = <&earjack_det_act &earjack_switch_act>;
@@ -538,14 +538,6 @@
 &pmx_pwm_bl {
                  qcom,num-grp-pins = <1>;
                  qcom,pins = <&gp 50>;
-};
-
-&dsi_himax_tft_qhd_video {
-	qcom,mdss-dsi-h-front-porch = <20>;
-	qcom,mdss-dsi-h-back-porch = <20>;
-	qcom,mdss-dsi-h-pulse-width = <18>;
-	qcom,mdss-dsi-panel-timings = [7B 1A 10 00 3E 40 16 1E 15 03 04 00];
-	qcom,mdss-dsi-t-clk-pre = <0x1A>;
 };
 
 &mdss_dsi0 {

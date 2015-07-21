@@ -106,37 +106,31 @@
 		battery,id = <0>; /* -1 means auto, detected by F/G */
 		battery0,battery_type = <4350>; /* 4200 4350 4400 */
 		battery0,vg_comp_interpolation_order = <1 1>; /* necessary */
-		battery0,vg_comp_idle_size = <4 3>; /* necessary */
+		battery0,vg_comp_idle_size = <3 3>; /* necessary */
 		battery0,vg_comp_idle_data = <3200  (-1)  50  15  5   255
-                                              3735  (-1)  50  15  5   255
                                               3853  (-1)  50  15  5   255
                                               4218  (-1)  50  15  5   255
-                                              3200  0     25  50  50  115
-                                              3735  0     25  47  56  115
-                                              3853  0     25  55  112 115
-                                              4218  0     25  75  112 115
+                                              3200  0     25  55  68  115
+                                              3853  0     25  83  100 115
+                                              4218  0     25  138 100 115
                                               3200  450   25  72  130 105
-                                              3735  450   25  72  130 105
                                               3853  450   25  72  130 105
-                                              4218  450   25  120 130 105>;
-		battery0,vg_comp_normal_size = <4 3>; /* necessary */
+                                              4218  450   25  108 130 105>;
+		battery0,vg_comp_normal_size = <3 3>; /* necessary */
 		battery0,vg_comp_normal_data = <3200  (-1)  50  15  5   255
-                                                3735  (-1)  50  15  5   255
                                                 3853  (-1)  50  15  5   255
                                                 4218  (-1)  50  15  5   255
-                                                3200  0     25  50  50  115
-                                                3735  0     25  47  56  115
-                                                3853  0     25  55  112 115
-                                                4218  0     25  75  112 115
+                                                3200  0     25  55  68  115
+                                                3853  0     25  83  100 115
+                                                4218  0     25  138 100 115
                                                 3200  450   25  72  130 105
-                                                3735  450   25  72  130 105
                                                 3853  450   25  72  130 105
-                                                4218  450   25  120 130 105>;
+                                                4218  450   25  108 130 105>;
 		battery0,special_case = <0>;
 		battery0,offset_interpolation_order = <2 2>; /* necessary */
 		battery0,offset_charging_size = <2 1>; /* m x n, m: volt or soc, n : temp */
 		battery0,offset_charging_data = <0 250 0
-		                                 1030 250 0>;
+		                              1030 250 0>;
 		battery0,offset_discharging_size = <2 1>;
 		battery0,offset_discharging_data = <0 250 0
 		                                 1030 250 0>;
@@ -145,7 +139,7 @@
 		battery0,offset_low_power_size = <6 1>;
 		/* 4294967284 = -12 */
 		battery0,offset_low_power_data = <0 250 (-12)
-					 	15 250 (-5)
+						15 250 (-5)
 						19 250 (-9)
 						20 250 (-10)
 						100 250 0

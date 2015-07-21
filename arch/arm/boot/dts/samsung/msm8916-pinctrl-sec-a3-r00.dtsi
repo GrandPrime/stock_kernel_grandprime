@@ -441,10 +441,12 @@
 			mdss_dsi_active: active {
 				drive-strength = <8>; /* 8 mA */
 				bias-disable = <0>; /* no pull */
+				output-high;
 			};
 			mdss_dsi_suspend: suspend {
 				drive-strength = <2>; /* 2 mA */
 				bias-pull-down; /* pull down */
+				output-low;
 			};
 		};
 
@@ -1361,13 +1363,11 @@
 			cam_sensor_mclk0_default: default {
 				drive-strength = <4>; /* 4 MA */
 				bias-disable = <0>; /* No PULL */
-				output-low;
 			};
 			/*suspended state */
 			cam_sensor_mclk0_sleep: sleep {
 				drive-strength = <2>; /* 2 MA */
-				bias-disable = <0>; /* No PULL */
-				output-low;
+				bias-pull-down; /* PULL DOWN */
 			};
 		};
 
@@ -1381,13 +1381,11 @@
 			cam_sensor_mclk1_default: default {
 				drive-strength = <4>; /* 4 MA */
 				bias-disable = <0>; /* No PULL */
-				output-low;
 			};
 			/*suspended state */
 			cam_sensor_mclk1_sleep: sleep {
 				drive-strength = <2>; /* 2 MA */
-				bias-disable = <0>; /* No PULL */
-				output-low;
+				bias-pull-down; /* PULL DOWN */
 			};
 		};
 
@@ -1507,12 +1505,11 @@
 			cam_flash_active: default {
 				drive-strength = <2>;	/* 2 MA */
 				bias-disable = <0>;	/* No PULL */
-				output-low;
 			};
 
 			cam_flash_sleep: sleep {
 				drive-strength = <2>;	/* 2 MA */
-				bias-disable = <0>;	/* No PULL */
+				bias-pull-down;
 				output-low;
 			};
 

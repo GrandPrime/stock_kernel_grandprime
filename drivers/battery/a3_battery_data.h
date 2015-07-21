@@ -2,33 +2,6 @@
 #define CAPACITY_MAX_MARGIN     30
 #define CAPACITY_MIN			0
 
-#if defined(CONFIG_MACH_A3_CHN_CTC)
-static sec_bat_adc_table_data_t temp_table[] = {
-  {25061, 900},
-  {25260, 850},
-  {25561, 800},
-  {25845, 750},
-  {26055, 700},
-  {26366, 650},
-  {26435, 600},
-  {26719, 550},
-  {27026, 500},
-  {27368, 450},
-  {27738, 400},
-  {28181, 350},
-  {28613, 300},
-  {29146, 250},
-  {29617, 200},
-  {30158, 150},
-  {30669, 100},
-  {31159, 50},
-  {31693, 0},
-  {32078, -50},
-  {32436, -100},
-  {32739, -150},
-  {32999, -200},
-};
-#else
 static sec_bat_adc_table_data_t temp_table[] = {
   {25018, 900},
   {25209, 850},
@@ -46,15 +19,14 @@ static sec_bat_adc_table_data_t temp_table[] = {
   {29178, 250},
   {29629, 200},
   {30175, 150},
-  {30605, 100},
-  {31097, 50},
-  {31552, 0},
-  {31963, -50},
-  {32323, -100},
-  {32632, -150},
-  {32891, -200},
+  {30794, 100},
+  {31272, 50},
+  {31672, 0},
+  {32056, -50},
+  {32486, -100},
+  {32719, -150},
+  {33032, -200},
 };
-#endif
 
 #define TEMP_HIGHLIMIT_THRESHOLD_EVENT		800
 #define TEMP_HIGHLIMIT_RECOVERY_EVENT		750
@@ -75,12 +47,3 @@ static sec_bat_adc_table_data_t temp_table[] = {
 #define TEMP_HIGH_RECOVERY_LPM     460
 #define TEMP_LOW_THRESHOLD_LPM     (-50)
 #define TEMP_LOW_RECOVERY_LPM      0
-
-#if defined(CONFIG_BATTERY_SWELLING)
-#define BATT_SWELLING_HIGH_TEMP_BLOCK		500
-#define BATT_SWELLING_HIGH_TEMP_RECOV		450
-#define BATT_SWELLING_LOW_TEMP_BLOCK		100
-#define BATT_SWELLING_LOW_TEMP_RECOV		150
-#define BATT_SWELLING_RECHG_VOLTAGE		4150
-#define BATT_SWELLING_BLOCK_TIME	10 * 60 /* 10 min */
-#endif

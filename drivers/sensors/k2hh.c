@@ -162,9 +162,6 @@ struct k2hh_p {
 	int scl_gpio;
 	int time_count;
 
-	u8 odr;
-	u8 hr;
-
 	u8 axis_map_x;
 	u8 axis_map_y;
 	u8 axis_map_z;
@@ -408,29 +405,7 @@ static int k2hh_set_odr(struct k2hh_p *data)
 	buf = ((mask & new_odr) | ((~mask) & temp));
 	ret += k2hh_i2c_write(data, CTRL1_REG, buf);
 
-	data->odr = new_odr;
-
 	pr_info("[SENSOR]: %s - change odr %d\n", __func__, i);
-	return ret;
-}
-
-static int k2hh_set_hr(struct k2hh_p *data, int set)
-{
-	int ret;
-	u8 buf;
-
-	pr_info("%s %d\n", __func__, set);
-
-	if (set)
-		data->hr = CTRL1_HR_ENABLE;
-	else
-		data->hr = CTRL1_HR_DISABLE;
-
-
-	ret = k2hh_i2c_read(data, CTRL1_REG, &buf, 1);
-	buf = data->hr | ((~CTRL1_HR_MASK) & buf);
-	ret += k2hh_i2c_write(data, CTRL1_REG, buf);
-
 	return ret;
 }
 
@@ -443,17 +418,13 @@ static int k2hh_set_mode(struct k2hh_p *data, unsigned char mode)
 
 	switch (mode) {
 	case K2HH_MODE_NORMAL:
-		mask = K2HH_ACC_ODR_MASK;
+		mask = K2HH_ACC_AXES_MASK;
 		ret = k2hh_i2c_read(data, CTRL1_REG, &temp, 1);
-		buf = ((mask & data->odr) | ((~mask) & temp));
-		buf = data->hr | ((~CTRL1_HR_MASK) & buf);
+		buf = ((mask & ACC_ENABLE_ALL_AXES) | ((~mask) & temp));
 		ret += k2hh_i2c_write(data, CTRL1_REG, buf);
 		break;
 	case K2HH_MODE_SUSPEND:
-		if (data->recog_flag == ON)
-			break;
-
-		mask = K2HH_ACC_ODR_MASK;
+		mask = K2HH_ACC_AXES_MASK;
 		ret = k2hh_i2c_read(data, CTRL1_REG, &temp, 1);
 		buf = ((mask & ACC_PM_OFF) | ((~mask) & temp));
 		ret += k2hh_i2c_write(data, CTRL1_REG, buf);
@@ -815,40 +786,6 @@ static ssize_t k2hh_calibration_store(struct device *dev,
 	return size;
 }
 
-static ssize_t k2hh_lowpassfilter_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	int ret;
-	struct k2hh_p *data = dev_get_drvdata(dev);
-
-	if (data->hr == CTRL1_HR_ENABLE)
-		ret = 1;
-	else
-		ret = 0;
-
-	return snprintf(buf, PAGE_SIZE, "%d\n", ret);
-}
-
-static ssize_t k2hh_lowpassfilter_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size)
-{
-	int ret;
-	int64_t dEnable;
-	struct k2hh_p *data = dev_get_drvdata(dev);
-
-	pr_info("%s\n", __func__);
-
-	ret = kstrtoll(buf, 10, &dEnable);
-	if (ret < 0)
-		pr_err("%s - kstrtoll failed\n", __func__);
-
-	ret = k2hh_set_hr(data, dEnable);
-	if (ret < 0)
-		pr_err("%s - k303c_acc_set_hr failed\n", __func__);
-
-	return size;
-}
-
 static ssize_t k2hh_raw_data_read(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -971,10 +908,10 @@ static ssize_t k2hh_selftest_show(struct device *dev,
 	s32 NO_ST[3] = {0, 0, 0};
 	s32 ST[3] = {0, 0, 0};
 
-	k2hh_i2c_read(data, CTRL1_REG, &backup[0], 1);
-	k2hh_i2c_read(data, CTRL4_REG, &backup[1], 1);
-	k2hh_i2c_read(data, CTRL5_REG, &backup[2], 1);
-	k2hh_i2c_read(data, CTRL6_REG, &backup[3], 1);
+	k2hh_i2c_read(data, CTRL1_REG, &backup[0],1);
+	k2hh_i2c_read(data, CTRL4_REG, &backup[1],1);
+	k2hh_i2c_read(data, CTRL5_REG, &backup[2],1);
+	k2hh_i2c_read(data, CTRL6_REG, &backup[3],1);
 
 	if (atomic_read(&data->enable) == OFF)
 		k2hh_set_mode(data, K2HH_MODE_NORMAL);
@@ -1082,8 +1019,6 @@ static DEVICE_ATTR(name, S_IRUGO, k2hh_name_show, NULL);
 static DEVICE_ATTR(vendor, S_IRUGO, k2hh_vendor_show, NULL);
 static DEVICE_ATTR(calibration, S_IRUGO | S_IWUSR | S_IWGRP,
 	k2hh_calibration_show, k2hh_calibration_store);
-static DEVICE_ATTR(lowpassfilter, S_IRUGO | S_IWUSR | S_IWGRP,
-	k2hh_lowpassfilter_show, k2hh_lowpassfilter_store);
 static DEVICE_ATTR(raw_data, S_IRUGO, k2hh_raw_data_read, NULL);
 static DEVICE_ATTR(reactive_alert, S_IRUGO | S_IWUSR | S_IWGRP,
 	k2hh_reactive_alert_show, k2hh_reactive_alert_store);
@@ -1092,7 +1027,6 @@ static struct device_attribute *sensor_attrs[] = {
 	&dev_attr_name,
 	&dev_attr_vendor,
 	&dev_attr_calibration,
-	&dev_attr_lowpassfilter,
 	&dev_attr_raw_data,
 	&dev_attr_reactive_alert,
 	&dev_attr_selftest,
@@ -1205,7 +1139,7 @@ static int k2hh_input_init(struct k2hh_p *data)
 }
 
 
-#if defined(CONFIG_MACH_FORTUNA_CTC)
+#if defined (CONFIG_MACH_FORTUNA_CTC)
 static int k2hh_parse2_dt(struct k2hh_p *data, struct device *dev)
 {
 	struct device_node *dNode = dev->of_node;
@@ -1403,19 +1337,23 @@ static int k2hh_regulator_onoff(struct k2hh_p *data, bool onoff)
 
 	if (onoff) {
 		ret = regulator_enable(data->vdd);
-		if (ret)
+		if (ret) {
 			pr_err("%s: Failed to enable vdd.\n", __func__);
+		}
 		ret = regulator_enable(data->vio);
-		if (ret)
+		if (ret) {
 			pr_err("%s: Failed to enable vio.\n", __func__);
+		}
 		msleep(30);
 	} else {
 		ret = regulator_disable(data->vdd);
-		if (ret)
+		if (ret) {
 			pr_err("%s: Failed to disable vdd.\n", __func__);
+		}
 		ret = regulator_disable(data->vio);
-		if (ret)
+		if (ret) {
 			pr_err("%s: Failed to disable vio.\n", __func__);
+		}
 	}
 
 	devm_regulator_put(data->vio);
@@ -1450,7 +1388,7 @@ static int k2hh_probe(struct i2c_client *client,
 	data->client = client;
 
 	pr_err("[SENSOR]: %s 1\n", __func__);
-#if defined(CONFIG_MACH_FORTUNA_CTC)
+#if defined (CONFIG_MACH_FORTUNA_CTC)
 	ret = k2hh_parse2_dt(data, &client->dev);
 #else
 	ret = k2hh_parse_dt(data, &client->dev);

@@ -18,13 +18,11 @@
 / {
 	aliases {
 		serial0 = &blsp1_uart2;
-		serial1 = &blsp1_uart1;
 
 		/*i2c-gpio bus_id*/
 		i2c7 = &i2c_7;
 		i2c8 = &i2c_8;
 		i2c9 = &i2c_9;
-		i2c10 = &i2c_10;
 	};
 };
 
@@ -249,8 +247,6 @@
 	};
 
 	i2c_8: i2c@8 {
-		status = "disable";
-
 		cell-index = <8>;
 		compatible = "i2c-gpio";
 		i2c-gpio-scl = <&msm_gpio 1 0x00>;
@@ -345,58 +341,6 @@
 		};
 	};
 
-	i2c_10: i2c@10 {
-		
-		status = "disable";		
-
-		cell-index = <10>;
-                compatible = "i2c-gpio";
-                i2c-gpio-scl = <&msm_gpio 85 0x00>;
-                i2c-gpio-sda = <&msm_gpio 84 0x00>;
-                i2c-gpio,delay-us = <0>;
-		dbmd2: codec@3F {
-			status = "disable";
-	
-			compatible = "dspg,dbmd2";
-			reg = <0x3F>;/*
-			pinctrl-names = "dbmd2_active","dbmd2_suspend";
-			pinctrl-0 = <&dbmd2_clk_act>;
-			pinctrl-1 = <&dbmd2_clk_sus>;*/
-			reset-gpio = <&msm_gpio 101 0>;
-			sensory-gpio = <&msm_gpio 98 0>;
-			wakeup-gpio = <&msm_gpio 102 0>;
-			clocks = <&clock_rpm clk_bb_clk2>;
-			clock-names = "dbd2_clk";
-			buffer_size = <96000>;
-			audio_mode = <0>;
-			vddo-supply = <&pm8916_l5>;
-		};
-	};
-
-	dbmd2-snd-soc-platform{
-		compatible = "dspg,dbmd2-snd-soc-platform";
-	};
-
-	snd-dbmd2-mach-drv{
-		compatible = "dspg,snd-dbmd2-mach-drv";
-	};
-
-	codec {
-		status = "okay";
-
-		compatible = "dspg,dbmd2-uart";
-		reset-gpio = <&msm_gpio 101 0>;
-		wakeup-gpio = <&msm_gpio 102 0>;
-		sensory-gpio = <&msm_gpio 98 0>;
-		uart_device = "/dev/ttyHS0";
-		/* buffer_size = <96000>; */
-		/* audio_mode = <0>; */
-		/* auto_buffering = <1>; */
-		clocks = <&clock_rpm clk_rf_clk2>,
-			<&clock_rpm clk_bb_clk2>;
-		clock-names = "rf_clk2","dbd2_clk";
-	};
-
 	/* Over-riding model specific changes */
 	sound {
 		qcom,audio-routing =
@@ -414,10 +358,6 @@
 		pinctrl-0 = <&cdc_pdm_lines_act>;
 		pinctrl-1 = <&cdc_pdm_lines_sus>;
 	};
-};
-
-&blsp1_uart1 {
-	status = "ok";
 };
 
 &blsp1_uart2 {

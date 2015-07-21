@@ -604,7 +604,6 @@ enum eeprom_cfg_type_t {
 	CFG_EEPROM_POWER_OFF,
 	CFG_EEPROM_READ_DATA_FROM_HW,
 	CFG_EEPROM_GET_MM_INFO,
-	CFG_EEPROM_GET_FW_VERSION_INFO,
 };
 
 struct eeprom_get_t {

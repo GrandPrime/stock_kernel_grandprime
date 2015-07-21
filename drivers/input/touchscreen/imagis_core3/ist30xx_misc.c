@@ -730,24 +730,6 @@ ssize_t ist30xx_cover_mode_store(struct device *dev, struct device_attribute *at
 	return size;
 }
 
-#if IST30XX_CHECK_BATT_TEMP
-extern int ist30xx_batt_chk_max_cnt;
-/* sysfs: /sys/class/touch/sys/check_temp */
-ssize_t ist30xx_check_temp_store(struct device *dev,
-				 struct device_attribute *attr, const char *buf, size_t size)
-{
-	int count;
-
-	sscanf(buf, "%d", &count);
-
-    ist30xx_batt_chk_max_cnt = count;
-
-    tsp_info("check temp max time: %dmsec\n", count * 500);
- 
-	return size;
-}
-#endif
-
 #define TUNES_CMD_WRITE         (1)
 #define TUNES_CMD_READ          (2)
 #define TUNES_CMD_REG_ENTER     (3)
@@ -1229,62 +1211,6 @@ ssize_t intr_debug_show(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-/* sysfs: /sys/class/touch/tunes/intr_debug2 */
-extern u32 intr_debug2_addr, intr_debug2_size;
-ssize_t intr_debug2_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t size)
-{
-	sscanf(buf, "%x %d", &intr_debug2_addr, &intr_debug2_size);
-	tsp_info("Interrupt debug2 addr: 0x%x, count: %d\n",
-		    intr_debug2_addr, intr_debug2_size);
-
-	intr_debug2_addr |= IST30XXB_ACCESS_ADDR;
-
-	return size;
-}
-
-ssize_t intr_debug2_show(struct device *dev, struct device_attribute *attr,
-			char *buf)
-{
-	int count = 0;
-
-	tsp_info("intr_debug2_addr(0x%x): %d\n", 
-            intr_debug2_addr, intr_debug2_size);
-
-	count = sprintf(buf, "intr_debug2_addr(0x%x): %d\n",
-			intr_debug2_addr, intr_debug2_size);
-
-	return count;
-}
-
-/* sysfs: /sys/class/touch/tunes/intr_debug3 */
-extern u32 intr_debug3_addr, intr_debug3_size;
-ssize_t intr_debug3_store(struct device *dev, struct device_attribute *attr,
-			 const char *buf, size_t size)
-{
-	sscanf(buf, "%x %d", &intr_debug3_addr, &intr_debug3_size);
-	tsp_info("Interrupt debug3 addr: 0x%x, count: %d\n",
-		    intr_debug3_addr, intr_debug3_size);
-
-	intr_debug3_addr |= IST30XXB_ACCESS_ADDR;
-
-	return size;
-}
-
-ssize_t intr_debug3_show(struct device *dev, struct device_attribute *attr,
-			char *buf)
-{
-	int count = 0;
-
-	tsp_info("intr_debug3_addr(0x%x): %d\n", 
-            intr_debug3_addr, intr_debug3_size);
-
-	count = sprintf(buf, "intr_debug3_addr(0x%x): %d\n",
-			intr_debug3_addr, intr_debug3_size);
-
-	return count;
-}
-
 u8 *ts_chkic_bin = NULL;
 u32 ts_chkic_bin_size = 0;
 u32 ts_chkic_result = 0;
@@ -1440,9 +1366,6 @@ static DEVICE_ATTR(mode_ta, MISC_DEFAULT_ATTR, NULL, ist30xx_ta_mode_store);
 static DEVICE_ATTR(mode_call, MISC_DEFAULT_ATTR, NULL, ist30xx_call_mode_store);
 static DEVICE_ATTR(mode_cover, MISC_DEFAULT_ATTR, NULL, ist30xx_cover_mode_store);
 static DEVICE_ATTR(max_touch, MISC_DEFAULT_ATTR, NULL, ist30xx_touch_store);
-#if IST30XX_CHECK_BATT_TEMP
-static DEVICE_ATTR(check_temp, S_IRWXUGO, NULL, ist30xx_check_temp_store);
-#endif
 
 /* sysfs : tunes */
 static DEVICE_ATTR(node_info, MISC_DEFAULT_ATTR, tunes_node_info_show, NULL);
@@ -1453,8 +1376,6 @@ static DEVICE_ATTR(adb, MISC_DEFAULT_ATTR, tunes_adb_show, tunes_adb_store);
 static DEVICE_ATTR(algorithm, MISC_DEFAULT_ATTR, ist30xx_algr_show, ist30xx_algr_store);
 #endif
 static DEVICE_ATTR(intr_debug, MISC_DEFAULT_ATTR, intr_debug_show, intr_debug_store);
-static DEVICE_ATTR(intr_debug2, MISC_DEFAULT_ATTR, intr_debug2_show, intr_debug2_store);
-static DEVICE_ATTR(intr_debug3, MISC_DEFAULT_ATTR, intr_debug3_show, intr_debug3_store);
 
 /* sysfs : chkic */
 static DEVICE_ATTR(chkic, S_IRUGO, ist30xx_chkic_show, NULL);
@@ -1490,9 +1411,6 @@ static struct attribute *sys_attributes[] = {
 	&dev_attr_mode_call.attr,
 	&dev_attr_mode_cover.attr,
 	&dev_attr_max_touch.attr,
-#if IST30XX_CHECK_BATT_TEMP
-    &dev_attr_check_temp.attr,
-#endif
 	NULL,
 };
 
@@ -1505,8 +1423,6 @@ static struct attribute *tunes_attributes[] = {
 	&dev_attr_algorithm.attr,
 #endif
 	&dev_attr_intr_debug.attr,
-    &dev_attr_intr_debug2.attr,
-    &dev_attr_intr_debug3.attr,
 	NULL,
 };
 

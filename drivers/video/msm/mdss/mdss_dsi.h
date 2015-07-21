@@ -272,7 +272,6 @@ struct mdss_dsi_ctrl_pdata {
 	int (*panel_gpio_request) (struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 	int (*dimming_init) (struct mdss_panel_data *pdata);
 	int (*registered) (struct mdss_panel_data *pdata);
-	int (*event_handler) (int e);
 	struct mdss_panel_data panel_data;
 	unsigned char *ctrl_base;
 	struct dss_io_data ctrl_io;

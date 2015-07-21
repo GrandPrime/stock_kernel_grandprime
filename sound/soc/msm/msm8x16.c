@@ -616,7 +616,7 @@ static int ext_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 			pr_err("%s:afe_set_lpass_clock failed\n", __func__);
 
 #ifdef CONFIG_AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE
-		if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) && (pdata->ext_pa & QUAT_MI2S_ID))
+		if (pdata->ext_pa & QUAT_MI2S_ID)
 			msm_q6_enable_mi2s_clocks(true);
 #endif
 	} else {
@@ -635,7 +635,7 @@ static int ext_mi2s_clk_ctl(struct snd_pcm_substream *substream, bool enable)
 			pr_err("%s:afe_set_lpass_clock failed\n", __func__);
 
 #ifdef CONFIG_AUDIO_SPEAKER_OUT_NXP_AMP_ENABLE
-		if ((substream->stream == SNDRV_PCM_STREAM_PLAYBACK) && (pdata->ext_pa & QUAT_MI2S_ID))
+		if (pdata->ext_pa & QUAT_MI2S_ID)
 			msm_q6_enable_mi2s_clocks(false);
 #endif
 	}
@@ -1084,9 +1084,8 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		if (ret < 0)
 			pr_err("%s: set fmt cpu dai failed\n", __func__);
 	}
-	return ret;
 err1:
-	ret = ext_mi2s_clk_ctl(substream, false);
+	ret = sec_mi2s_sclk_ctl(substream, false);
 	if (ret < 0)
 		pr_err("%s:failed to disable sclk\n", __func__);
 
@@ -1862,21 +1861,6 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		/* this dainlink has playback support */
 		.ignore_pmdown_time = 1,
 		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA7,
-	},
-	{/* hw:x,25 */
-		.name = "Quaternary MI2S_RX Hostless",
-		.stream_name = "Quaternary MI2S_RX Hostless",
-		.cpu_dai_name = "QAUT_MI2S_RX_HOSTLESS",
-		.platform_name	= "msm-pcm-hostless",
-		.dynamic = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			    SND_SOC_DPCM_TRIGGER_POST},
-		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-		 /* This dainlink has MI2S support */
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
 	},
 	/* Backend I2S DAI Links */
 	{

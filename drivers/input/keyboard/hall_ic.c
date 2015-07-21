@@ -244,10 +244,8 @@ static int hall_probe(struct platform_device *pdev)
 
 	hall_pinctrl = devm_pinctrl_get_select(dev, "flipcover_active");
 	if (IS_ERR(hall_pinctrl)) {
-		if (PTR_ERR(hall_pinctrl) == -EPROBE_DEFER) {
-			kfree(ddata);
+		if (PTR_ERR(hall_pinctrl) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
-		}
 		pr_debug("Target does not use pinctrl\n");
 		hall_pinctrl = NULL;
 	}

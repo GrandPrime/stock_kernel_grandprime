@@ -27,7 +27,6 @@
 		i2c9 = &i2c_9;
 		i2c10 = &i2c_10;
 		i2c11 = &i2c_11;
-		i2c12 = &i2c_12;
 	};
 };
 
@@ -165,7 +164,7 @@
 				mid_level = <4400>;
 				rt5033,led1-gpio = <&msm_gpio 34 0x00>;
 				rt5033,led2-gpio = <&msm_gpio 36 0x00>;
-				pinctrl-names = "fled_default","fled_sleep";
+				pinctrl-names = "fled_defualt","fled_sleep";
 				pinctrl-0 = <&cam_flash_active>;
 				pinctrl-1 = <&cam_flash_sleep>;
 			};
@@ -254,21 +253,6 @@
 		};
 	};
 
-	i2c_12:i2c@12 {
-		cell-index = <12>;
-		compatible = "i2c-gpio";
-		i2c-gpio-scl = <&msm_gpio 32 0x00>;
-		i2c-gpio-sda = <&msm_gpio 31 0x00>;
-		i2c-gpio,delay-us = <2>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-        svc_leds@30{
-                compatible = "leds,ktd2026";
-                reg = <0x30>;
-        };
-	};
-
 	/* Over-riding model specific changes */
 	sound {
 		qcom,audio-routing =
@@ -290,7 +274,7 @@
 	samsung,gpio_settings{
 		compatible = "sec_gpio_sett";
 		pinctrl-names = "sec_gpio_active","sec_gpio_suspend";
-		pinctrl-0 = <&svc_led_pin &home_key_pin>;
+		pinctrl-0 = <&home_key_pin>;
 		pinctrl-1 = <>;
 	};
 

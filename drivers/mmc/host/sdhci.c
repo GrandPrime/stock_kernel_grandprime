@@ -105,7 +105,7 @@ static void sdhci_dump_state(struct sdhci_host *host)
 	}
 }
 
-void sdhci_dumpregs(struct sdhci_host *host)
+static void sdhci_dumpregs(struct sdhci_host *host)
 {
 	pr_info(DRIVER_NAME ": =========== REGISTER DUMP (%s)===========\n",
 		mmc_hostname(host->mmc));
@@ -2023,7 +2023,9 @@ static void sdhci_do_set_ios(struct sdhci_host *host, struct mmc_ios *ios)
 	if (ios->power_mode == MMC_POWER_OFF) {
 		sdhci_writel(host, 0, SDHCI_SIGNAL_ENABLE);
 		sdhci_reinit(host);
-		host->pwr = 0;
+		vdd_bit = sdhci_set_power(host, -1);
+		if (host->vmmc && vdd_bit != -1)
+			mmc_regulator_set_ocr(host->mmc, host->vmmc, vdd_bit);
 	}
 	if (!ios->clock) {
 		if (host->async_int_supp && host->mmc->card &&

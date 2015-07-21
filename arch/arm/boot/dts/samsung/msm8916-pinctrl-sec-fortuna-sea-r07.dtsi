@@ -1315,13 +1315,13 @@
 			/* active state */
 			cam_sensor_eeprom_default: default {
 				drive-strength = <4>; /* 4 MA */
-				bias-disable = <0>; /* No PULL */
+				bias-pull-down; /* PULL DOWN */
 				input-low;
 			};
 			/*suspended state */
 			cam_sensor_eeprom_sleep: sleep {
 				drive-strength = <4>; /* 4 MA */
-				bias-disable = <0>; /* No PULL */
+				bias-pull-down; /* PULL DOWN */
 				input-low;
 			};
 		};

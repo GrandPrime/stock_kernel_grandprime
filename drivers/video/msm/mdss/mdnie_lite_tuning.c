@@ -43,11 +43,7 @@
 #if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_WVGA_VIDEO_PT_PANEL)
 #include "mdnie_lite_tuning_data_wvga_s6e88a0.h"
 #else
-#if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
-#include "mdnie_lite_tuning_data_a3_qhd_s6e88a0.h"
-#else
 #include "mdnie_lite_tuning_data_qhd_s6e88a0.h"
-#endif
 #endif
 #if defined(CONFIG_TDMB)
 #include "mdnie_lite_tuning_data_dmb.h"
@@ -92,11 +88,6 @@ struct mdnie_lite_tun_type mdnie_tun_state = {
 	.accessibility = ACCESSIBILITY_OFF,
 #if defined(CONFIG_TDMB)
 	.dmb = DMB_MODE_OFF,
-#endif
-#if defined(SUPPORT_WHITE_RGB)
-	.scr_white_red = 0xff,
-	.scr_white_green = 0xff,
-	.scr_white_blue = 0xff,
 #endif
 };
 
@@ -156,10 +147,6 @@ static char level2_key[] = {
 	0xFC,
 	0x5A, 0x5A,
 };
-
-#if defined(SUPPORT_WHITE_RGB)
-static char white_rgb_buf[MDNIE_TUNE_FIRST_SIZE] = {0,};
-#endif
 
 static char tune_data1[MDNIE_TUNE_FIRST_SIZE] = {0,};
 static char tune_data2[MDNIE_TUNE_SECOND_SIZE] = {0,};
@@ -282,16 +269,8 @@ void mDNIe_Set_Mode(void)
 #if defined(CONFIG_FB_MSM_MIPI_SAMSUNG_QHD_VIDEO_PT_PANEL)
 	else if (mdnie_msd->dstat.auto_brightness == 6) {
 		DPRINT("[LOCAL CE] HBM mode! only LOCAL CE tuning\n");
-#if defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
-		if((mdnie_tun_state.scenario == mDNIe_BROWSER_MODE) || (mdnie_tun_state.scenario == mDNIe_eBOOK_MODE)) {
-			INPUT_PAYLOAD1(LOCAL_CE_1_TEXT);
-			INPUT_PAYLOAD2(LOCAL_CE_2_TEXT);
-		} else
-#endif
-		{
-			INPUT_PAYLOAD1(LOCAL_CE_1);
-			INPUT_PAYLOAD2(LOCAL_CE_2);
-		}
+				INPUT_PAYLOAD1(LOCAL_CE_1);
+				INPUT_PAYLOAD2(LOCAL_CE_2);
 	}
 #endif
 #if defined(CONFIG_TDMB)
@@ -320,11 +299,6 @@ void mDNIe_Set_Mode(void)
 				mdnie_tune_value[mdnie_tun_state.scenario][mdnie_tun_state.background][mdnie_tun_state.outdoor][0]);
 			INPUT_PAYLOAD2(
 				mdnie_tune_value[mdnie_tun_state.scenario][mdnie_tun_state.background][mdnie_tun_state.outdoor][1]);
-#if defined(SUPPORT_WHITE_RGB)
-			mdnie_tun_state.scr_white_red = mdnie_tune_value[mdnie_tun_state.scenario][mdnie_tun_state.background][mdnie_tun_state.outdoor][1][ADDRESS_SCR_WHITE_RED];
-			mdnie_tun_state.scr_white_green = mdnie_tune_value[mdnie_tun_state.scenario][mdnie_tun_state.background][mdnie_tun_state.outdoor][1][ADDRESS_SCR_WHITE_GREEN];
-			mdnie_tun_state.scr_white_blue= mdnie_tune_value[mdnie_tun_state.scenario][mdnie_tun_state.background][mdnie_tun_state.outdoor][1][ADDRESS_SCR_WHITE_BLUE];
-#endif
 		}
 }
 
@@ -704,49 +678,6 @@ static DEVICE_ATTR(accessibility, 0664,
 			accessibility_show,
 			accessibility_store);
 
-#if defined(SUPPORT_WHITE_RGB)
-static ssize_t sensorRGB_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-		return sprintf(buf, "%d %d %d\n", mdnie_tun_state.scr_white_red, mdnie_tun_state.scr_white_green, mdnie_tun_state.scr_white_blue);
-}
-
-static ssize_t sensorRGB_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t size)
-{
-	int red, green, blue;
-	char white_red, white_green, white_blue;
-
-	sscanf(buf, "%d %d %d", &red, &green, &blue);
-
-	if ((mdnie_tun_state.accessibility == ACCESSIBILITY_OFF) && (mdnie_tun_state.background == AUTO_MODE) &&	\
-		((mdnie_tun_state.scenario == mDNIe_BROWSER_MODE) || (mdnie_tun_state.scenario == mDNIe_eBOOK_MODE))) 
-	{
-		white_red = (char)(red);
-		white_green = (char)(green);
-		white_blue= (char)(blue);
-		mdnie_tun_state.scr_white_red = red;
-		mdnie_tun_state.scr_white_green = green;
-		mdnie_tun_state.scr_white_blue= blue;
-		DPRINT("%s: white_red = %d, white_green = %d, white_blue = %d\n", __func__, white_red, white_green, white_blue);
-
-		INPUT_PAYLOAD1(mdnie_tune_value[mdnie_tun_state.scenario][mdnie_tun_state.background][mdnie_tun_state.outdoor][0]);
-		memcpy( white_rgb_buf, mdnie_tune_value[mdnie_tun_state.scenario][mdnie_tun_state.background][mdnie_tun_state.outdoor][1], MDNIE_TUNE_FIRST_SIZE);
-
-		white_rgb_buf[ADDRESS_SCR_WHITE_RED] = white_red;
-		white_rgb_buf[ADDRESS_SCR_WHITE_GREEN] = white_green;
-		white_rgb_buf[ADDRESS_SCR_WHITE_BLUE] = white_blue;
-
-		INPUT_PAYLOAD2(white_rgb_buf);
-		sending_tuning_cmd();
-		free_tun_cmd();
-	}
-
-	return size;
-}
-
-static DEVICE_ATTR(sensorRGB, 0664, sensorRGB_show, sensorRGB_store);
-#endif
 
 static struct class *mdnie_class;
 struct device *tune_mdnie_dev;
@@ -812,13 +743,6 @@ void init_mdnie_class(void)
 		(tune_mdnie_dev, &dev_attr_accessibility) < 0)
 		pr_err("Failed to create device file(%s)!=n",
 			dev_attr_accessibility.attr.name);
-
-#if defined(SUPPORT_WHITE_RGB)
-	if (device_create_file
-		(tune_mdnie_dev, &dev_attr_sensorRGB) < 0)
-		pr_err("Failed to create device file(%s)!=n",
-			dev_attr_sensorRGB.attr.name);
-#endif
 
 	mdnie_tun_state.mdnie_enable = true;
 

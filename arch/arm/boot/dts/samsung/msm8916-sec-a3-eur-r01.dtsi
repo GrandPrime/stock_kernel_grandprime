@@ -49,6 +49,7 @@
 		compatible = "qcom,i2c-msm-v2";
 		qcom,scl-gpio = <&msm_gpio 19 0>;
 		qcom,sda-gpio = <&msm_gpio 18 0>;
+		qcom,i2c-bus-freq = <400000>;
 
 		bt532_ts_device@20 {
 			compatible = "zinitix,bt541_ts_device";
@@ -130,8 +131,8 @@
 
 			rt5033_charger {
 				compatible = "richtek,rt5033-charger";
-				is_750kHz_switching = "yes";
-				is_fixed_switching = "yes";
+				/* is_750kHz_switching = "yes"; */
+				/* is_fixed_switching = "yes"; */
 			};
 
 			rt5033_safe_ldo {
@@ -168,23 +169,20 @@
 				/* regulator-ramp-delay = <100>; optional*/
 			};
 
-			rt5033_fled {
-				compatible = "richtek,rt5033-fled";
-				enable = <1 1>;
-				mid_track_alive = <0>;
-				mid_auto_track_en = <0>;
-				timeout_current_level = <50>;
-				strobe_current = <500>;
-				strobe_timeout = <544>;
-				torch_current = <63>;
-				lv_protection = <3000>;
-				mid_level = <4400>;
-				rt5033,led1-gpio = <&msm_gpio 34 0x00>;
-				rt5033,led2-gpio = <&msm_gpio 36 0x00>;
-				pinctrl-names = "fled_default","fled_sleep";
-				pinctrl-0 = <&cam_flash_active>;
-				pinctrl-1 = <&cam_flash_sleep>;
-			};
+            rt5033_fled {
+                compatible = "richtek,rt5033-fled";
+                enable = <1 1>;
+                mid_track_alive = <0>;
+                mid_auto_track_en = <0>;
+                timeout_current_level = <50>;
+                strobe_current = <500>;
+                strobe_timeout = <544>;
+                torch_current = <38>;
+                lv_protection = <3000>;
+                mid_level = <4400>;
+                rt5033,led1-gpio = <&msm_gpio 34 0x00>;
+                rt5033,led2-gpio = <&msm_gpio 36 0x00>;
+            };
 		};
 	};
 
@@ -259,6 +257,42 @@
 		compatible = "qcom,i2c-msm-v2";
 		qcom,scl-gpio = <&msm_gpio 7 0>;
 		qcom,sda-gpio = <&msm_gpio 6 0>;
+		k303c_acc@1d {
+			compatible = "k303c_acc";
+			reg = <0x1d>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <115 0>;
+			k303c_acc,vdd-supply = <&pm8916_l17>;
+			k303c_acc,vio-supply = <&pm8916_l5>;
+			k303c_acc,gpio_int1 = <&msm_gpio 115 0x00>;
+			k303c_acc,fs_range = <0x00>;
+			k303c_acc,axis_map_x = <1>;
+			k303c_acc,axis_map_y = <0>;
+			k303c_acc,axis_map_z = <2>;
+			k303c_acc,negate_x = <1>;
+			k303c_acc,negate_y = <0>;
+			k303c_acc,negate_z = <1>;
+			k303c_acc,poll_interval = <100>;
+			k303c_acc,min_interval = <2>;
+		};
+		k303c_mag@1e {
+			compatible = "k303c_mag";
+			reg = <0x1e>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <69 0>;
+			k303c_mag,irq_gpio = <&msm_gpio 69 0x1>;
+			k303c_mag,vdd-supply = <&pm8916_l17>;
+			k303c_mag,vio-supply = <&pm8916_l5>;
+			k303c_mag,poll_interval = <100>;
+			k303c_mag,min_interval = <13>;
+			k303c_mag,fs_range = <0x60>;
+			k303c_mag,axis_map_x = <1>;
+			k303c_mag,axis_map_y = <0>;
+			k303c_mag,axis_map_z = <2>;
+			k303c_mag,negate_x = <1>;
+			k303c_mag,negate_y = <0>;
+			k303c_mag,negate_z = <1>;
+		};
 		cm36652@60 {
 			compatible = "cm36652";
 			reg = <0x60>;
@@ -271,9 +305,9 @@
 			cm36652,irq_gpio = <&msm_gpio 113 0x1>;
 			cm36652,vdd-supply = <&pm8916_l17>;
 			cm36652,vio-supply = <&pm8916_l5>;
-			cm36652,default_hi_thd = <20>;
-			cm36652,default_low_thd = <17>;
-			cm36652,cancel_hi_thd = <10>;
+			cm36652,default_hi_thd = <11>;
+			cm36652,default_low_thd = <7>;
+			cm36652,cancel_hi_thd = <11>;
 			cm36652,cancel_low_thd = <7>;
 		};
 		bma_acc@10 {

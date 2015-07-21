@@ -319,15 +319,6 @@ void board_battery_init(struct platform_device *pdev, struct sec_battery_info *b
 	battery->pdata->temp_low_threshold_lpm = TEMP_LOW_THRESHOLD_LPM;
 	battery->pdata->temp_low_recovery_lpm = TEMP_LOW_RECOVERY_LPM;
 
-#if defined(CONFIG_BATTERY_SWELLING)
-	battery->swelling_temp_high_threshold = BATT_SWELLING_HIGH_TEMP_BLOCK;
-	battery->swelling_temp_high_recovery = BATT_SWELLING_HIGH_TEMP_RECOV;
-	battery->swelling_temp_low_threshold = BATT_SWELLING_LOW_TEMP_BLOCK;
-	battery->swelling_temp_low_recovery = BATT_SWELLING_LOW_TEMP_RECOV;
-	battery->swelling_recharge_voltage = BATT_SWELLING_RECHG_VOLTAGE;
-	battery->swelling_block_time = BATT_SWELLING_BLOCK_TIME;
-#endif
-
 	adc_init_type(pdev, battery);
 }
 
@@ -340,28 +331,22 @@ void board_fuelgauge_init(struct sec_fuelgauge_info *fuelgauge)
 
 void cable_initial_check(struct sec_battery_info *battery)
 {
-	union power_supply_propval value;
+  union power_supply_propval value;
 
-	pr_info("%s : current_cable_type : (%d)\n", __func__, current_cable_type);
-	if (POWER_SUPPLY_TYPE_BATTERY != current_cable_type) {
-		if (current_cable_type == POWER_SUPPLY_TYPE_POWER_SHARING) {
-			value.intval = current_cable_type;
-			psy_do_property("ps", set,
-					POWER_SUPPLY_PROP_ONLINE, value);
-		} else {
-			value.intval = current_cable_type;
-			psy_do_property("battery", set,
-					POWER_SUPPLY_PROP_ONLINE, value);
-		}
-	} else {
-		psy_do_property(battery->pdata->charger_name, get,
-				POWER_SUPPLY_PROP_ONLINE, value);
-		if (value.intval == POWER_SUPPLY_TYPE_WIRELESS) {
-			value.intval = 1;
-			psy_do_property("wireless", set,
-					POWER_SUPPLY_PROP_ONLINE, value);
-		}
-	}
+  pr_info("%s : current_cable_type : (%d)\n", __func__, current_cable_type);
+  if (POWER_SUPPLY_TYPE_BATTERY != current_cable_type) {
+    value.intval = current_cable_type;
+    psy_do_property("battery", set,
+        POWER_SUPPLY_PROP_ONLINE, value);
+  } else {
+    psy_do_property(battery->pdata->charger_name, get,
+        POWER_SUPPLY_PROP_ONLINE, value);
+    if (value.intval == POWER_SUPPLY_TYPE_WIRELESS) {
+      value.intval = 1;
+      psy_do_property("wireless", set,
+          POWER_SUPPLY_PROP_ONLINE, value);
+    }
+  }
 }
 
 EXPORT_SYMBOL(cable_initial_check);

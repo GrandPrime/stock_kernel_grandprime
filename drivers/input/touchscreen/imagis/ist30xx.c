@@ -1091,27 +1091,12 @@ void ist30xx_set_cover_mode(int mode)
 }
 EXPORT_SYMBOL(ist30xx_set_cover_mode);
 
-#ifdef USE_TSP_TA_CALLBACKS
-void charger_enable(struct tsp_callbacks *cb, int enable)
-{
-	bool charging = enable ? true : false;
-
-	ist30xx_set_ta_mode(charging);
-}
-
-static void ist30xx_register_callback(struct tsp_callbacks *cb)
-{
-	charger_callbacks = cb;
-	pr_info("%s\n", __func__);
-}
-#else
 void charger_enable(int enable)
 {
 	bool charging = enable ? true : false;
 
 	ist30xx_set_ta_mode(charging);
 }
-#endif
 
 static void reset_work_func(struct work_struct *work)
 {
@@ -1601,13 +1586,6 @@ static int ist30xx_probe(struct i2c_client *		client,
 	event_timer.function = timer_handler;
 	event_timer.expires = jiffies_64 + (EVENT_TIMER_INTERVAL);
 	mod_timer(&event_timer, get_jiffies_64() + EVENT_TIMER_INTERVAL);
-
-#ifdef USE_TSP_TA_CALLBACKS
-	data->register_cb = ist30xx_register_callback;
-	data->callbacks.inform_charger = charger_enable;
-	if (data->register_cb)
-		data->register_cb(&data->callbacks);
-#endif
 
 	ist30xx_initialized = 1;
 	tsp_err("%s: Probe end\n", __func__);

@@ -20,14 +20,6 @@ menuconfig SENSORS
 
 	  If unsure, say Y.
 
-config SENSORS_AK09911C
-	tristate "AK09911C compass support"
-	default n
-	depends on I2C
-	help
-	  If you say yes here you get support for Asahi Kasei's
-	  orientation sensor AK09911C.
-
 config SENSORS_K2HH
 	depends on I2C
 	tristate "SENSORS_K2HH"

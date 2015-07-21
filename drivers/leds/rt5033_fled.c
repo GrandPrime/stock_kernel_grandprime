@@ -38,9 +38,8 @@
     printk(KERN_ERR "%s:%s() line-%d: " format, \
             ALIAS_NAME, __FUNCTION__, __LINE__, ## args)
 
-#if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_O1_PROJECT) \
-	|| defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
-#define FLED_PINCTRL_STATE_DEFAULT "fled_default"
+#if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_FORTUNA_PROJECT)
+#define FLED_PINCTRL_STATE_DEFAULT "fled_defualt"
 #define FLED_PINCTRL_STATE_SLEEP "fled_sleep"
 #endif
 
@@ -93,8 +92,7 @@ static int rt5033_set_fled_osc_en(struct i2c_client *iic, int en)
 static ssize_t flash_store(struct device *dev, struct device_attribute *attr,
                          const char *buf, size_t count)
 {
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_MACH_VIVALTO_AUS)|| defined(CONFIG_MACH_A3_CHN_OPEN) \
-	|| defined(CONFIG_SEC_O1_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
+#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_MACH_VIVALTO_AUS)
 	int sel = 0;
 	rt_fled_info_t *fled_info = rt_fled_get_info_by_name(NULL);
 #endif
@@ -110,8 +108,7 @@ static ssize_t flash_store(struct device *dev, struct device_attribute *attr,
 	} else if(*buf == '1'){
 		assistive_light = true;
 		pr_err("Torch HIGH\n");
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_MACH_A3_CHN_OPEN) \
-	|| defined(CONFIG_SEC_O1_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
+#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_MACH_VIVALTO_AUS)
 		if (fled_info)
 			sel = rt5033_fled_set_torch_current_sel(fled_info, 2);
 #endif
@@ -119,8 +116,7 @@ static ssize_t flash_store(struct device *dev, struct device_attribute *attr,
 		gpio_direction_output(led_irq_gpio1, 1);
 		gpio_free(led_irq_gpio1);
 	}
-#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_MACH_VIVALTO_AUS) || defined(CONFIG_MACH_A3_CHN_OPEN) \
-	|| defined(CONFIG_SEC_O1_PROJECT)
+#if defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_MACH_VIVALTO_AUS)
 	else if(*buf == '8'){
 		pr_err("Torch Factory : led_irq_gpio1(%d)_irq_gpio2(%d)\n", led_irq_gpio1, led_irq_gpio2);
 		gpio_request(led_irq_gpio1, NULL);
@@ -1010,8 +1006,7 @@ static int rt5033_fled_probe(struct platform_device *pdev)
 	create_flash_sysfs();
 #endif
 
-#if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_O1_PROJECT) \
-	|| defined(CONFIG_SEC_A3_PROJECT) || defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
+#if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_FORTUNA_PROJECT)
 	pdata->fled_pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR_OR_NULL(pdata->fled_pinctrl)) {
 		pr_err("%s:%d Getting pinctrl handle failed\n",
