@@ -38,8 +38,9 @@
     printk(KERN_ERR "%s:%s() line-%d: " format, \
             ALIAS_NAME, __FUNCTION__, __LINE__, ## args)
 
-#if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_FORTUNA_PROJECT)
-#define FLED_PINCTRL_STATE_DEFAULT "fled_defualt"
+#if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
+	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
+#define FLED_PINCTRL_STATE_DEFAULT "fled_default"
 #define FLED_PINCTRL_STATE_SLEEP "fled_sleep"
 #endif
 
@@ -1006,7 +1007,8 @@ static int rt5033_fled_probe(struct platform_device *pdev)
 	create_flash_sysfs();
 #endif
 
-#if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_FORTUNA_PROJECT)
+#if defined(CONFIG_SEC_KLEOS_PROJECT) || defined(CONFIG_SEC_FORTUNA_PROJECT) || defined(CONFIG_SEC_A3_PROJECT) \
+	|| defined(CONFIG_SEC_A3_EUR_PROJECT) || defined(CONFIG_SEC_A33G_EUR_PROJECT)
 	pdata->fled_pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR_OR_NULL(pdata->fled_pinctrl)) {
 		pr_err("%s:%d Getting pinctrl handle failed\n",

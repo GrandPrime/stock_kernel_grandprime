@@ -481,7 +481,7 @@ int msm_camera_config_single_vreg(struct device *dev,
 		}
 		CDBG("%s enable %s\n", __func__, cam_vreg->reg_name);
 		if (!strncmp(cam_vreg->reg_name, "cam_vdig", 7)) {
-#if defined(CONFIG_MACH_ROSSA_CMCC) || defined(CONFIG_MACH_VIVALTO_AUS)|| defined(CONFIG_MACH_ROSSA_CTC) || defined(CONFIG_MACH_ROSSA_SPR) || defined(CONFIG_MACH_ROSSA_TFN) || defined(CONFIG_MACH_ROSSA_AUS)
+#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_MACH_VIVALTO_AUS)
 			*reg_ptr = regulator_get(dev, "CAM_SENSOR_IO_1.8V");
 #else
 			*reg_ptr = regulator_get(dev, "CAM_SENSOR_CORE_1.2V");

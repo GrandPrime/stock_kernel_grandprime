@@ -59,6 +59,8 @@ else ifeq ($(CONFIG_FB_MSM_MIPI_HX8389C_QHD_VIDEO_PANEL),y)
 mdss-dsi-objs += mdss_hx8389c_qHD_dsi_panel.o
 else ifeq ($(CONFIG_FB_MSM_MIPI_NT35502_WVGA_VIDEO_PANEL),y)
 mdss-dsi-objs += mdss_nt35502_wvga_dsi_panel.o
+else ifeq ($(CONFIG_FB_MSM_MIPI_SHARP_HD_VIDEO_PANEL),y)
+mdss-dsi-objs += mdss_sharp_dsi_panel.o
 else
 mdss-dsi-objs += mdss_dsi_panel.o
 endif

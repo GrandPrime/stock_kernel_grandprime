@@ -46,14 +46,24 @@ dtb-$(CONFIG_SEC_A33G_EUR_PROJECT) += msm8916-sec-a33g-eur-r00.dtb \
 ifeq ($(CONFIG_SEC_ROSSA_PROJECT),y)
 	ifeq ($(CONFIG_MACH_ROSSA_SPR),y)
 		dtb-y += msm8916-sec-rossaspr-r00.dtb
+		dtb-y += msm8916-sec-rossaspr-r01.dtb
 	else ifeq ($(CONFIG_MACH_ROSSA_TFN),y)
 		dtb-y += msm8916-sec-rossaspr-r00.dtb
+		dtb-y += msm8916-sec-rossaspr-r01.dtb
+	else ifeq ($(CONFIG_MACH_ROSSA_VZW),y)
+		dtb-y += msm8916-sec-rossaspr-r00.dtb
+		dtb-y += msm8916-sec-rossaspr-r01.dtb
 	else ifeq ($(CONFIG_MACH_ROSSA_AUS),y)
-		dtb-y += msm8916-sec-rossa-aus-r02.dtb
+		dtb-y += msm8916-sec-rossa-aus-r02.dtb \
+			msm8916-sec-rossa-aus-r03.dtb
+	else ifeq ($(CONFIG_MACH_ROSSA_AIO),y)
+		dtb-y += msm8916-sec-rossa-aio-r00.dtb
 	else
 		dtb-y += msm8916-sec-rossa-r00.dtb \
 			msm8916-sec-rossa-r01.dtb \
-			msm8916-sec-rossa-r02.dtb
+			msm8916-sec-rossa-r02.dtb \
+			msm8916-sec-rossa-r03.dtb \
+			msm8916-sec-rossa-r04.dtb
 	endif
 endif
 ifeq ($(CONFIG_SEC_FORTUNA_PROJECT),y)
@@ -80,6 +90,7 @@ ifeq ($(CONFIG_SEC_FORTUNA_PROJECT),y)
 		endif
 	endif
 endif
+dtb-$(CONFIG_SEC_O1_PROJECT) += msm8916-sec-o1-r00.dtb
 dtb-$(CONFIG_SEC_GPEN_PROJECT) += msm8916-sec-gpen-r00.dtb
 dtb-$(CONFIG_SEC_VIVALTO_PROJECT) += msm8916-sec-vivalto-r00.dtb
 dtb-$(CONFIG_SEC_HEAT_PROJECT) += msm8916-sec-heat-r00.dtb \

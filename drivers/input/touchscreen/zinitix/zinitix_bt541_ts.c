@@ -565,6 +565,7 @@ struct bt541_ts_info {
 	struct regulator *vddo_vreg;
 	struct regulator *vdd_en;
 	bool device_enabled;
+	bool checkUMSmode;
 };
 /* Dummy touchkey code */
 #define KEY_DUMMY_HOME1		249
@@ -1280,6 +1281,8 @@ static void ts_select_type_hw(struct bt541_ts_info *info) {
 	int i;
 	u16 newHWID;
 
+/* In case of TSP IC's firmware is broken,
+	it will always be updated to HW ID 02 firmware even though HW 01 device exists*/
 	for(i = 0; i < TSP_TYPE_COUNT; i++) {
 		newHWID = (u16) (m_pFirmware[i][0x7528] | (m_pFirmware[i][0x7529]<<8));
 		
@@ -1290,7 +1293,7 @@ static void ts_select_type_hw(struct bt541_ts_info *info) {
 	m_FirmwareIdx = i;
 	if(i == TSP_TYPE_COUNT)
 		m_FirmwareIdx = 1;
-	zinitix_printk(KERN_INFO "firmwaretype = %d Firmware HWID = %u IC hw_id = %u i = %d \n",
+	zinitix_printk(KERN_INFO "firmwaretype = %d Firmware HWID = %u cap_info.hw_id = %u i = %d \n",
 		m_FirmwareIdx, newHWID, info->cap_info.hw_id, i);
 #endif
 }
@@ -1832,7 +1835,7 @@ retry_init:
 #if TOUCH_ONESHOT_UPGRADE
 	if ((checkMode == NULL) &&(ts_check_need_upgrade(info, cap->fw_version,
 			cap->fw_minor_version, cap->reg_data_version,
-								cap->hw_id) == true)) {
+			cap->hw_id) == true) && (info->checkUMSmode == false)) {
 		zinitix_printk("start upgrade firmware\n");
 
 		if (ts_upgrade_firmware(info, m_pFirmware[m_FirmwareIdx],
@@ -2986,8 +2989,9 @@ static void fw_update(void *device_data)
 		filp_close(fp, current->files);
 		set_fs(old_fs);
 		dev_info(&client->dev, "ums fw is loaded!!\n");
-
+		info->checkUMSmode = true;
 		ret = ts_upgrade_sequence((u8 *)buff);
+		info->checkUMSmode = false;
 		if(ret<0) {
 			kfree(buff);
 			info->factory_info->cmd_state = 3;
@@ -4750,6 +4754,7 @@ static int bt541_ts_probe(struct i2c_client *client,
 	/* init touch mode */
 	info->touch_mode = TOUCH_POINT_MODE;
 	misc_info = info;
+	info->checkUMSmode = false;
 
 	if (init_touch(info) == false) {
 		ret = -EPERM;

@@ -1068,7 +1068,9 @@ source "drivers/input/touchscreen/gt9xx/Kconfig"
 source "drivers/input/touchscreen/imagis/Kconfig"
 source "drivers/input/touchscreen/imagis_core3/Kconfig"
 source "drivers/input/touchscreen/imagis_ist30xxb/Kconfig"
+source "drivers/input/touchscreen/imagis_o1/Kconfig"
 source "drivers/input/touchscreen/melfas_mms136/Kconfig"
 source "drivers/input/touchscreen/cyttsp4/Kconfig"
 source "drivers/input/touchscreen/zinitix/Kconfig"
+
 endif

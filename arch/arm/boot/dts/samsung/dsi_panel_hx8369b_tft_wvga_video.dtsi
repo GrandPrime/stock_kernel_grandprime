@@ -31,7 +31,7 @@
 		qcom,mdss-dsi-stream = <0>;
 		qcom,mdss-dsi-panel-width = <480>;
 		qcom,mdss-dsi-panel-height = <800>;
-              qcom,mdss-pan-physical-width-dimension = <62>; /* <Width> real size of panel in mm */
+		qcom,mdss-pan-physical-width-dimension = <62>; /* <Width> real size of panel in mm */
 		qcom,mdss-pan-physical-height-dimension = <106>; /*<Height> real size of panel in mm */
 		qcom,mdss-dsi-lp11-init;
 		qcom,mdss-dsi-init-delay-us = <100>;
@@ -50,6 +50,7 @@
 		qcom,mdss-dsi-v-pulse-width-dtc = <4>;
 		qcom,mdss-dsi-h-front-porch-boe = <110>;
 		qcom,mdss-dsi-h-back-porch-boe = <110>;
+		qcom,mdss-dsi-h-back-porch-boe-ctc = <93>;/*MIPI 408Mhz porch for Rossa CTC*/
 		qcom,mdss-dsi-h-pulse-width-boe = <4>;
 		qcom,mdss-dsi-v-back-porch-boe = <12>;
 		qcom,mdss-dsi-v-front-porch-boe= <10>;
@@ -82,6 +83,7 @@
               qcom,mdss-dsi-t-clk-pre-dtc = <0x15>;
 		qcom,mdss-dsi-t-clk-post-dtc = <0x04>;
 		qcom,mdss-dsi-panel-timings-boe = [51 14 0C 00 36 38 12 18 1B 03 04 00];
+		qcom,mdss-dsi-panel-timings-boe-ctc = [33 1A 10 00 3C 42 14 1C 15 03 04 00];/*MIPI 408Mhz timing for Rossa CTC*/
               qcom,mdss-dsi-t-clk-pre-boe = <0x15>;
 		qcom,mdss-dsi-t-clk-post-boe = <0x04>;
 		qcom,mdss-dsi-on-command = [
@@ -276,7 +278,7 @@
 										 13 1A 00 02 04 2C 32 3F 0F 31 05 0B 0E 11 14 12 
 										 13 13 1A 01
 					/* < Display on Sequence> */
-					39 01 00 00 00 00 03 C9 0F 00
+					39 01 00 00 00 00 03 C9 0F 01
 					39 01 00 00 00 00 02 55 00
 					39 01 00 00 00 00 02 53 24
 					05 01 00 00 78 00 02 11 00

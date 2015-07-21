@@ -221,8 +221,8 @@ static void rt5033_enable_charger_switch(struct rt5033_charger_data *charger,
 		if ((val.intval == POWER_SUPPLY_STATUS_NOT_CHARGING) || (val.intval == POWER_SUPPLY_STATUS_FULL) || (val.intval == POWER_SUPPLY_STATUS_CHARGING))
 			rt5033_set_bits(iic, RT5033_CHG_STAT_CTRL, RT5033_CHGENB_MASK);
 	} else {
-	    pr_info("%s: repeated to set charger switch(%d), prev stat = %d\n",
-             __func__, onoff, prev_charging_status ? 1 : 0);
+		pr_info("%s: repeated to set charger switch(%d), prev stat = %d\n",
+				__func__, onoff, prev_charging_status ? 1 : 0);
 	}
 }
 
@@ -560,8 +560,18 @@ EXPORT_SYMBOL(rt5033_chg_fled_init);
 /* here is set init charger data */
 static bool rt5033_chg_init(struct rt5033_charger_data *charger)
 {
+	int ret;
 	rt5033_mfd_chip_t *chip = i2c_get_clientdata(charger->rt5033->i2c_client);
 	chip->charger = charger;
+
+	ret = rt5033_reg_read(charger->rt5033->i2c_client, RT5033_UUG);
+	if ( ret != 0x47 ) {
+		/* Force to enable OSC (Reg0x1a[5]) and then send CHG reset command */
+		rt5033_set_bits(charger->rt5033->i2c_client, 0x1a, 0x20);
+		rt5033_set_bits(charger->rt5033->i2c_client, RT5033_CHG_RESET, 0x80);
+
+		pr_err("%s 0x19h = 0x%x, CHG reset !!! \n",__func__, ret);
+	}
 	rt5033_chg_fled_init(charger->rt5033->i2c_client);
     /* Disable Timer function (Charging timeout fault) */
     rt5033_clr_bits(charger->rt5033->i2c_client,
@@ -739,6 +749,7 @@ static int sec_chg_set_property(struct power_supply *psy,
 	struct rt5033_charger_data *charger =
 	    container_of(psy, struct rt5033_charger_data, psy_chg);
 
+	union power_supply_propval value;
 	int eoc;
 	int previous_cable_type = charger->cable_type;
 
@@ -754,6 +765,17 @@ static int sec_chg_set_property(struct power_supply *psy,
 			rt5033_enable_charger_switch(charger, 0);
 			if (previous_cable_type == POWER_SUPPLY_TYPE_OTG)
 				rt5033_charger_otg_control(charger, false);
+		} else if (charger->cable_type == POWER_SUPPLY_TYPE_POWER_SHARING) {
+			psy_do_property("ps", get,
+					POWER_SUPPLY_PROP_STATUS, value);
+			if(value.intval) {
+				rt5033_charger_otg_control(charger, true);
+				pr_info("%s: Power sharing enable\n", __func__);
+			} else {
+				rt5033_charger_otg_control(charger, false);
+				pr_info("%s: Power sharing disable\n", __func__);
+			}
+			break;
 		} else if (charger->cable_type == POWER_SUPPLY_TYPE_OTG) {
 			pr_info("%s: OTG mode\n", __func__);
 			rt5033_charger_otg_control(charger, true);
@@ -959,11 +981,11 @@ static irqreturn_t rt5033_chg_ieoc_irq_handler(int irq, void *data)
 {
 	struct rt5033_charger_data *info = data;
 	struct i2c_client *iic = info->rt5033->i2c_client;
-    int eoc_reg;
+	int eoc_reg;
 
 	cancel_delayed_work(&info->eoc_timeout_work);
 	mutex_lock(&info->io_lock);
-    info->eoc_cnt++;
+	info->eoc_cnt++;
 	mutex_unlock(&info->io_lock);
 	pr_info("%s : EOC CNT = %d / %d\n", __func__,
 		info->eoc_cnt, EOC_DEBOUNCE_CNT);
