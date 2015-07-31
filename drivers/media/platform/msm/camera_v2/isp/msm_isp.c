@@ -208,6 +208,7 @@ static int vfe_probe(struct platform_device *pdev)
 		match_dev = of_match_device(msm_vfe_dt_match, &pdev->dev);
 		if (!match_dev) {
 			pr_err("%s: No vfe hardware info\n", __func__);
+			kfree(vfe_dev);
 			return -EINVAL;
 		}
 		vfe_dev->hw_info =
@@ -219,6 +220,7 @@ static int vfe_probe(struct platform_device *pdev)
 
 	if (!vfe_dev->hw_info) {
 		pr_err("%s: No vfe hardware info\n", __func__);
+		kfree(vfe_dev);
 		return -EINVAL;
 	}
 	ISP_DBG("%s: device id = %d\n", __func__, pdev->id);
@@ -249,7 +251,7 @@ static int vfe_probe(struct platform_device *pdev)
 	mutex_init(&vfe_dev->core_mutex);
 	spin_lock_init(&vfe_dev->tasklet_lock);
 	spin_lock_init(&vfe_dev->shared_data_lock);
-#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
+#if defined(CONFIG_SR200PC20) && defined(CONFIG_SR544)
 	spin_lock_init(&vfe_dev->sof_lock);
 #endif
 	media_entity_init(&vfe_dev->subdev.sd.entity, 0, NULL, 0);

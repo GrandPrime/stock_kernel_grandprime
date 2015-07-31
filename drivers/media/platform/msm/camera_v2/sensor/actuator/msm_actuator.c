@@ -19,7 +19,6 @@
 
 DEFINE_MSM_MUTEX(msm_actuator_mutex);
 
-/*#define MSM_ACUTUATOR_DEBUG*/
 #undef CDBG
 #ifdef MSM_ACUTUATOR_DEBUG
 #define CDBG(fmt, args...) pr_err(fmt, ##args)
@@ -599,10 +598,12 @@ static int32_t msm_actuator_vcm_set_position(
     struct msm_actuator_ctrl_t *a_ctrl,
     struct msm_actuator_set_position_t *set_pos)
 {
+
    int32_t rc = 0;
    int32_t index;
    uint16_t pos, delay;
    struct msm_camera_i2c_reg_setting reg_setting;
+
    CDBG("%s Enter : steps = %d\n", __func__, set_pos->number_of_steps);
 
    if (set_pos->number_of_steps  == 0)
@@ -766,66 +767,128 @@ static int32_t msm_actuator_vcm_sw_landing(
 	struct msm_actuator_ctrl_t *a_ctrl,
 	struct msm_actuator_move_params_t *move_params)
 {
-   int32_t rc = 0;
-   struct msm_camera_i2c_reg_setting reg_setting;
-   struct damping_params_t *damping_params;
-   struct damping_params_t damping_params_k;
-   int16_t pos_index, First_damping_lens_pos, Second_damping_lens_pos, damp_delay, damp_step, lens_pos;
+	int32_t rc = 0;
+	struct msm_camera_i2c_reg_setting reg_setting;
+	struct damping_params_t *damping_params;
+	struct damping_params_t damping_params_k;
+	struct damping_params_t damping_params_sacoff;
 
-   if(a_ctrl == NULL || a_ctrl->step_position_table == NULL || move_params == NULL || move_params->ringing_params == NULL)
-   {
-      pr_err("%s %d NULL Pointer\n", __func__, __LINE__);
-      return 0;
-   }
+	int16_t pos_index, First_damping_lens_pos, Second_damping_lens_pos, damp_delay, damp_step, lens_pos;
 
-   CDBG("%s Enter %d\n", __func__, __LINE__);
-   /*get first and second damping position, damp delay and step*/
-   if (copy_from_user(&damping_params_k,&move_params->ringing_params[2],sizeof(struct damping_params_t))) {
-      pr_err("%s:copy from user failed\n",__func__);
-      return -EFAULT;
-   }
-   damping_params = &damping_params_k;
-   damp_delay = damping_params->damping_delay;
-   damp_step = damping_params->damping_step;
-   pos_index = damping_params->hw_params;
-   First_damping_lens_pos = a_ctrl->step_position_table[pos_index];
-   Second_damping_lens_pos = (First_damping_lens_pos>>2);
-   CDBG("%s %d First damping index =%d, First_damping_lens_pos=%d, Second_damping_lens_pos=%d\n",
-        __func__,__LINE__, pos_index, First_damping_lens_pos, Second_damping_lens_pos);
-   CDBG("%s %d damp_delay=%d, damp_step=%d\n", __func__, __LINE__, damp_delay, damp_step);
-   /*set the starting lens pos to first damping lens pos*/
-   lens_pos = First_damping_lens_pos;//
-   CDBG("%s %d curr_lens_pos=%d\n", __func__, __LINE__, lens_pos);
+	if(a_ctrl == NULL || a_ctrl->step_position_table == NULL || move_params == NULL || move_params->ringing_params == NULL)
+	{
+		pr_err("%s %d NULL Pointer\n", __func__, __LINE__);
+		return 0;
+	}
 
-   /*set the landing position in the table*/
-   CDBG("%s %d set the landing position in the table\n", __func__, __LINE__);
-   a_ctrl->i2c_tbl_index = 0;
-   do{
-       if(lens_pos <= Second_damping_lens_pos) break;
-       else{
-           lens_pos -= damp_step;
-           msm_actuator_set_position_tbl(a_ctrl, lens_pos, damp_delay);
-       }
-   }while(lens_pos > Second_damping_lens_pos);
+	CDBG("%s Enter %d\n", __func__, __LINE__);
+	/*get first and second damping position, damp delay and step*/
+	if (copy_from_user(&damping_params_k,&move_params->ringing_params[2],sizeof(struct damping_params_t))) {
+		pr_err("%s:copy from user failed\n",__func__);
+		return -EFAULT;
+	}
 
-   /*set final position*/
-   CDBG("%s %d set the final position in the table\n", __func__, __LINE__);
-   lens_pos = 0;
-   msm_actuator_set_position_tbl(a_ctrl, lens_pos, damp_delay);
+	if (copy_from_user(&damping_params_sacoff,&move_params->ringing_params[3],sizeof(struct damping_params_t))) {
+		pr_err("%s:copy from user failed\n",__func__);
+		return -EFAULT;
+	}
 
-   /*write i2c */
-   CDBG("%s %d write i2c\n", __func__, __LINE__);
-   reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
-   reg_setting.data_type = a_ctrl->i2c_data_type;
-   reg_setting.size = a_ctrl->i2c_tbl_index;
-   rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write_table_w_microdelay(
-       &a_ctrl->i2c_client, &reg_setting);
-   if (rc < 0) {
-     pr_err("%s Failed I2C write Line %d\n", __func__, __LINE__);
-     return rc;
-   }
+	damping_params = &damping_params_k;
+	damp_delay = damping_params->damping_delay;
+	damp_step = damping_params->damping_step;
+	pos_index = (damping_params->hw_params&0xffff); // low 4byte : ker index, high 4byte : dac
 
-   return rc;
+	if (pos_index > a_ctrl->total_steps) {
+		pr_err("Step pos greater than total steps = %d\n", pos_index);
+		return -EFAULT;
+	}
+	First_damping_lens_pos = a_ctrl->step_position_table[pos_index];//
+	Second_damping_lens_pos =  (First_damping_lens_pos>>2) ; //  for old version
+
+	CDBG("%s %d First damping index =%d, First_damping_lens_pos=%d, Second_damping_lens_pos=%d\n",
+			__func__,__LINE__, pos_index, First_damping_lens_pos, Second_damping_lens_pos);
+	CDBG("%s %d damp_delay=%d, damp_step=%d\n", __func__, __LINE__, damp_delay, damp_step);
+	/*set the starting lens pos to first damping lens pos*/
+	lens_pos = First_damping_lens_pos;//
+	CDBG("%s %d curr_lens_pos=%d\n", __func__, __LINE__, lens_pos);
+
+	/*set the landing position in the table*/
+	CDBG("%s %d set the landing position in the table\n", __func__, __LINE__);
+
+	// 1. Go to pan_focus//
+	if(damping_params_sacoff.damping_step & 0x1 )
+	{
+		Second_damping_lens_pos = ((damping_params->hw_params>>16)&0xffff); // default 0, dac value
+		if (Second_damping_lens_pos < 0)
+			Second_damping_lens_pos = 0;
+		CDBG("%s %d First damping index new =%d, First_damping_lens_pos=%d, Second_damping_lens_pos=%d\n",
+			__func__,__LINE__, pos_index, First_damping_lens_pos, Second_damping_lens_pos);
+		a_ctrl->i2c_tbl_index = 0;
+		msm_actuator_set_position_tbl(a_ctrl, lens_pos, damp_delay);
+		CDBG("%s %d i2c_tbl_index %d\n", __func__, __LINE__, a_ctrl->i2c_tbl_index);
+
+		/*write i2c */
+		CDBG("%s %d write i2c\n", __func__, __LINE__);
+		reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
+		reg_setting.data_type = a_ctrl->i2c_data_type;
+		reg_setting.size = a_ctrl->i2c_tbl_index;
+		//reg_setting.delay = 0;
+		rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write_table_w_microdelay(
+			&a_ctrl->i2c_client, &reg_setting);
+		if (rc < 0) {
+			pr_err("%s Failed I2C write Line %d\n", __func__, __LINE__);
+			return rc;
+	   }
+		CDBG("%s %d Go to pan_focus, lens_pos=%d\n", __func__, __LINE__, lens_pos);
+	}
+
+	// 2. SAC mode off//
+	if(damping_params_sacoff.damping_step & 0x02 )
+	{
+
+		uint16_t addr, data ;
+		addr = ((damping_params_sacoff.hw_params>>16)&0xffff); // 0x02
+		data = ((damping_params_sacoff.hw_params)&0xffff); // 0x00
+		usleep_range(damping_params_sacoff.damping_delay , damping_params_sacoff.damping_delay+1000);   //10 msec
+		rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+								&a_ctrl->i2c_client, addr,data, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0) {
+			pr_err("%s Failed I2C write Line %d\n", __func__, __LINE__);
+			return rc;
+		}
+		CDBG("%s  SAC mode off delay=%d, addr=0x%x, data =0x%x \n", __func__, damping_params_sacoff.damping_delay, addr, data);
+	}
+
+	// 3. Start SW landing//
+	/*set the landing position in the table*/
+	CDBG("%s %d set the landing position in the table\n", __func__, __LINE__);
+	a_ctrl->i2c_tbl_index = 0;
+	do{
+		if(lens_pos < Second_damping_lens_pos + damp_step) break;
+		else{
+			lens_pos -= damp_step;
+			msm_actuator_set_position_tbl(a_ctrl, lens_pos, damp_delay);
+		}
+	}while(lens_pos > Second_damping_lens_pos);
+
+	/*set final position*/
+	CDBG("%s %d set the final position in the table\n", __func__, __LINE__);
+	lens_pos = 0;
+	msm_actuator_set_position_tbl(a_ctrl, lens_pos, damp_delay);
+
+	/*write i2c */
+	CDBG("%s %d write i2c\n", __func__, __LINE__);
+	reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
+	reg_setting.data_type = a_ctrl->i2c_data_type;
+	reg_setting.size = a_ctrl->i2c_tbl_index;
+	rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write_table_w_microdelay(
+			&a_ctrl->i2c_client, &reg_setting);
+	if (rc < 0) {
+		pr_err("%s Failed I2C write Line %d\n", __func__, __LINE__);
+		return rc;
+	}
+
+	return rc;
 }
 
 static int msm_actuator_init(struct msm_actuator_ctrl_t *a_ctrl)
@@ -852,6 +915,10 @@ static int32_t msm_actuator_config(struct msm_actuator_ctrl_t *a_ctrl,
 	struct msm_actuator_cfg_data *cdata =
 		(struct msm_actuator_cfg_data *)argp;
 	int32_t rc = 0;
+
+	if (!a_ctrl)
+		return -1;
+
 	mutex_lock(a_ctrl->actuator_mutex);
 	CDBG("Enter\n");
 	CDBG("%s type %d\n", __func__, cdata->cfgtype);
@@ -900,9 +967,9 @@ static int32_t msm_actuator_config(struct msm_actuator_ctrl_t *a_ctrl,
 
 	case CFG_SET_ACTUATOR_SW_LANDING:
 		if (a_ctrl && a_ctrl->func_tbl && a_ctrl->func_tbl->actuator_sw_landing) {
-		  rc = a_ctrl->func_tbl->actuator_sw_landing(a_ctrl, &cdata->cfg.move);
-		if (rc < 0)
-			pr_err("actuator_sw_landing failed %d\n", rc);
+			rc = a_ctrl->func_tbl->actuator_sw_landing(a_ctrl, &cdata->cfg.move);
+			if (rc < 0)
+				pr_err("actuator_sw_landing failed %d\n", rc);
 		}
 
 	case CFG_ACTUATOR_POWERUP:
@@ -1083,7 +1150,7 @@ static int32_t msm_actuator_i2c_probe(struct i2c_client *client,
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("i2c_check_functionality failed\n");
-		kfree(act_ctrl_t);//prevent
+		kfree(act_ctrl_t);
 		goto probe_failure;
 	}
 
@@ -1094,7 +1161,7 @@ static int32_t msm_actuator_i2c_probe(struct i2c_client *client,
 	CDBG("cell-index %d, rc %d\n", act_ctrl_t->subdev_id, rc);
 	if (rc < 0) {
 		pr_err("failed rc %d\n", rc);
-		kfree(act_ctrl_t);//prevent
+		kfree(act_ctrl_t);
 		return rc;
 	}
 

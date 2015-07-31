@@ -371,13 +371,6 @@ int msm_jpeg_platform_init(struct platform_device *pdev,
 
 	set_vbif_params(pgmn_dev, pgmn_dev->jpeg_vbif);
 
-	if (pgmn_dev->hw_version == JPEG_8939) {
-		writel_relaxed(0x0000550e,
-				jpeg_base + JPEG_FE_QOS_CFG);
-		writel_relaxed(0x00005555,
-				jpeg_base + JPEG_WE_QOS_CFG);
-	}
-
 	rc = request_irq(jpeg_irq, handler, IRQF_TRIGGER_RISING, "jpeg",
 		context);
 	if (rc) {
@@ -390,7 +383,7 @@ int msm_jpeg_platform_init(struct platform_device *pdev,
 	*base = jpeg_base;
 	*irq  = jpeg_irq;
 
-	pgmn_dev->jpeg_client = msm_ion_client_create(-1, "camera/jpeg");
+	pgmn_dev->jpeg_client = msm_ion_client_create("camera/jpeg");
 	JPEG_DBG("%s:%d] success\n", __func__, __LINE__);
 
 	pgmn_dev->state = MSM_JPEG_INIT;

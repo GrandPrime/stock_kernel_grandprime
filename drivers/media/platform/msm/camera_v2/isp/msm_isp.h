@@ -192,8 +192,6 @@ struct msm_vfe_core_ops {
 	void (*init_vbif_counters) (struct vfe_device *vfe_dev);
 	void (*vbif_clear_counters) (struct vfe_device *vfe_dev);
 	void (*vbif_read_counters) (struct vfe_device *vfe_dev);
-	int (*get_regupdate_status) (uint32_t irq_status0,
-		uint32_t irq1_mask);
 };
 struct msm_vfe_stats_ops {
 	int (*get_stats_idx) (enum msm_isp_stats_type stats_type);
@@ -478,12 +476,6 @@ struct msm_vbif_cntrs {
 	int total_vbif_cnt_2;
 };
 
-struct msm_vfe_hw_init_parms {
-	const char *entries;
-	const char *regs;
-	const char *settings;
-};
-
 struct vfe_device {
 	struct platform_device *pdev;
 	struct msm_sd_subdev subdev;
@@ -514,7 +506,7 @@ struct vfe_device {
 	uint8_t taskletq_idx;
 	spinlock_t  tasklet_lock;
 	spinlock_t  shared_data_lock;
-#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
+#if defined(CONFIG_SR200PC20) && defined(CONFIG_SR544)
 	spinlock_t  sof_lock;
 #endif
 	struct list_head tasklet_q;
@@ -530,15 +522,17 @@ struct vfe_device {
 	int dump_reg;
 	int vfe_clk_idx;
 	uint32_t vfe_open_cnt;
+	uint8_t vt_enable;
 	void __iomem *p_avtimer_msw;
 	void __iomem *p_avtimer_lsw;
 	void __iomem *p_avtimer_ctl;
 	uint8_t avtimer_scaler;
-	uint8_t vt_enable;
 	uint8_t ignore_error;
 	struct msm_isp_statistics *stats;
 	struct msm_vbif_cntrs vbif_cntrs;
 	uint32_t vfe_ub_size;
+	uint32_t frame_id;
+	uint32_t eof_event_occur;
 };
 
 #endif

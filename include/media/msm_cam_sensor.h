@@ -127,6 +127,15 @@
 #define CAMERA_EFFECT_EMBOSS		9
 #define CAMERA_EFFECT_SKETCH		10
 #define CAMERA_EFFECT_NEON			11
+#if defined(CONFIG_MACH_GT5NOTE10_KOR_OPEN)
+#define CAMERA_EFFECT_VINTAGE_WARM     12
+#define CAMERA_EFFECT_VINTAGE_COOL     13
+#define CAMERA_EFFECT_BLUE             14
+#define CAMERA_EFFECT_ORANGE           15
+#define CAMERA_EFFECT_GREEN            16
+#define CAMERA_EFFECT_BEAUTY           17
+#define CAMERA_EFFECT_MAX              18
+#else
 #define CAMERA_EFFECT_WASHED		12
 #define CAMERA_EFFECT_VINTAGE_WARM	13
 #define CAMERA_EFFECT_VINTAGE_COLD	14
@@ -136,6 +145,7 @@
 #define CAMERA_EFFECT_POINT_COLOR_4	18
 #define CAMERA_EFFECT_CARTOONIZE	19
 #define CAMERA_EFFECT_MAX			20
+#endif
 
 //scene mode
 #define CAMERA_SCENE_AUTO           0
@@ -188,7 +198,9 @@ enum sensor_stats_type {
 #define CAMERA_AF_OCR           3
 
 enum flash_type {
+#if !defined(CONFIG_FLED_SM5701)
 	LED_FLASH = 1,
+#endif
 	STROBE_FLASH,
 	GPIO_FLASH
 };
@@ -203,6 +215,7 @@ enum msm_camera_i2c_reg_addr_type {
 enum msm_camera_i2c_data_type {
 	MSM_CAMERA_I2C_BYTE_DATA = 1,
 	MSM_CAMERA_I2C_WORD_DATA,
+	MSM_CAMERA_I2C_VARIABLE_LENGTH_DATA,
 	MSM_CAMERA_I2C_SET_BYTE_MASK,
 	MSM_CAMERA_I2C_UNSET_BYTE_MASK,
 	MSM_CAMERA_I2C_SET_WORD_MASK,
@@ -440,12 +453,20 @@ enum i2c_freq_mode_t {
 struct msm_camera_i2c_reg_array {
 	uint16_t reg_addr;
 	uint16_t reg_data;
+	uint8_t  data_type;
+	uint32_t delay;
+};
+
+struct msm_camera_i2c_burst_reg_array {
+	uint16_t reg_addr;
 	uint8_t *reg_burst_data;
+	uint16_t reg_data_size;
 	uint32_t delay;
 };
 
 struct msm_camera_i2c_reg_setting {
-	struct msm_camera_i2c_reg_array *reg_setting;
+	void *reg_setting;
+	  // KK ML ONLY struct msm_camera_i2c_reg_array *reg_setting;
 	uint16_t size;
 	enum msm_camera_i2c_reg_addr_type addr_type;
 	enum msm_camera_i2c_data_type data_type;
@@ -567,8 +588,9 @@ struct msm_camera_sensor_slave_info {
 };
 
 struct sensorb_cfg_data {
-	int cfgtype;
-	union {
+    int cfgtype;
+    int flicker_type;
+    union {
 		struct msm_sensor_info_t      sensor_info;
 		struct msm_sensor_init_params sensor_init_params;
 		void                         *setting;
@@ -880,6 +902,11 @@ typedef struct
 	unsigned short shutterspeed;
 	unsigned short isFlashOn;
 } exif_data_t;
+
+enum msm_cam_flicker_type {
+	MSM_CAM_FLICKER_50HZ,
+	MSM_CAM_FLICKER_60HZ,
+};
 
 #define VIDIOC_MSM_SENSOR_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 1, struct sensorb_cfg_data)

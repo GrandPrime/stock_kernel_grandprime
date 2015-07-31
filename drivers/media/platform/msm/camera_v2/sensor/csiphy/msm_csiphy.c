@@ -112,9 +112,9 @@ static int msm_csiphy_lane_config(struct csiphy_device *csiphy_dev,
 			csiphybase +
 			csiphy_dev->ctrl_reg->csiphy_reg.
 			mipi_csiphy_lnck_cfg3_addr);
-		msm_camera_io_w(0xff,csiphybase +
+		msm_camera_io_w(0xff, csiphybase +
 			csiphy_dev->ctrl_reg->csiphy_reg.
-			mipi_csiphy_lnn_cfg4_addr);
+			mipi_csiphy_lnck_cfg4_addr);
 		msm_camera_io_w(0x24,
 			csiphybase + csiphy_dev->ctrl_reg->
 			csiphy_reg.mipi_csiphy_interrupt_mask0_addr);
@@ -133,9 +133,9 @@ static int msm_csiphy_lane_config(struct csiphy_device *csiphy_dev,
 			csiphybase +
 			csiphy_dev->ctrl_reg->csiphy_reg.
 			mipi_csiphy_glbl_reset_addr);
-		msm_camera_io_w(0xff,csiphybase +
+		msm_camera_io_w(0xff, csiphybase +
 			csiphy_dev->ctrl_reg->csiphy_reg.
-			mipi_csiphy_lnn_cfg4_addr+0x40);
+			mipi_csiphy_lnn_cfg4_addr + 0x40);
 	}
 
 	lane_mask &= 0x1f;
@@ -151,12 +151,6 @@ static int msm_csiphy_lane_config(struct csiphy_device *csiphy_dev,
 		msm_camera_io_w(csiphy_params->settle_cnt,
 			csiphybase + csiphy_dev->ctrl_reg->csiphy_reg.
 			mipi_csiphy_lnn_cfg3_addr + 0x40*j);
-		/* set t_CLK_MISS_COUNT for clock lane (1) to MAX */
-		if (1 == j) {
-			msm_camera_io_w(0xff,
-				csiphybase + csiphy_dev->ctrl_reg->csiphy_reg.
-				mipi_csiphy_lnn_cfg4_addr + 0x40*j);
-		}
 		msm_camera_io_w(csiphy_dev->ctrl_reg->csiphy_reg.
 			mipi_csiphy_interrupt_mask_val, csiphybase +
 			csiphy_dev->ctrl_reg->csiphy_reg.
@@ -165,6 +159,9 @@ static int msm_csiphy_lane_config(struct csiphy_device *csiphy_dev,
 			mipi_csiphy_interrupt_mask_val, csiphybase +
 			csiphy_dev->ctrl_reg->csiphy_reg.
 			mipi_csiphy_interrupt_clear_addr + 0x4*j);
+		msm_camera_io_w(0xff,
+			csiphybase + csiphy_dev->ctrl_reg->csiphy_reg.
+			mipi_csiphy_lnn_cfg4_addr + 0x40*j);
 		j++;
 		lane_mask >>= 1;
 	}
@@ -894,7 +891,8 @@ static int csiphy_probe(struct platform_device *pdev)
 	} else {
 		pr_err("%s:%d, invalid hw version : 0x%x", __func__, __LINE__,
 		new_csiphy_dev->hw_dts_version);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto csiphy_no_resource;
 	}
 
 	new_csiphy_dev->csiphy_state = CSIPHY_POWER_DOWN;
@@ -904,7 +902,7 @@ csiphy_no_resource:
 	mutex_destroy(&new_csiphy_dev->mutex);
 	kfree(new_csiphy_dev->ctrl_reg);
 	kfree(new_csiphy_dev);
-	return 0;
+	return rc;
 }
 
 static const struct of_device_id msm_csiphy_dt_match[] = {

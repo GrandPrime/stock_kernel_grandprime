@@ -30,6 +30,19 @@
 #define CDBG(fmt, args...) do { } while (0)
 #endif
 
+#ifdef CONFIG_MFD_RT5033_RESET_WA
+#ifdef CONFIG_CAM_USE_EXT_VANA_GPIO
+#define RT5033_RESET_WA_VREG_NAME    ("cam_vdig")
+#else
+#define RT5033_RESET_WA_VREG_NAME    ("cam_vana")
+#endif
+#endif
+
+#if defined(CONFIG_MACH_A5_CHN_CTC) || defined(CONFIG_MACH_A5_CHN_OPEN) || defined(CONFIG_MACH_A5_CHN_ZH) || defined(CONFIG_MACH_A5_CHN_ZT)
+extern unsigned int system_rev;
+#define RESET_REV_CHECK_NUM 10
+#endif
+
 void msm_camera_io_w(u32 data, void __iomem *addr)
 {
 	CDBG("%s: 0x%p %08x\n", __func__,  (addr), (data));
@@ -485,17 +498,21 @@ int msm_camera_config_single_vreg(struct device *dev,
 	struct camera_vreg_t *cam_vreg, struct regulator **reg_ptr, int config)
 {
 	int rc = 0;
+#ifdef CONFIG_MFD_RT5033_RESET_WA
+	int rt_rc = 0;
+#endif
+
 	if (config) {
 		if (!dev || !cam_vreg || !reg_ptr) {
 			pr_err("%s: get failed NULL parameter\n", __func__);
 			goto vreg_get_fail;
 		}
 		CDBG("%s enable %s\n", __func__, cam_vreg->reg_name);
-		if (!strncmp(cam_vreg->reg_name, "cam_vdig", 7)) {
-#if defined(CONFIG_SEC_ROSSA_PROJECT) || defined(CONFIG_SEC_J1_PROJECT)
+		if (!strncmp(cam_vreg->reg_name, "cam_vdig", 8)) {
+#if defined(CONFIG_SEC_ROSSA_PROJECT)
 			*reg_ptr = regulator_get(dev, "CAM_SENSOR_IO_1.8V");
 #else
-			*reg_ptr = regulator_get(dev, "CAM_SENSOR_CORE_1.25V");
+			*reg_ptr = regulator_get(dev, "CAM_SENSOR_CORE_1.2V");
 #endif
 			if (IS_ERR(*reg_ptr)) {
 				pr_err("%s: %s get failed\n", __func__,
@@ -503,7 +520,19 @@ int msm_camera_config_single_vreg(struct device *dev,
 				*reg_ptr = NULL;
 				goto vreg_get_fail;
 			}
-		} else if (!strncmp(cam_vreg->reg_name, "cam_vana", 8)) {
+		} 
+#ifdef CONFIG_SEC_A8_PROJECT
+				else if (!strncmp(cam_vreg->reg_name, "cam_vaf", 8)) {
+					*reg_ptr = regulator_get(dev, "CAM_SENSOR_A2.8V");
+					if (IS_ERR(*reg_ptr)) {
+						pr_err("%s: %s get failed\n", __func__,
+								cam_vreg->reg_name);
+						*reg_ptr = NULL;
+						goto vreg_get_fail;
+					}
+				}
+#else
+		else if (!strncmp(cam_vreg->reg_name, "cam_vana", 8)) {
 			*reg_ptr = regulator_get(dev, "CAM_SENSOR_A2.8V");
 			if (IS_ERR(*reg_ptr)) {
 				pr_err("%s: %s get failed\n", __func__,
@@ -511,7 +540,9 @@ int msm_camera_config_single_vreg(struct device *dev,
 				*reg_ptr = NULL;
 				goto vreg_get_fail;
 			}
-		} else {
+		}
+#endif
+		else {
 			*reg_ptr = regulator_get(dev, cam_vreg->reg_name);
 			if (IS_ERR_OR_NULL(*reg_ptr)) {
 				pr_err("%s: %s get failed\n", __func__,
@@ -541,9 +572,18 @@ int msm_camera_config_single_vreg(struct device *dev,
 			}
 		}
 #ifdef CONFIG_MFD_RT5033_RESET_WA
-		if (!strncmp(cam_vreg->reg_name, "cam_vana", 8)){
-			if(regulator_get_status(*reg_ptr) == 2)
+		if (!strncmp(cam_vreg->reg_name, RT5033_RESET_WA_VREG_NAME, 8)){
+			rt_rc = regulator_get_status(*reg_ptr);
+#if defined(CONFIG_MACH_A5_CHN_CTC) || defined(CONFIG_MACH_A5_CHN_OPEN) || defined(CONFIG_MACH_A5_CHN_ZH) || defined(CONFIG_MACH_A5_CHN_ZT)
+			if ((system_rev > RESET_REV_CHECK_NUM && rt_rc==2) || rt_rc==8)
+#else
+			if((rt_rc == 2) || (rt_rc == 8))
+#endif
+			{
 				BUG_ON(1);
+			} else {
+				pr_err("[RT5033] result : 0x%x\n", rt_rc);
+			}
 		}
 #endif
 		rc = regulator_enable(*reg_ptr);

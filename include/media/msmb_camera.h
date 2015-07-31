@@ -22,9 +22,9 @@
 
 #define QCAMERA_DEVICE_GROUP_ID	1
 #define QCAMERA_VNODE_GROUP_ID	2
-#define MSM_CAMERA_NAME					"msm_camera"
+#define MSM_CAMERA_NAME			"msm_camera"
 #define MSM_CONFIGURATION_NAME	"msm_config"
-#define MSM_CAMERA_DUMMY_NAME   "msm_cam_dummy"
+#define MSM_CAMERA_DUMMY_NAME	"msm_cam_dummy"
 
 #define MSM_CAMERA_SUBDEV_CSIPHY       0
 #define MSM_CAMERA_SUBDEV_CSID         1

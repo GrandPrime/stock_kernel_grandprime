@@ -44,13 +44,11 @@ struct msm_camera_spi_inst_tbl {
 struct msm_camera_spi_client {
 	struct spi_device *spi_master;
 	struct msm_camera_spi_inst_tbl cmd_tbl;
-	uint8_t device_id;	/*for otp*/
-	uint8_t mfr_id;	/*for otp*/
-
+	uint8_t device_id;
 	uint8_t device_id0;
 	uint8_t device_id1;
 	uint8_t device_id2;
-
+	uint8_t mfr_id;
 	uint8_t mfr_id0;
 	uint8_t mfr_id1;
 	uint8_t mfr_id2;

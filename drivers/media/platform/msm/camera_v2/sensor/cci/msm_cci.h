@@ -31,6 +31,7 @@
 #define CCI_PINCTRL_STATE_SLEEP "cci_suspend"
 #define CCI_NUM_CLK_MAX 16
 
+
 enum cci_i2c_queue_t {
 	QUEUE_0,
 	QUEUE_1,
@@ -57,6 +58,7 @@ enum msm_cci_cmd_type {
 	MSM_CCI_I2C_READ,
 	MSM_CCI_I2C_WRITE,
 	MSM_CCI_GPIO_WRITE,
+	MSM_CCI_I2C_WRITE_BURST,
 };
 
 struct msm_camera_cci_wait_sync_cfg {
